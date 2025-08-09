@@ -1,0 +1,89 @@
+    body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* Lighter gray background */
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #ffffff;
+            color: #1f2937; /* text-gray-800 */
+            border-right: 1px solid #e5e7eb; /* border-gray-200 */
+            transition: transform 0.3s ease-in-out;
+            z-index: 100;
+        }
+
+        /* Sidebar responsive behavior */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0 !important;
+            }
+        }
+
+        /* Main content styling */
+        .main-content {
+            margin-left: 280px;
+            padding: 1.5rem;
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        .sidebar .nav-link {
+            font-weight: 500;
+            color: #6b7280; /* text-gray-600 */
+            transition: background-color 0.2s, color 0.2s;
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+            padding: 0.75rem 1rem;
+        }
+        .sidebar .nav-link:hover {
+            background-color: #f3f4f6; /* hover:bg-gray-100 */
+            color: #111827; /* hover:text-gray-900 */
+        }
+        .sidebar .nav-link.active {
+            background-color: #2563eb;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .sidebar .nav-link.active:hover {
+            background-color: #1d4ed8;
+            color: #ffffff;
+        }
+
+        /* Card styling */
+        .card-custom {
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Header styling */
+        .header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        /* Offcanvas Toggle Button (visible on mobile) */
+        .offcanvas-toggle-btn {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 101;
+        }
+
+        /* Simple animation for new data */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
