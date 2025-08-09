@@ -93,25 +93,36 @@ function add($json) {
     include "connection.php";
     $data = json_decode($json, true);
 
-    if (empty($data['full_name']) || empty($data['email'])) {
-        return ['success' => false, 'message' => 'Full name and email are required.'];
+    if (empty($data['full_name']) || empty($data['email']) || empty($data['password'])) {
+        return ['success' => false, 'message' => 'Full name, email, and password are required.'];
     }
 
-    $defaultRoleId = 3; // Set the appropriate role id for patients
+    $defaultRoleId = 3; // Patient role id
+
+    // Hash the password securely
+    $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
 
     $conn->beginTransaction();
 
     try {
-        $stmtUser = $conn->prepare("INSERT INTO tbl_users (name, email, role_id) VALUES (:name, :email, :role_id)");
+        // Insert into users table including password hash
+        $stmtUser = $conn->prepare("
+            INSERT INTO tbl_users (name, email, password, role_id)
+            VALUES (:name, :email, :password, :role_id)
+        ");
         $stmtUser->bindParam(':name', $data['full_name']);
         $stmtUser->bindParam(':email', $data['email']);
+        $stmtUser->bindParam(':password', $passwordHash);
         $stmtUser->bindParam(':role_id', $defaultRoleId);
         $stmtUser->execute();
 
         $userId = $conn->lastInsertId();
 
-        $stmtPatient = $conn->prepare("INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
-                                       VALUES (:user_id, :sex, :contact_num, :birthdate, :address)");
+        // Insert into patients table
+        $stmtPatient = $conn->prepare("
+            INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
+            VALUES (:user_id, :sex, :contact_num, :birthdate, :address)
+        ");
         $stmtPatient->bindParam(':user_id', $userId);
         $stmtPatient->bindParam(':sex', $data['sex']);
         $stmtPatient->bindParam(':contact_num', $data['contact_num']);

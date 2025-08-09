@@ -47,36 +47,49 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Add new patient submit handler
   addPatientForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const formData = new FormData(addPatientForm);
-    const jsonPayload = JSON.stringify({
-      full_name: formData.get("full_name"),
-      email: formData.get("email"),
-      sex: formData.get("sex"),
-      contact_num: formData.get("contact_num"),
-      birthdate: formData.get("birthdate"),
-      address: formData.get("address"),
-    });
+  e.preventDefault();
+  const formData = new FormData(addPatientForm);
 
-    const payload = new FormData();
-    payload.append("operation", "add");
-    payload.append("json", jsonPayload);
+  const password = formData.get("password");
+  const confirmPassword = formData.get("confirm_password");
 
-    try {
-      const response = await axios.post(patientApiUrl, payload);
-      if (response.data.success) {
-        Swal.fire("Success", response.data.message, "success");
-        addPatientForm.reset();
-        addPatientModal.hide();
-        loadPatients();
-      } else {
-        Swal.fire("Error", response.data.message, "error");
-      }
-    } catch (error) {
-      console.error("Error adding patient", error);
-      Swal.fire("Error", "Something went wrong", "error");
-    }
+  // Validate passwords match
+  if (password !== confirmPassword) {
+    Swal.fire("Error", "Passwords do not match.", "error");
+    return;
+  }
+
+  // Optionally add password strength check here
+
+  const jsonPayload = JSON.stringify({
+    full_name: formData.get("full_name"),
+    email: formData.get("email"),
+    sex: formData.get("sex"),
+    contact_num: formData.get("contact_num"),
+    birthdate: formData.get("birthdate"),
+    address: formData.get("address"),
+    password: password // send password to backend
   });
+
+  const payload = new FormData();
+  payload.append("operation", "add");
+  payload.append("json", jsonPayload);
+
+  try {
+    const response = await axios.post(patientApiUrl, payload);
+    if (response.data.success) {
+      Swal.fire("Success", response.data.message, "success");
+      addPatientForm.reset();
+      addPatientModal.hide();
+      loadPatients();
+    } else {
+      Swal.fire("Error", response.data.message, "error");
+    }
+  } catch (error) {
+    console.error("Error adding patient", error);
+    Swal.fire("Error", "Something went wrong", "error");
+  }
+});
 
   // Delete patient handler
   window.deletePatient = async (patientId) => {
