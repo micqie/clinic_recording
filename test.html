@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medicine Management</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- SweetAlert2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+</head>
+<body>
+<div class="container my-4">
+  <h1 class="mb-4">Medicine Management</h1>
+
+  <!-- Add Medicine Button -->
+  <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addMedicineModal">Add Medicine</button>
+
+  <!-- Medicines Table -->
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Unit</th>
+        <th>Stock</th>
+        <th>Form</th>
+        <th>Created At</th>
+        <th>Updated At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="medicineTableBody"></tbody>
+  </table>
+</div>
+
+<!-- View Medicine Modal -->
+<div class="modal fade" id="viewMedicineModal" tabindex="-1" aria-labelledby="viewMedicineModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="viewMedicineModalLabel">Medicine Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="viewMedicineContent">
+        <!-- Filled dynamically -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Medicine Modal -->
+<div class="modal fade" id="addMedicineModal" tabindex="-1" aria-labelledby="addMedicineModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="addMedicineForm" class="modal-content needs-validation" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title" id="addMedicineModalLabel">Add Medicine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="name" class="form-label">Medicine Name</label>
+          <input type="text" class="form-control" id="name" name="name" required />
+          <div class="invalid-feedback">Please enter medicine name.</div>
+        </div>
+        <div class="mb-3">
+          <label for="price" class="form-label">Price</label>
+          <input type="number" step="0.01" min="0" class="form-control" id="price" name="price" required />
+          <div class="invalid-feedback">Please enter a valid price.</div>
+        </div>
+        <div class="mb-3">
+          <label for="quantity" class="form-label">Quantity (Amount per unit)</label>
+          <input type="number" min="0" class="form-control" id="quantity" name="quantity" required />
+          <div class="invalid-feedback">Please enter quantity.</div>
+        </div>
+        <div class="mb-3">
+          <label for="unit_id" class="form-label">Unit</label>
+          <select id="add_unit_id" name="unit_id" class="form-select" required>
+            <option value="">Select Unit</option>
+            <!-- Options populated dynamically -->
+          </select>
+          <div class="invalid-feedback">Please select a unit.</div>
+        </div>
+        <div class="mb-3">
+          <label for="stock" class="form-label">Stock</label>
+          <input type="number" min="0" class="form-control" id="stock" name="stock" required />
+          <div class="invalid-feedback">Please enter stock.</div>
+        </div>
+        <div class="mb-3">
+          <label for="form_id" class="form-label">Form</label>
+          <select id="add_form_id" name="form_id" class="form-select" required>
+            <option value="">Select Form</option>
+            <!-- Options populated dynamically -->
+          </select>
+          <div class="invalid-feedback">Please select a form.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Add Medicine</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Medicine Modal -->
+<div class="modal fade" id="editMedicineModal" tabindex="-1" aria-labelledby="editMedicineModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="editMedicineForm" class="modal-content needs-validation" novalidate>
+      <div class="modal-header">
+        <h5 class="modal-title" id="editMedicineModalLabel">Edit Medicine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- hidden id -->
+        <input type="hidden" id="edit_medicine_id" name="medicine_id" />
+
+        <div class="mb-3">
+          <label for="edit_name" class="form-label">Medicine Name</label>
+          <input type="text" class="form-control" id="edit_name" name="name" required />
+          <div class="invalid-feedback">Please enter medicine name.</div>
+        </div>
+        <div class="mb-3">
+          <label for="edit_price" class="form-label">Price</label>
+          <input type="number" step="0.01" min="0" class="form-control" id="edit_price" name="price" required />
+          <div class="invalid-feedback">Please enter a valid price.</div>
+        </div>
+        <div class="mb-3">
+          <label for="edit_quantity" class="form-label">Quantity (Amount per unit)</label>
+          <input type="number" min="0" class="form-control" id="edit_quantity" name="quantity" required />
+          <div class="invalid-feedback">Please enter quantity.</div>
+        </div>
+        <div class="mb-3">
+          <label for="edit_unit_id" class="form-label">Unit</label>
+          <select id="edit_unit_id" name="unit_id" class="form-select" required>
+            <option value="">Select Unit</option>
+            <!-- Options populated dynamically -->
+          </select>
+          <div class="invalid-feedback">Please select a unit.</div>
+        </div>
+        <div class="mb-3">
+          <label for="edit_stock" class="form-label">Stock</label>
+          <input type="number" min="0" class="form-control" id="edit_stock" name="stock" required />
+          <div class="invalid-feedback">Please enter stock.</div>
+        </div>
+        <div class="mb-3">
+          <label for="edit_form_id" class="form-label">Form</label>
+          <select id="edit_form_id" name="form_id" class="form-select" required>
+            <option value="">Select Form</option>
+            <!-- Options populated dynamically -->
+          </select>
+          <div class="invalid-feedback">Please select a form.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<!-- Bootstrap Bundle JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Your JS file (or inline script) -->
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+  const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
+  const medicineApiUrl = `${baseApiUrl}/medicines.php`;
+
+  const medicineTableBody = document.getElementById("medicineTableBody");
+  const addMedicineForm = document.getElementById("addMedicineForm");
+  const editMedicineForm = document.getElementById("editMedicineForm");
+
+  // Bootstrap modal instances
+  const viewMedicineModal = new bootstrap.Modal(document.getElementById('viewMedicineModal'));
+  const editMedicineModal = new bootstrap.Modal(document.getElementById('editMedicineModal'));
+  const addMedicineModal = new bootstrap.Modal(document.getElementById('addMedicineModal'));
+
+  // Cache form and unit options for dropdowns (used in add/edit forms)
+  let medicineForms = [];
+  let medicineUnits = [];
+
+  // Load forms and units for dropdowns
+  async function loadFormsAndUnits() {
+    try {
+      const [formsResp, unitsResp] = await Promise.all([
+        axios.get(`${medicineApiUrl}?operation=get_forms`),
+        axios.get(`${medicineApiUrl}?operation=get_units`),
+      ]);
+      medicineForms = formsResp.data.forms || [];
+      medicineUnits = unitsResp.data.units || [];
+      populateSelectOptions('add_form_id', medicineForms);
+      populateSelectOptions('add_unit_id', medicineUnits);
+      populateSelectOptions('edit_form_id', medicineForms);
+      populateSelectOptions('edit_unit_id', medicineUnits);
+    } catch (error) {
+      console.error("Failed to load forms or units", error);
+    }
+  }
+
+  // Helper: populate a select element with options from array of {form_id/unit_id, form_name/unit_name}
+  function populateSelectOptions(selectId, options) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = `<option value="">Select</option>`;
+    options.forEach(opt => {
+      const idKey = Object.keys(opt).find(k => k.includes("id"));
+      const nameKey = Object.keys(opt).find(k => k.includes("name"));
+      select.insertAdjacentHTML("beforeend", `<option value="${opt[idKey]}">${opt[nameKey]}</option>`);
+    });
+  }
+
+  // Load medicines and populate table
+  async function loadMedicines() {
+    try {
+      const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
+      const medicines = response.data || [];
+      medicineTableBody.innerHTML = "";
+
+      medicines.forEach(med => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${med.name}</td>
+          <td>${med.price}</td>
+          <td>${med.quantity}</td>
+          <td>${med.unit}</td>
+          <td>${med.stock}</td>
+          <td>${med.form}</td>
+          <td>${med.created_at}</td>
+          <td>${med.updated_at}</td>
+          <td>
+            <button class="btn btn-sm btn-info me-1" onclick="viewMedicine(${med.medicine_id})">View</button>
+            <button class="btn btn-sm btn-warning me-1" onclick="editMedicine(${med.medicine_id})">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteMedicine(${med.medicine_id})">Delete</button>
+          </td>
+        `;
+        medicineTableBody.appendChild(row);
+      });
+    } catch (error) {
+      console.error("Failed to load medicines", error);
+    }
+  }
+
+  // Add medicine submit handler
+  addMedicineForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(addMedicineForm);
+
+    const jsonPayload = JSON.stringify({
+      name: formData.get("name"),
+      price: parseFloat(formData.get("price")),
+      quantity: parseInt(formData.get("quantity")),
+      unit_id: formData.get("unit_id"),
+      stock: parseInt(formData.get("stock")),
+      form_id: formData.get("form_id"),
+    });
+
+    const payload = new FormData();
+    payload.append("operation", "add");
+    payload.append("json", jsonPayload);
+
+    try {
+      const response = await axios.post(medicineApiUrl, payload);
+      if (response.data.success) {
+        Swal.fire("Success", response.data.message, "success");
+        addMedicineForm.reset();
+        addMedicineModal.hide();
+        loadMedicines();
+      } else {
+        Swal.fire("Error", response.data.message, "error");
+      }
+    } catch (error) {
+      console.error("Error adding medicine", error);
+      Swal.fire("Error", "Something went wrong", "error");
+    }
+  });
+
+  // Delete medicine
+  window.deleteMedicine = async (medicineId) => {
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Are you sure?",
+      text: "This will permanently delete the medicine.",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete it!",
+    });
+
+    if (confirm.isConfirmed) {
+      const payload = new FormData();
+      payload.append("operation", "delete");
+      payload.append("medicine_id", medicineId);
+
+      try {
+        const response = await axios.post(medicineApiUrl, payload);
+        if (response.data.success) {
+          Swal.fire("Deleted", response.data.message, "success");
+          loadMedicines();
+        } else {
+          Swal.fire("Error", response.data.message, "error");
+        }
+      } catch (error) {
+        console.error("Delete error", error);
+        Swal.fire("Error", "Could not delete medicine.", "error");
+      }
+    }
+  };
+
+  // View medicine modal
+  window.viewMedicine = async (medicineId) => {
+    try {
+      // Your backend currently does not have a get by id endpoint.
+      // So we fetch all and find one locally for now (or you can add a backend get by id)
+      const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
+      const med = response.data.find(m => m.medicine_id == medicineId);
+      if (!med) {
+        Swal.fire("Error", "Medicine not found", "error");
+        return;
+      }
+
+      const content = `
+        <p><strong>Name:</strong> ${med.name}</p>
+        <p><strong>Price:</strong> ${med.price}</p>
+        <p><strong>Quantity:</strong> ${med.quantity}</p>
+        <p><strong>Unit:</strong> ${med.unit}</p>
+        <p><strong>Stock:</strong> ${med.stock}</p>
+        <p><strong>Form:</strong> ${med.form}</p>
+        <p><strong>Created At:</strong> ${med.created_at}</p>
+        <p><strong>Updated At:</strong> ${med.updated_at}</p>
+      `;
+
+      document.getElementById("viewMedicineContent").innerHTML = content;
+      viewMedicineModal.show();
+    } catch (err) {
+      console.error("View medicine error:", err);
+      Swal.fire("Error", "Something went wrong.", "error");
+    }
+  };
+
+  // Edit medicine modal show + populate fields
+  window.editMedicine = async (medicineId) => {
+    try {
+      // Same as view, we load all and find one locally due to no get by id API
+      const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
+      const med = response.data.find(m => m.medicine_id == medicineId);
+      if (!med) {
+        Swal.fire("Error", "Medicine not found", "error");
+        return;
+      }
+
+      document.getElementById("edit_medicine_id").value = med.medicine_id;
+      document.getElementById("edit_name").value = med.name;
+      document.getElementById("edit_price").value = med.price;
+      document.getElementById("edit_quantity").value = med.quantity;
+      document.getElementById("edit_stock").value = med.stock;
+
+      // Select unit and form dropdowns
+      document.getElementById("edit_unit_id").value = medicineUnits.find(u => u.unit_name === med.unit)?.unit_id || "";
+      document.getElementById("edit_form_id").value = medicineForms.find(f => f.form_name === med.form)?.form_id || "";
+
+      editMedicineModal.show();
+    } catch (err) {
+      console.error("Edit medicine error:", err);
+      Swal.fire("Error", "Something went wrong.", "error");
+    }
+  };
+
+  // Save changes from edit modal
+  editMedicineForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(editMedicineForm);
+
+    const jsonPayload = JSON.stringify({
+      medicine_id: formData.get("medicine_id"),
+      name: formData.get("name"),
+      price: parseFloat(formData.get("price")),
+      quantity: parseInt(formData.get("quantity")),
+      unit_id: formData.get("unit_id"),
+      stock: parseInt(formData.get("stock")),
+      form_id: formData.get("form_id"),
+    });
+
+    const payload = new FormData();
+    payload.append("operation", "update");
+    payload.append("json", jsonPayload);
+
+    try {
+      const response = await axios.post(medicineApiUrl, payload);
+      if (response.data.success) {
+        Swal.fire("Success", response.data.message, "success");
+        editMedicineModal.hide();
+        loadMedicines();
+      } else {
+        Swal.fire("Error", response.data.message, "error");
+      }
+    } catch (error) {
+      console.error("Error updating medicine", error);
+      Swal.fire("Error", "Something went wrong", "error");
+    }
+  });
+
+  // Initial load
+  loadFormsAndUnits().then(loadMedicines);
+});
+
+</script>
+</body>
+</html>

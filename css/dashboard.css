@@ -1,89 +1,128 @@
-    body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f9fafb; /* Lighter gray background */
-        }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9fafb; /* Lighter gray background */
+  margin: 0;
+  padding: 0;
+}
+.sidebar {
+  width: 250px;
+  position: fixed;
+  top:80px; /* Push below navbar */
+  bottom: 0;
+  left: 0;
+  background-color: #f8f9fa;
+  overflow-y: auto;
+  padding-top: 1rem;
+}
 
-        /* Sidebar styling */
-        .sidebar {
-            width: 280px;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            background-color: #ffffff;
-            color: #1f2937; /* text-gray-800 */
-            border-right: 1px solid #e5e7eb; /* border-gray-200 */
-            transition: transform 0.3s ease-in-out;
-            z-index: 100;
-        }
+.container {
+  margin-left: 270px; /* slightly more than sidebar width for spacing */
+  padding: 1.5rem;
+}
 
-        /* Sidebar responsive behavior */
-        @media (max-width: 991.98px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .sidebar.show {
-                transform: translateX(0);
-            }
-            .main-content {
-                margin-left: 0 !important;
-            }
-        }
+@media (max-width: 991.98px) {
+  .sidebar {
+    display: none;
+  }
+  .container {
+    margin-left: 0;
+    padding: 1rem;
+  }
+}
 
-        /* Main content styling */
-        .main-content {
-            margin-left: 280px;
-            padding: 1.5rem;
-            transition: margin-left 0.3s ease-in-out;
-        }
+/* Sidebar nav links */
+.sidebar .nav-link {
+  font-weight: 500;
+  color: #6b7280; /* gray-600 */
+  transition: background-color 0.2s, color 0.2s;
+  border-radius: 0.5rem;
+  margin: 0.25rem 0;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+}
 
-        .sidebar .nav-link {
-            font-weight: 500;
-            color: #6b7280; /* text-gray-600 */
-            transition: background-color 0.2s, color 0.2s;
-            border-radius: 0.5rem;
-            margin: 0.25rem 0;
-            padding: 0.75rem 1rem;
-        }
-        .sidebar .nav-link:hover {
-            background-color: #f3f4f6; /* hover:bg-gray-100 */
-            color: #111827; /* hover:text-gray-900 */
-        }
-        .sidebar .nav-link.active {
-            background-color: #2563eb;
-            color: #ffffff;
-            font-weight: 600;
-        }
-        .sidebar .nav-link.active:hover {
-            background-color: #1d4ed8;
-            color: #ffffff;
-        }
+.sidebar .nav-link:hover {
+  background-color: #f3f4f6; /* hover:bg-gray-100 */
+  color: #111827; /* hover:text-gray-900 */
+}
 
-        /* Card styling */
-        .card-custom {
-            border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-        }
+.sidebar .nav-link.active {
+  background-color: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
 
-        /* Header styling */
-        .header {
-            background-color: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
-        }
+.sidebar .nav-link.active:hover {
+  background-color: #1d4ed8;
+  color: #fff;
+}
 
-        /* Offcanvas Toggle Button (visible on mobile) */
-        .offcanvas-toggle-btn {
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            z-index: 101;
-        }
+/* Icon spacing inside nav links */
+.sidebar .nav-link i {
+  margin-right: 0.75rem;
+}
 
-        /* Simple animation for new data */
-        .fade-in {
-            animation: fadeIn 0.5s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+
+
+/* Card styling */
+.card-custom {
+  border-radius: 0.75rem;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1);
+}
+
+/* Header styling */
+.header,
+.container > h1 {
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+/* Offcanvas toggle button */
+.offcanvas-toggle-btn {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1050;
+  background-color: #2563eb;
+  border: none;
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: none;
+  transition: background-color 0.2s;
+}
+
+.offcanvas-toggle-btn:hover {
+  background-color: #1d4ed8;
+}
+
+/* Show toggle button on smaller screens */
+@media (max-width: 991.98px) {
+  .offcanvas-toggle-btn {
+    display: block;
+  }
+}
+
+/* Simple animation for new data */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

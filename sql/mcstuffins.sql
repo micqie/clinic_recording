@@ -243,3 +243,29 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+
+CREATE TABLE tbl_medicine_forms (
+    form_id INT AUTO_INCREMENT PRIMARY KEY,
+    form_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+
+CREATE TABLE tbl_medicine_units (
+    unit_id INT AUTO_INCREMENT PRIMARY KEY,
+    unit_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE tbl_medicines (
+    medicine_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    quantity INT NOT NULL,           -- The amount per unit, e.g., 100 (like 100 ml)
+    unit_id INT NOT NULL,            -- Foreign key to units (ml, tablet, etc.)
+    stock INT DEFAULT 0,             -- How many units currently available (stock)
+    form_id INT NOT NULL,            -- Foreign key to medicine form
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (form_id) REFERENCES tbl_medicine_forms(form_id),
+    FOREIGN KEY (unit_id) REFERENCES tbl_medicine_units(unit_id)
+);
