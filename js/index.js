@@ -34,13 +34,13 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
           switch (user.role) {
             case "doctor":
-              window.location.href = "html/doctor_dashboard.html";
+              window.location.href = "html/doctor/doctor_dashboard.html";
               break;
             case "secretary":
-              window.location.href = "html/secretary_dashboard.html";
+              window.location.href = "html/secretary/secretary_dashboard.html";
               break;
             case "patient":
-              window.location.href = "html/patient_dashboard.html";
+              window.location.href = "html/patient/patient_dashboard.html";
               break;
             default:
               Swal.fire({

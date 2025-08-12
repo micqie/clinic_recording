@@ -1,24 +1,68 @@
+/* Custom styled table */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white-color);
+  box-shadow: 0 4px 8px var(--shadow-light);
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.95rem;
+}
 
-           /* Sidebar styling */
-    .sidebar {
-      width: 250px;
-      position: fixed;
-       top:80px; /* Push below navbar */
-      background-color: #f8f9fa;
-      overflow-y: auto;
-      padding-top: 1rem;
-    }
-    /* Content container margin to avoid sidebar */
-    .container {
-      margin-left: 250px;
-        padding-top: 80px;
-    }
-    /* Responsive adjustments */
-    @media (max-width: 991.98px) {
-      .sidebar {
-        display: none;
-      }
-      .container {
-        margin-left: 0;
-      }
-    }
+.custom-table thead {
+  background: var(--primary-color);
+  color: var(--white-color);
+}
+
+.custom-table thead th {
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  user-select: none;
+}
+
+.custom-table tbody tr {
+  border-bottom: 1px solid #ddd;
+  transition: background-color 0.3s ease;
+}
+
+.custom-table tbody tr:hover {
+  background-color: var(--blue-hover);
+  color: var(--white-color);
+}
+
+.custom-table tbody td {
+  padding: 10px 15px;
+  vertical-align: middle;
+}
+
+.custom-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* For action buttons in table */
+.table-actions button {
+  margin-right: 5px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--primary-color);
+  transition: color 0.3s ease;
+}
+
+.table-actions button:hover {
+  color: var(--blue-hover);
+}
+
+
+.action-btn {
+  min-width: 60px;      /* fixed minimum width for buttons */
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  white-space: nowrap;  /* prevent wrapping inside buttons */
+  font-size: 0.875rem;  /* smaller font */
+}
+
+td.text-nowrap {
+  white-space: nowrap;  /* prevent button group wrapping */
+}
