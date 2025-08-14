@@ -36,6 +36,7 @@
                       <th>Queue #</th>
                       <th>Patient</th>
                       <th>Status</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody id="docAppointmentsTableBody"></tbody>
@@ -43,8 +44,110 @@
               </div>
             </div>
           </div>
+
+          <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-0">
+              <div class="p-3 d-flex align-items-center justify-content-between">
+                <h5 class="section-title mb-0"><i class="fa-solid fa-flask me-1"></i> My Lab Requests</h5>
+                <span class="badge bg-primary fs-6" id="labRequestCount">0</span>
+              </div>
+              <div class="table-responsive table-compact">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Created</th>
+                      <th>Patient</th>
+                      <th>Appointment</th>
+                      <th>Status</th>
+                      <th>Request Details</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="docLabRequestsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
+    </div>
+
+    <!-- Create Lab Request Modal -->
+    <div class="modal fade" id="labRequestModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <form id="labRequestForm" class="modal-content needs-validation" novalidate>
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title"><i class="fas fa-flask me-2"></i>Create Lab Request</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="lr_patient_id" name="patient_id" />
+            <input type="hidden" id="lr_appointment_id" name="appointment_id" />
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Patient Name</label>
+                  <input type="text" class="form-control" id="lr_patient_name" readonly />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Appointment Date</label>
+                  <input type="text" class="form-control" id="lr_appointment_date" readonly />
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Lab Request Details</label>
+              <textarea id="lr_text" name="request_text" class="form-control" rows="6" 
+                placeholder="Enter detailed lab request instructions (e.g., CBC, X-ray, Blood Chemistry, etc.)" required></textarea>
+              <div class="invalid-feedback">Please enter lab request details.</div>
+              <div class="form-text">Be specific about the tests, procedures, or examinations needed.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-paper-plane me-2"></i>Send Request
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Update Lab Request Status Modal -->
+    <div class="modal fade" id="updateStatusModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <form id="updateStatusForm" class="modal-content needs-validation" novalidate>
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Update Lab Request Status</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="us_lab_request_id" name="lab_request_id" />
+            <div class="mb-3">
+              <label class="form-label fw-bold">Current Status</label>
+              <input type="text" class="form-control" id="us_current_status" readonly />
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">New Status</label>
+              <select class="form-select" id="us_new_status" name="status" required>
+                <option value="">Select new status</option>
+                <option value="Processing">Processing</option>
+                <option value="Ready">Ready</option>
+                <option value="Delivered">Delivered</option>
+              </select>
+              <div class="invalid-feedback">Please select a new status.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save me-2"></i>Update Status
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>

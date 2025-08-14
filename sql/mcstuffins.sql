@@ -550,7 +550,8 @@ CREATE TABLE IF NOT EXISTS `tbl_lab_requests` (
   `appointment_id` int(11) DEFAULT NULL,
   `request_text` text NOT NULL,
   `status_id` int(11) DEFAULT NULL,
-  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
