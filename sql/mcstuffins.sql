@@ -578,6 +578,98 @@ ALTER TABLE `tbl_lab_requests`
   ADD CONSTRAINT `tbl_lab_requests_ibfk_2` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `tbl_lab_requests_ibfk_3` FOREIGN KEY (`appointment_id`) REFERENCES `tbl_appointments` (`appointment_id`) ON DELETE SET NULL,
   ADD CONSTRAINT `tbl_lab_requests_ibfk_4` FOREIGN KEY (`status_id`) REFERENCES `tbl_status` (`status_id`);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tbl_diagnoses`
+--
+
+CREATE TABLE IF NOT EXISTS `tbl_diagnoses` (
+  `diagnosis_id` int(11) NOT NULL,
+  `appointment_id` int(11) NOT NULL,
+  `doctor_id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `condition_name` varchar(255) NOT NULL,
+  `date_diagnosed` date NOT NULL,
+  `severity` enum('Mild','Moderate','Severe','Critical') NOT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tbl_prescriptions`
+--
+
+CREATE TABLE IF NOT EXISTS `tbl_prescriptions` (
+  `prescription_id` int(11) NOT NULL,
+  `diagnosis_id` int(11) NOT NULL,
+  `appointment_id` int(11) NOT NULL,
+  `doctor_id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `medicine_id` int(11) NOT NULL,
+  `dosage` varchar(100) NOT NULL,
+  `frequency` varchar(100) NOT NULL,
+  `duration` varchar(100) NOT NULL,
+  `instructions` text DEFAULT NULL,
+  `status` enum('Active','Completed','Cancelled') DEFAULT 'Active',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Indexes for table `tbl_diagnoses`
+--
+ALTER TABLE `tbl_diagnoses`
+  ADD PRIMARY KEY (`diagnosis_id`),
+  ADD KEY `appointment_id` (`appointment_id`),
+  ADD KEY `doctor_id` (`doctor_id`),
+  ADD KEY `patient_id` (`patient_id`);
+
+--
+-- Indexes for table `tbl_prescriptions`
+--
+ALTER TABLE `tbl_prescriptions`
+  ADD PRIMARY KEY (`prescription_id`),
+  ADD KEY `diagnosis_id` (`diagnosis_id`),
+  ADD KEY `appointment_id` (`appointment_id`),
+  ADD KEY `doctor_id` (`doctor_id`),
+  ADD KEY `patient_id` (`patient_id`),
+  ADD KEY `medicine_id` (`medicine_id`);
+
+--
+-- AUTO_INCREMENT for table `tbl_diagnoses`
+--
+ALTER TABLE `tbl_diagnoses`
+  MODIFY `diagnosis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
+
+--
+-- AUTO_INCREMENT for table `tbl_prescriptions`
+--
+ALTER TABLE `tbl_prescriptions`
+  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
+
+--
+-- Constraints for table `tbl_diagnoses`
+--
+ALTER TABLE `tbl_diagnoses`
+  ADD CONSTRAINT `tbl_diagnoses_ibfk_1` FOREIGN KEY (`appointment_id`) REFERENCES `tbl_appointments` (`appointment_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_diagnoses_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_diagnoses_ibfk_3` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `tbl_prescriptions`
+--
+ALTER TABLE `tbl_prescriptions`
+  ADD CONSTRAINT `tbl_prescriptions_ibfk_1` FOREIGN KEY (`diagnosis_id`) REFERENCES `tbl_diagnoses` (`diagnosis_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_prescriptions_ibfk_2` FOREIGN KEY (`appointment_id`) REFERENCES `tbl_appointments` (`appointment_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_prescriptions_ibfk_3` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_prescriptions_ibfk_4` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_prescriptions_ibfk_5` FOREIGN KEY (`medicine_id`) REFERENCES `tbl_medicines` (`medicine_id`) ON DELETE CASCADE;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

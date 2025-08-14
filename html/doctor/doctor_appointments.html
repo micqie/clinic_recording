@@ -68,6 +68,33 @@
               </div>
             </div>
           </div>
+
+          <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-0">
+              <div class="p-3 d-flex align-items-center justify-content-between">
+                <h5 class="section-title mb-0"><i class="fa-solid fa-pills me-1"></i> My Prescriptions</h5>
+                <span class="badge bg-info fs-6" id="prescriptionCount">0</span>
+              </div>
+              <div class="table-responsive table-compact">
+                <table class="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Created</th>
+                      <th>Patient</th>
+                      <th>Diagnosis</th>
+                      <th>Medicine</th>
+                      <th>Dosage</th>
+                      <th>Frequency</th>
+                      <th>Duration</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="docPrescriptionsTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -143,6 +170,163 @@
           <div class="modal-footer">
             <button type="submit" class="btn btn-success">
               <i class="fas fa-save me-2"></i>Update Status
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Diagnosis Modal -->
+    <div class="modal fade" id="diagnosisModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <form id="diagnosisForm" class="modal-content needs-validation" novalidate>
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title"><i class="fas fa-stethoscope me-2"></i>Add Diagnosis</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="diag_patient_id" name="patient_id" />
+            <input type="hidden" id="diag_appointment_id" name="appointment_id" />
+            <input type="hidden" id="diag_doctor_id" name="doctor_id" />
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Patient Name</label>
+                  <input type="text" class="form-control" id="diag_patient_name" readonly />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Appointment Date</label>
+                  <input type="text" class="form-control" id="diag_appointment_date" readonly />
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Condition Name</label>
+                  <input type="text" class="form-control" id="diag_condition_name" name="condition_name" 
+                    placeholder="e.g., Hypertension, Diabetes, etc." required />
+                  <div class="invalid-feedback">Please enter the condition name.</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Date Diagnosed</label>
+                  <input type="date" class="form-control" id="diag_date_diagnosed" name="date_diagnosed" required />
+                  <div class="invalid-feedback">Please select the diagnosis date.</div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Severity</label>
+                  <select class="form-select" id="diag_severity" name="severity" required>
+                    <option value="">Select Severity</option>
+                    <option value="Mild">Mild</option>
+                    <option value="Moderate">Moderate</option>
+                    <option value="Severe">Severe</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                  <div class="invalid-feedback">Please select severity level.</div>
+                </div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Notes</label>
+              <textarea class="form-control" id="diag_notes" name="notes" rows="3" 
+                placeholder="Additional notes about the diagnosis"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-success">
+              <i class="fas fa-save me-2"></i>Save Diagnosis
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Prescription Modal -->
+    <div class="modal fade" id="prescriptionModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <form id="prescriptionForm" class="modal-content needs-validation" novalidate>
+          <div class="modal-header bg-info text-white">
+            <h5 class="modal-title"><i class="fas fa-pills me-2"></i>Add Prescription</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="pres_patient_id" name="patient_id" />
+            <input type="hidden" id="pres_appointment_id" name="appointment_id" />
+            <input type="hidden" id="pres_doctor_id" name="doctor_id" />
+            <input type="hidden" id="pres_diagnosis_id" name="diagnosis_id" />
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Patient Name</label>
+                  <input type="text" class="form-control" id="pres_patient_name" readonly />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Diagnosis</label>
+                  <input type="text" class="form-control" id="pres_diagnosis_name" readonly />
+                </div>
+              </div>
+            </div>
+                         <div class="row">
+               <div class="col-md-12">
+                 <div class="mb-3">
+                   <label class="form-label fw-bold">Select Medicine</label>
+                   <select class="form-select" id="pres_medicine_id" name="medicine_id" required>
+                     <option value="">Choose from available medicines...</option>
+                   </select>
+                   <div class="invalid-feedback">Please select a medicine.</div>
+                   <div class="form-text">Available medicines with prices and stock levels are shown above.</div>
+                 </div>
+               </div>
+             </div>
+             <div class="row">
+               <div class="col-md-6">
+                 <div class="mb-3">
+                   <label class="form-label fw-bold">Dosage</label>
+                   <input type="text" class="form-control" id="pres_dosage" name="dosage" 
+                     placeholder="e.g., 500mg, 1 tablet" required />
+                   <div class="invalid-feedback">Please enter dosage.</div>
+                 </div>
+               </div>
+               <div class="col-md-6">
+                 <div class="mb-3">
+                   <label class="form-label fw-bold">Frequency</label>
+                   <input type="text" class="form-control" id="pres_frequency" name="frequency" 
+                     placeholder="e.g., 3 times a day" required />
+                   <div class="invalid-feedback">Please enter frequency.</div>
+                 </div>
+               </div>
+             </div>
+             <div class="row">
+               <div class="col-md-6">
+                 <div class="mb-3">
+                   <label class="form-label fw-bold">Duration</label>
+                   <input type="text" class="form-control" id="pres_duration" name="duration" 
+                     placeholder="e.g., 7 days, until finished" required />
+                   <div class="invalid-feedback">Please enter duration.</div>
+                 </div>
+               </div>
+             </div>
+            <div class="mb-3">
+              <label class="form-label fw-bold">Instructions</label>
+              <textarea class="form-control" id="pres_instructions" name="instructions" rows="3" 
+                placeholder="Special instructions for the patient"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-info">
+              <i class="fas fa-save me-2"></i>Save Prescription
             </button>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           </div>
