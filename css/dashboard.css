@@ -348,3 +348,175 @@
     border-top: 1px solid rgba(0, 0, 0, 0.05);
     padding: 1.25rem;
 }
+
+    /* Status Badges (Appointments/Payments/Lab) */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      line-height: 1;
+      letter-spacing: 0.2px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .status--pending {
+      color: var(--warning-color);
+      background: rgba(255, 193, 7, 0.12);
+      border-color: rgba(255, 193, 7, 0.45);
+    }
+
+    .status--confirmed,
+    .status--paid,
+    .status--ready {
+      color: var(--success-color);
+      background: rgba(40, 167, 69, 0.10);
+      border-color: rgba(40, 167, 69, 0.45);
+    }
+
+    .status--unpaid,
+    .status--processing {
+      color: var(--info-color);
+      background: rgba(23, 162, 184, 0.10);
+      border-color: rgba(23, 162, 184, 0.45);
+    }
+
+    .status--completed {
+      color: var(--primary-color);
+      background: rgba(0, 123, 255, 0.10);
+      border-color: rgba(0, 123, 255, 0.35);
+    }
+
+    .status--cancelled,
+    .status--noshow,
+    .status--refunded {
+      color: var(--danger-color);
+      background: rgba(220, 53, 69, 0.10);
+      border-color: rgba(220, 53, 69, 0.45);
+    }
+
+    /* Queue number chip */
+    .queue-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 2.25rem;
+      height: 2rem;
+      padding: 0 0.5rem;
+      border-radius: 0.6rem;
+      color: var(--white-color);
+      background: var(--primary-color);
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0, 123, 255, 0.25);
+    }
+
+    /* Row tone by status (optional, apply class on <tr>) */
+    .row-status--completed td { background-color: rgba(40, 167, 69, 0.04); }
+    .row-status--cancelled td { background-color: rgba(220, 53, 69, 0.04); }
+    .row-status--pending td { background-color: rgba(255, 193, 7, 0.035); }
+
+    /* KPI / Stat cards */
+    .kpi-card {
+      border: none;
+      border-radius: 1rem;
+      background: var(--white-color);
+      box-shadow: 0 8px 24px var(--shadow-light);
+      padding: 1rem 1.25rem;
+    }
+    .kpi-card .kpi-label { font-weight: 600; color: var(--secondary-color); }
+    .kpi-card .kpi-value { font-weight: 700; font-size: 2rem; color: var(--dark-color); }
+    .kpi-card .kpi-trend { font-size: 0.85rem; }
+
+    /* Section header */
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      color: var(--dark-color);
+    }
+    .section-title i { color: var(--primary-color); }
+
+    /* Form enhancements */
+    .form-control, .form-select {
+      border-radius: 0.6rem;
+      border-color: rgba(0, 0, 0, 0.12);
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+    }
+    .form-label { font-weight: 600; }
+
+    /* Outline buttons aligned to theme */
+    .btn-outline-primary { color: var(--primary-color); border-color: var(--primary-color); }
+    .btn-outline-primary:hover { background: var(--primary-color); color: var(--white-color); }
+    .btn-outline-success { color: var(--success-color); border-color: var(--success-color); }
+    .btn-outline-success:hover { background: var(--success-color); color: var(--white-color); }
+    .btn-outline-danger { color: var(--danger-color); border-color: var(--danger-color); }
+    .btn-outline-danger:hover { background: var(--danger-color); color: var(--white-color); }
+
+    /* Subtle separators */
+    .divider {
+      height: 1px;
+      background: rgba(0,0,0,0.06);
+      margin: 0.75rem 0;
+    }
+
+    /* Pills for lab requests */
+    .pill {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: var(--light-color);
+      border: 1px solid rgba(0,0,0,0.06);
+      font-weight: 500;
+      font-size: 0.8rem;
+    }
+
+    /* Compact table variant */
+    .table-compact .custom-table th,
+    .table-compact .custom-table td { padding: 0.65rem 0.75rem; }
+
+    /* Subtle card header strip for medical context */
+    .card.health {
+      position: relative;
+    }
+    .card.health::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--blue-gradient);
+      border-top-left-radius: 1rem;
+      border-top-right-radius: 1rem;
+    }
+
+    /* Helper: icon bubble */
+    .icon-bubble {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,123,255,0.12);
+      color: var(--primary-color);
+    }
+
+    /* Hover lift utility */
+    .hover-lift { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+    .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+
+    /* Mobile spacing tweaks */
+    @media (max-width: 575.98px) {
+      .kpi-card { padding: 0.75rem 1rem; }
+      .kpi-card .kpi-value { font-size: 1.6rem; }
+      .content-container { padding: 0.75rem; }
+    }

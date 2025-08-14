@@ -6,6 +6,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
   const paymentForm = document.getElementById('paymentForm');
 
+  function statusClass(name) {
+    const key = (name || '').toLowerCase();
+    if (key === 'paid' || key === 'ready') return 'status--confirmed';
+    if (key === 'unpaid' || key === 'processing') return 'status--unpaid';
+    if (key === 'refunded') return 'status--cancelled';
+    return '';
+  }
+
   async function loadPayments() {
     const resp = await axios.get(`${paymentsApi}?operation=get_all`);
     const rows = resp.data.data || [];
@@ -18,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${r.doctor_name || '-'}</td>
         <td>${r.amount || '-'}</td>
         <td>${r.method || '-'}</td>
-        <td>${r.payment_status || 'Unpaid'}</td>
+        <td><span class="status-badge ${statusClass(r.payment_status || 'Unpaid')}">${r.payment_status || 'Unpaid'}</span></td>
         <td class="text-nowrap">
           <button class="btn btn-sm btn-outline-primary" data-edit="${r.appointment_id}">Edit</button>
         </td>

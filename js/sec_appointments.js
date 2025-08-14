@@ -10,6 +10,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
   const approveForm = document.getElementById('approveForm');
 
+  function statusClass(name) {
+    const key = (name || '').toLowerCase();
+    if (key === 'pending') return 'status--pending';
+    if (key === 'confirmed' || key === 'paid' || key === 'ready') return 'status--confirmed';
+    if (key === 'completed') return 'status--completed';
+    if (key === 'cancelled' || key === 'no show' || key === 'refunded') return 'status--cancelled';
+    if (key === 'unpaid' || key === 'processing') return 'status--unpaid';
+    return '';
+  }
+
   async function loadDoctors() {
     const resp = await axios.get(`${apptApi}?operation=list_doctors`);
     const select = document.getElementById('approve_doctor_id');
@@ -31,13 +41,14 @@ document.addEventListener("DOMContentLoaded", () => {
       .filter(r => !selected || r.appointment_date === selected)
       .forEach(r => {
         const tr = document.createElement('tr');
+        const payStatus = r.payment_status || 'Unpaid';
         tr.innerHTML = `
           <td>${r.appointment_date}</td>
           <td>${r.patient_name}</td>
           <td>${r.doctor_name || '-'}</td>
-          <td>${r.appointment_status}</td>
-          <td>${r.queue_number || '-'}</td>
-          <td>${r.payment_status || 'Unpaid'}</td>
+          <td><span class="status-badge ${statusClass(r.appointment_status)}">${r.appointment_status}</span></td>
+          <td>${r.queue_number ? `<span class="queue-chip">${r.queue_number}</span>` : '-'}</td>
+          <td><span class="status-badge ${statusClass(payStatus)}">${payStatus}</span></td>
           <td class="text-nowrap">
             ${r.appointment_status === 'Pending' ? `<button class="btn btn-sm btn-success me-1" data-approve="${r.appointment_id}">Approve</button>` : ''}
             <button class="btn btn-sm btn-outline-secondary me-1" data-status="Completed" data-id="${r.appointment_id}">Mark Completed</button>
