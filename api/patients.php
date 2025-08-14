@@ -22,6 +22,7 @@ class Patient
                 u.email
             FROM tbl_patients p
             JOIN tbl_users u ON p.user_id = u.user_id
+            WHERE u.role_id = 3
             ORDER BY p.created_at DESC
         ");
 
@@ -47,13 +48,14 @@ class Patient
                 u.email
             FROM tbl_patients p
             JOIN tbl_users u ON p.user_id = u.user_id
+            WHERE u.role_id = 3
         ";
 
         if ($id === null) {
             $query .= "ORDER BY p.created_at DESC LIMIT 1";
             $stmt = $conn->prepare($query);
         } else {
-            $query .= "WHERE p.patient_id = :patient_id LIMIT 1";
+            $query .= "AND p.patient_id = :patient_id LIMIT 1";
             $stmt = $conn->prepare($query);
             $stmt->bindParam(":patient_id", $id);
         }
@@ -226,6 +228,30 @@ class Patient
             return ['success' => false, 'message' => 'Delete failed: ' . $e->getMessage()];
         }
     }
+
+    function cleanup_orphaned_patients()
+    {
+        include "connection.php";
+
+        try {
+            $conn->beginTransaction();
+
+            // Delete patient records where the user is not actually a patient (role_id != 3)
+            $stmt = $conn->prepare("
+                DELETE p FROM tbl_patients p
+                JOIN tbl_users u ON p.user_id = u.user_id
+                WHERE u.role_id != 3
+            ");
+            $stmt->execute();
+            $deletedCount = $stmt->rowCount();
+
+            $conn->commit();
+            return ['success' => true, 'message' => "Cleaned up {$deletedCount} orphaned patient records."];
+        } catch (Exception $e) {
+            $conn->rollBack();
+            return ['success' => false, 'message' => 'Cleanup failed: ' . $e->getMessage()];
+        }
+    }
 }
 
 // Handle request
@@ -255,6 +281,9 @@ switch ($operation) {
         break;
     case "delete":
         echo json_encode($patient->delete($json));
+        break;
+    case "cleanup":
+        echo json_encode($patient->cleanup_orphaned_patients());
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);
