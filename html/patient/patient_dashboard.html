@@ -6,50 +6,61 @@
   <title>Patient Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../css/dashboard.css">
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="../../js/patient_dashboard.js" defer></script>
 </head>
 <body>
-  <nav class="navbar navbar-light bg-light px-3">
-    <span class="navbar-brand mb-0 h1">MCSTUFFIN's</span>
-    <a class="btn btn-outline-primary" href="patient_appointments.html">Appointments</a>
+  <nav class="navbar navbar-light bg-light px-3 shadow-sm">
+    <span class="navbar-brand mb-0 h1 text-primary fw-bold">
+      <i class="fas fa-stethoscope me-2"></i>MCSTUFFIN's
+    </span>
+    <a class="btn btn-outline-primary" href="patient_appointments.html">
+      <i class="fas fa-calendar me-1"></i>Appointments
+    </a>
   </nav>
 
   <main class="container py-4">
-    <h2 class="mb-3">Dashboard</h2>
-    <div class="row g-3">
+    <h2 class="mb-4 fw-bold text-secondary">Dashboard</h2>
+    <div class="row g-3 mb-4">
       <div class="col-6 col-md-3">
-        <div class="card text-center p-3">
-          <div class="fw-semibold">Total</div>
-          <div class="display-6" id="stat_total">0</div>
+        <div class="card text-center p-3 kpi-card">
+          <div class="kpi-label">Total</div>
+          <div class="kpi-value" id="stat_total">0</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="card text-center p-3">
-          <div class="fw-semibold">Upcoming</div>
-          <div class="display-6" id="stat_upcoming">0</div>
+        <div class="card text-center p-3 kpi-card">
+          <div class="kpi-label">Upcoming</div>
+          <div class="kpi-value" id="stat_upcoming">0</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="card text-center p-3">
-          <div class="fw-semibold">Completed</div>
-          <div class="display-6" id="stat_completed">0</div>
+        <div class="card text-center p-3 kpi-card">
+          <div class="kpi-label">Completed</div>
+          <div class="kpi-value" id="stat_completed">0</div>
         </div>
       </div>
       <div class="col-6 col-md-3">
-        <div class="card text-center p-3">
-          <div class="fw-semibold">Unpaid</div>
-          <div class="display-6" id="stat_unpaid">0</div>
+        <div class="card text-center p-3 kpi-card">
+          <div class="kpi-label">Unpaid</div>
+          <div class="kpi-value" id="stat_unpaid">0</div>
         </div>
       </div>
     </div>
 
-    <h4 class="mt-4">Recent Appointments</h4>
+    <h4 class="mt-4 mb-3 fw-bold text-secondary section-title">
+      <i class="fas fa-calendar-check me-2"></i>Recent Appointments
+    </h4>
     <ul class="list-group" id="recent_list"></ul>
 
-    <h4 class="mt-4">Lab Requests</h4>
+    <h4 class="mt-4 mb-3 fw-bold text-secondary section-title">
+      <i class="fas fa-flask me-2"></i>Lab Requests
+    </h4>
     <div class="card border-0 shadow-sm">
       <div class="card-body p-0 table-compact">
         <table class="custom-table">
@@ -59,7 +70,7 @@
               <th>Doctor</th>
               <th>Status</th>
               <th>Details</th>
-              <th>Print</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="patientLabRequestsTbody"></tbody>
@@ -67,6 +78,8 @@
       </div>
     </div>
   </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 
