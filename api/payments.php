@@ -23,20 +23,26 @@ class Payments
 
     public function get_all()
     {
+        // List ALL appointments and join payment if present so Unpaid ones also show
         $stmt = $this->conn->prepare("
-            SELECT p.payment_id, p.appointment_id, p.amount, p.method, p.payment_date, p.status_id,
-                   s.status_name AS payment_status,
+            SELECT a.appointment_id,
                    a.appointment_date,
                    u.name AS patient_name,
-                   du.name AS doctor_name
-            FROM tbl_payments p
-            JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
+                   du.name AS doctor_name,
+                   p.payment_id,
+                   p.amount,
+                   p.method,
+                   p.payment_date,
+                   p.status_id,
+                   s.status_name AS payment_status
+            FROM tbl_appointments a
             JOIN tbl_patients pt ON a.patient_id = pt.patient_id
             JOIN tbl_users u ON pt.user_id = u.user_id
             LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
             LEFT JOIN tbl_users du ON d.user_id = du.user_id
+            LEFT JOIN tbl_payments p ON p.appointment_id = a.appointment_id
             LEFT JOIN tbl_status s ON p.status_id = s.status_id
-            ORDER BY p.payment_date DESC, p.payment_id DESC
+            ORDER BY a.appointment_date DESC, a.appointment_id DESC
         ");
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);

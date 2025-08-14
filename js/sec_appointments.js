@@ -85,8 +85,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const fd = new FormData(approveForm);
     const json = JSON.stringify({
       appointment_id: fd.get('appointment_id'),
-      doctor_id: fd.get('doctor_id'),
-      queue_number: fd.get('queue_number')
+      doctor_id: fd.get('doctor_id')
     });
     const payload = new FormData();
     payload.append('operation', 'approve');

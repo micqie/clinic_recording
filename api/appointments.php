@@ -108,39 +108,40 @@ class Appointments
         }
     }
 
-    // Secretary: approve (assign doctor, queue number, set status Confirmed)
+    // Secretary: approve (assign doctor, auto-generate queue number, set status Confirmed)
     public function approve($data)
     {
-        if (empty($data['appointment_id']) || empty($data['doctor_id']) || empty($data['queue_number'])) {
-            echo json_encode(["success" => false, "message" => "appointment_id, doctor_id, queue_number are required."]); return;
+        if (empty($data['appointment_id']) || empty($data['doctor_id'])) {
+            echo json_encode(["success" => false, "message" => "appointment_id and doctor_id are required."]); return;
         }
 
-        // Ensure queue number is unique per date
+        // Find appointment date
         $stmt = $this->conn->prepare("SELECT appointment_date FROM tbl_appointments WHERE appointment_id = :aid LIMIT 1");
         $stmt->bindParam(":aid", $data['appointment_id']);
         $stmt->execute();
         $date = $stmt->fetchColumn();
         if (!$date) { echo json_encode(["success" => false, "message" => "Appointment not found."]); return; }
 
-        $stmt = $this->conn->prepare("SELECT COUNT(*) FROM tbl_appointments WHERE appointment_date = :d AND queue_number = :q AND appointment_id <> :aid");
+        // Compute next queue number (exclude Cancelled)
+        $cancelledId = $this->getAppointmentStatusId('Cancelled');
+        $sqlMax = "SELECT COALESCE(MAX(queue_number), 0) FROM tbl_appointments WHERE appointment_date = :d" . ($cancelledId ? " AND status_id <> :cancelled" : "");
+        $stmt = $this->conn->prepare($sqlMax);
         $stmt->bindParam(":d", $date);
-        $stmt->bindParam(":q", $data['queue_number']);
-        $stmt->bindParam(":aid", $data['appointment_id']);
+        if ($cancelledId) { $stmt->bindParam(":cancelled", $cancelledId); }
         $stmt->execute();
-        if (intval($stmt->fetchColumn()) > 0) {
-            echo json_encode(["success" => false, "message" => "Queue number already used for this date."]); return;
-        }
+        $nextQueue = intval($stmt->fetchColumn()) + 1;
+        if ($nextQueue > 15) { echo json_encode(["success" => false, "message" => "Fully Booked"]); return; }
 
         $confirmedId = $this->getAppointmentStatusId('Confirmed');
         if (!$confirmedId) { echo json_encode(["success" => false, "message" => "Confirmed status not configured."]); return; }
 
         $stmt = $this->conn->prepare("UPDATE tbl_appointments SET doctor_id = :doc, queue_number = :q, status_id = :sid WHERE appointment_id = :aid");
         $stmt->bindParam(":doc", $data['doctor_id']);
-        $stmt->bindParam(":q", $data['queue_number']);
+        $stmt->bindParam(":q", $nextQueue);
         $stmt->bindParam(":sid", $confirmedId);
         $stmt->bindParam(":aid", $data['appointment_id']);
         if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Appointment approved."]);
+            echo json_encode(["success" => true, "message" => "Appointment approved.", "queue_number" => $nextQueue]);
         } else {
             echo json_encode(["success" => false, "message" => "Approval failed."]);
         }
