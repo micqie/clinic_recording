@@ -93,6 +93,40 @@ class User
         }
     }
 
+    function profile($user_id)
+    {
+        include "connection.php";
+        if (empty($user_id)) {
+            return ['success' => false, 'message' => 'user_id is required.'];
+        }
+        $stmt = $conn->prepare("SELECT u.user_id, u.name, u.email, r.role_name FROM tbl_users u JOIN tbl_roles r ON u.role_id = r.role_id WHERE u.user_id = :uid LIMIT 1");
+        $stmt->bindParam(":uid", $user_id);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$user) {
+            return ['success' => false, 'message' => 'User not found.'];
+        }
+        $role = $user['role_name'];
+        $ctx = [];
+        if ($role === 'patient') {
+            $q = $conn->prepare("SELECT patient_id FROM tbl_patients WHERE user_id = :uid LIMIT 1");
+            $q->bindParam(":uid", $user_id);
+            $q->execute();
+            $ctx['patient_id'] = $q->fetchColumn();
+        } else if ($role === 'doctor') {
+            $q = $conn->prepare("SELECT doctor_id FROM tbl_doctors WHERE user_id = :uid LIMIT 1");
+            $q->bindParam(":uid", $user_id);
+            $q->execute();
+            $ctx['doctor_id'] = $q->fetchColumn();
+        } else if ($role === 'secretary') {
+            $q = $conn->prepare("SELECT secretary_id FROM tbl_secretaries WHERE user_id = :uid LIMIT 1");
+            $q->bindParam(":uid", $user_id);
+            $q->execute();
+            $ctx['secretary_id'] = $q->fetchColumn();
+        }
+        return ['success' => true, 'user' => $user, 'context' => $ctx];
+    }
+
     function login($json)
     {
         include "connection.php";
@@ -147,6 +181,10 @@ switch ($operation) {
         break;
     case "login":
         echo json_encode($user->login($json));
+        break;
+    case "profile":
+        $uid = $_GET['user_id'] ?? $_POST['user_id'] ?? '';
+        echo json_encode($user->profile($uid));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

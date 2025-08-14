@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
           switch (user.role) {
             case "doctor":
-              window.location.href = "html/doctor/doctor_dashboard.html";
+              window.location.href = "html/doctor/doctor_appointments.html";
               break;
             case "secretary":
               window.location.href = "html/secretary/secretary_dashboard.html";

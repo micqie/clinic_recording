@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Appointments</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../../js/patient_appointments.js" defer></script>
+</head>
+<body>
+  <nav class="navbar navbar-light bg-light px-3">
+    <a class="navbar-brand" href="patient_dashboard.html">MCSTUFFIN's</a>
+  </nav>
+  <main class="container py-3">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <h3 class="mb-0">My Appointments</h3>
+      <div class="d-flex align-items-center gap-2">
+        <input type="date" class="form-control" id="requestDate" />
+        <button class="btn btn-primary" id="requestBtn">Request</button>
+      </div>
+    </div>
+    <small class="text-muted">Max 15 per day. Dates with 15 approved+pending slots are blocked.</small>
+
+    <ul class="list-group mt-3" id="appt_list"></ul>
+  </main>
+</body>
+</html>
+
+
