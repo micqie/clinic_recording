@@ -4,94 +4,104 @@ header("Access-Control-Allow-Origin: *");
 
 class User
 {
-    function register($json)
-    {
-        include "connection.php";
-        $data = json_decode($json, true);
+ function register($json)
+{
+    include "connection.php";
+    $data = json_decode($json, true);
 
-        // Basic validation
-        if (
-            empty($data['name']) ||
-            empty($data['email']) ||
-            empty($data['password']) ||
-            empty($data['role'])
-        ) {
-            return ['success' => false, 'message' => 'All fields are required.'];
-        }
+    // 1. Log raw payload for debugging
+    file_put_contents("register_debug.log", date("Y-m-d H:i:s") . " | RAW JSON: " . $json . PHP_EOL, FILE_APPEND);
 
-        // Get role_id from tbl_roles
-        $stmt = $conn->prepare("SELECT role_id FROM tbl_roles WHERE role_name = :role_name");
-        $stmt->bindParam(":role_name", $data['role']);
-        $stmt->execute();
-        $role = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$role) {
-            return ['success' => false, 'message' => 'Invalid role selected.'];
-        }
-        $role_id = $role['role_id'];
-
-        // Role-specific required fields (only for doctor and secretary now)
-        if ($data['role'] === 'doctor' && empty($data['license_number'])) {
-            return ['success' => false, 'message' => 'License number is required for doctors.'];
-        }
-        if ($data['role'] === 'secretary' && empty($data['employee_id'])) {
-            return ['success' => false, 'message' => 'Employee ID is required for secretaries.'];
-        }
-        // Removed patient extra required fields check here
-
-        // Check if email exists
-        $stmt = $conn->prepare("SELECT user_id FROM tbl_users WHERE email = :email");
-        $stmt->bindParam(":email", $data['email']);
-        $stmt->execute();
-        if ($stmt->rowCount() > 0) {
-            return ['success' => false, 'message' => 'Email is already registered.'];
-        }
-
-        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-
-        // Insert into tbl_users
-        $sql = "INSERT INTO tbl_users (name, email, password, role_id)
-                VALUES (:name, :email, :password, :role_id)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(":name", $data['name']);
-        $stmt->bindParam(":email", $data['email']);
-        $stmt->bindParam(":password", $hashedPassword);
-        $stmt->bindParam(":role_id", $role_id);
-
-        if ($stmt->execute()) {
-            $user_id = $conn->lastInsertId();
-
-            // Insert into role-specific tables
-            if ($data['role'] === 'doctor') {
-                $sqlDoctor = "INSERT INTO tbl_doctors (user_id, license_number)
-                              VALUES (:user_id, :license_number)";
-                $stmt = $conn->prepare($sqlDoctor);
-                $stmt->bindParam(":user_id", $user_id);
-                $stmt->bindParam(":license_number", $data['license_number']);
-                $stmt->execute();
-            }
-            if ($data['role'] === 'secretary') {
-                $sqlSec = "INSERT INTO tbl_secretaries (user_id, employee_id)
-                           VALUES (:user_id, :employee_id)";
-                $stmt = $conn->prepare($sqlSec);
-                $stmt->bindParam(":user_id", $user_id);
-                $stmt->bindParam(":employee_id", $data['employee_id']);
-                $stmt->execute();
-            }
-            if ($data['role'] === 'patient') {
-                // Insert with placeholder values for now
-                $sqlPat = "INSERT INTO tbl_patients (user_id)
-                           VALUES (:user_id)";
-                $stmt = $conn->prepare($sqlPat);
-                $stmt->bindParam(":user_id", $user_id);
-                $stmt->execute();
-            }
-
-            return ['success' => true, 'message' => 'Registration successful!'];
-        } else {
-            return ['success' => false, 'message' => 'Registration failed. Please try again.'];
-        }
+    // 2. Basic validation
+    if (
+        empty($data['name']) ||
+        empty($data['email']) ||
+        empty($data['password']) ||
+        empty($data['role'])
+    ) {
+        return ['success' => false, 'message' => 'All fields are required.'];
     }
+
+    // 3. Normalize role to lowercase to avoid case mismatch
+    $roleName = strtolower(trim($data['role']));
+
+    // 4. Get role_id from tbl_roles
+    $stmt = $conn->prepare("SELECT role_id FROM tbl_roles WHERE LOWER(role_name) = :role_name");
+    $stmt->bindParam(":role_name", $roleName);
+    $stmt->execute();
+    $role = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$role) {
+        return ['success' => false, 'message' => "Invalid role selected: {$roleName}"];
+    }
+    $role_id = $role['role_id'];
+
+    // 5. Role-specific required fields
+    if ($roleName === 'doctor' && empty($data['license_number'])) {
+        return ['success' => false, 'message' => 'License number is required for doctors.'];
+    }
+    if ($roleName === 'secretary' && empty($data['employee_id'])) {
+        return ['success' => false, 'message' => 'Employee ID is required for secretaries.'];
+    }
+
+    // 6. Check if email exists
+    $stmt = $conn->prepare("SELECT user_id FROM tbl_users WHERE email = :email");
+    $stmt->bindParam(":email", $data['email']);
+    $stmt->execute();
+    if ($stmt->rowCount() > 0) {
+        return ['success' => false, 'message' => 'Email is already registered.'];
+    }
+
+    // 7. Insert into tbl_users
+    $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+    $sql = "INSERT INTO tbl_users (name, email, password, role_id)
+            VALUES (:name, :email, :password, :role_id)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(":name", $data['name']);
+    $stmt->bindParam(":email", $data['email']);
+    $stmt->bindParam(":password", $hashedPassword);
+    $stmt->bindParam(":role_id", $role_id);
+
+    if (!$stmt->execute()) {
+        return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $stmt->errorInfo())];
+    }
+
+    $user_id = $conn->lastInsertId();
+
+    // 8. Role-specific inserts
+    try {
+        if ($roleName === 'doctor') {
+            $sqlDoctor = "INSERT INTO tbl_doctors (user_id, license_number)
+                          VALUES (:user_id, :license_number)";
+            $stmt = $conn->prepare($sqlDoctor);
+            $stmt->bindParam(":user_id", $user_id);
+            $stmt->bindParam(":license_number", $data['license_number']);
+            $stmt->execute();
+        }
+        if ($roleName === 'secretary') {
+            $sqlSec = "INSERT INTO tbl_secretaries (user_id, employee_id)
+                       VALUES (:user_id, :employee_id)";
+            $stmt = $conn->prepare($sqlSec);
+            $stmt->bindParam(":user_id", $user_id);
+            $stmt->bindParam(":employee_id", $data['employee_id']);
+            $stmt->execute();
+        }
+        if ($roleName === 'patient') {
+            $sqlPat = "INSERT INTO tbl_patients (user_id)
+                       VALUES (:user_id)";
+            $stmt = $conn->prepare($sqlPat);
+            $stmt->bindParam(":user_id", $user_id);
+            $stmt->execute();
+        }
+    } catch (PDOException $e) {
+        return ['success' => false, 'message' => 'Role-specific insert failed: ' . $e->getMessage()];
+    }
+
+    return ['success' => true, 'message' => 'Registration successful!'];
+}
+
+
+
 
     function profile($user_id)
     {

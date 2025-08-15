@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MCSTUFFIN's Admin Dashboard</title>
+  <title>MCSTUFFIN's Doctor Dashboard</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
@@ -18,8 +18,6 @@
 
 <body>
 
-
-
     <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="main-navbar">
     <div class="container-fluid">
         <a class="navbar-brand d-flex align-items-center" href="#">
@@ -30,7 +28,7 @@
         <div class="dropdown ms-auto">
             <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
-                <span class="fw-semibold">Admin</span>
+                <span class="fw-semibold">Doctor</span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
                 <li>
@@ -46,23 +44,21 @@
   <div class="d-flex">
     <nav id="sidebar-wrapper" role="navigation" aria-label="Sidebar menu" tabindex="0">
       <div class="list-group list-group-flush">
-        <a href="secretary_dashboard.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
+        <a href="doctor_dashboard.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
           <i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
         </a>
-        <a href="secretary_patients.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>Registered Patients
+        <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>My Appointments
         </a>
-        <a href="secretary_medicine.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fa-solid fa-pills me-2" aria-hidden="true"></i>Medicines
+        <a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>My Patients
         </a>
-
-        <a href="secretary_payments.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fa-solid fa-credit-card me-2" aria-hidden="true"></i>Payments
+        <a href="doctor_prescriptions.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-pills me-2" aria-hidden="true"></i>Prescriptions
         </a>
-        <a href="secretary_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>Appointments
+        <a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Requests
         </a>
-
       </div>
     </nav>
 
@@ -72,65 +68,65 @@
       </button>
 
       <div class="content-container mt-5 p-4">
-        <h1 class="mb-4 fw-bold text-secondary">Dashboard Overview</h1>
+        <h1 class="mb-4 fw-bold text-secondary">Doctor Dashboard Overview</h1>
 
         <section id="dashboard-content" class="content-section fade-in" aria-live="polite" aria-atomic="true">
           <div class="row g-4">
-            <article class="col" role="region" aria-labelledby="totalPatientsTitle" tabindex="0">
+            <article class="col" role="region" aria-labelledby="todayAppointmentsTitle" tabindex="0">
               <div class="card h-100 border-primary text-primary kpi-card hover-lift">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-center">
-                    <h5 id="totalPatientsTitle" class="card-title kpi-label">Total Patients</h5>
-                    <div class="icon-bubble bg-primary-light text-primary"><i class="fas fa-hospital-user fs-1" aria-hidden="true"></i></div>
+                    <h5 id="todayAppointmentsTitle" class="card-title kpi-label">Today's Appointments</h5>
+                    <div class="icon-bubble bg-primary-light text-primary"><i class="fas fa-calendar-check fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="totalPatientsCount"></h2>
-                  <small class="text-success kpi-trend" aria-label="Percentage increase">
-                    <i class="fas fa-arrow-up me-1"></i>+15% from last month
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="todayAppointmentsCount"></h2>
+                  <small class="text-success kpi-trend" aria-label="Appointments today">
+                    <i class="fas fa-clock me-1"></i>Scheduled today
                   </small>
                 </div>
               </div>
             </article>
 
-            <article class="col" role="region" aria-labelledby="appointmentsTitle" tabindex="0">
+            <article class="col" role="region" aria-labelledby="pendingAppointmentsTitle" tabindex="0">
               <div class="card h-100 border-success text-success kpi-card hover-lift">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-center">
-                    <h5 id="appointmentsTitle" class="card-title kpi-label">Today's Appointments</h5>
-                    <div class="icon-bubble bg-success-light text-success"><i class="fas fa-calendar-check fs-1" aria-hidden="true"></i></div>
+                    <h5 id="pendingAppointmentsTitle" class="card-title kpi-label">Pending Appointments</h5>
+                    <div class="icon-bubble bg-success-light text-success"><i class="fas fa-clock fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="appointmentsCount"></h2>
-                  <small class="text-success kpi-trend" aria-label="Appointments today">
-                    <i class="fas fa-clock me-1"></i>Appointments today
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="pendingAppointmentsCount"></h2>
+                  <small class="text-success kpi-trend" aria-label="Awaiting consultation">
+                    <i class="fas fa-user-clock me-1"></i>Awaiting consultation
                   </small>
                 </div>
               </div>
             </article>
 
-            <article class="col" role="region" aria-labelledby="pendingPaymentsTitle" tabindex="0">
+            <article class="col" role="region" aria-labelledby="activePrescriptionsTitle" tabindex="0">
               <div class="card h-100 border-warning text-warning kpi-card hover-lift">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-center">
-                    <h5 id="pendingPaymentsTitle" class="card-title kpi-label">Pending Payments</h5>
-                    <div class="icon-bubble bg-warning-light text-warning"><i class="fas fa-credit-card fs-1" aria-hidden="true"></i></div>
+                    <h5 id="activePrescriptionsTitle" class="card-title kpi-label">Active Prescriptions</h5>
+                    <div class="icon-bubble bg-warning-light text-warning"><i class="fas fa-pills fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="pendingPaymentsAmount"></h2>
-                  <small class="text-warning kpi-trend" aria-label="Outstanding amount">
-                    <i class="fas fa-exclamation-triangle me-1"></i>Outstanding amount
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="activePrescriptionsCount"></h2>
+                  <small class="text-warning kpi-trend" aria-label="Current prescriptions">
+                    <i class="fas fa-prescription me-1"></i>Current prescriptions
                   </small>
                 </div>
               </div>
             </article>
 
-            <article class="col" role="region" aria-labelledby="lowStockTitle" tabindex="0">
+            <article class="col" role="region" aria-labelledby="labRequestsTitle" tabindex="0">
               <div class="card h-100 border-danger text-danger kpi-card hover-lift">
                 <div class="card-body">
                   <div class="d-flex justify-content-between align-items-center">
-                    <h5 id="lowStockTitle" class="card-title kpi-label">Low Stock Medicines</h5>
-                    <div class="icon-bubble bg-danger-light text-danger"><i class="fas fa-pills fs-1" aria-hidden="true"></i></div>
+                    <h5 id="labRequestsTitle" class="card-title kpi-label">Lab Requests</h5>
+                    <div class="icon-bubble bg-danger-light text-danger"><i class="fas fa-flask fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="lowStockCount"></h2>
-                  <small class="text-danger kpi-trend" aria-label="Stock alert">
-                    <i class="fas fa-exclamation-circle me-1"></i>Stock alert
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="labRequestsCount"></h2>
+                  <small class="text-danger kpi-trend" aria-label="Pending results">
+                    <i class="fas fa-microscope me-1"></i>Pending results
                   </small>
                 </div>
               </div>
@@ -144,25 +140,25 @@
                   <h5 class="section-title mb-4"><i class="fas fa-tasks me-2"></i>Quick Actions</h5>
                   <div class="row g-3">
                     <div class="col-md-3">
-                      <a href="secretary_appointments.html" class="btn btn-outline-primary w-100 py-3 hover-lift">
+                      <a href="doctor_appointments.html" class="btn btn-outline-primary w-100 py-3 hover-lift">
                         <i class="fas fa-calendar-plus fs-2 mb-2 d-block"></i>
-                        <strong>Manage Appointments</strong>
+                        <strong>View Appointments</strong>
                       </a>
                     </div>
                     <div class="col-md-3">
-                      <a href="secretary_payments.html" class="btn btn-outline-success w-100 py-3 hover-lift">
-                        <i class="fas fa-credit-card fs-2 mb-2 d-block"></i>
-                        <strong>Payment Management</strong>
-                      </a>
-                    </div>
-                    <div class="col-md-3">
-                      <a href="secretary_patients.html" class="btn btn-outline-info w-100 py-3 hover-lift">
+                      <a href="doctor_patients.html" class="btn btn-outline-success w-100 py-3 hover-lift">
                         <i class="fas fa-users fs-2 mb-2 d-block"></i>
                         <strong>Patient Records</strong>
                       </a>
                     </div>
                     <div class="col-md-3">
-                      <a href="secretary_lab_requests.html" class="btn btn-outline-warning w-100 py-3 hover-lift">
+                      <a href="doctor_prescriptions.html" class="btn btn-outline-info w-100 py-3 hover-lift">
+                        <i class="fas fa-prescription fs-2 mb-2 d-block"></i>
+                        <strong>Prescriptions</strong>
+                      </a>
+                    </div>
+                    <div class="col-md-3">
+                      <a href="doctor_lab_requests.html" class="btn btn-outline-warning w-100 py-3 hover-lift">
                         <i class="fas fa-flask fs-2 mb-2 d-block"></i>
                         <strong>Lab Requests</strong>
                       </a>
@@ -201,7 +197,7 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="../../js/sec_dashboard.js" defer></script>
+  <script src="../../js/doctor_dashboard.js" defer></script>
 </body>
 
 </html>
