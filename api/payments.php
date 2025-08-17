@@ -4,144 +4,305 @@ header("Access-Control-Allow-Origin: *");
 
 class Payments
 {
-    private $conn;
-
-    public function __construct()
+    function getAllPayments()
     {
         include "connection.php";
-        $this->conn = $conn;
-    }
 
-    private function getPaymentStatusId($statusName)
-    {
-        $stmt = $this->conn->prepare("SELECT s.status_id FROM tbl_status s JOIN tbl_status_type t ON s.status_type_id = t.status_type_id WHERE t.status_type_name = 'Payment' AND s.status_name = :name LIMIT 1");
-        $stmt->bindParam(":name", $statusName);
-        $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? intval($row['status_id']) : null;
-    }
+        try {
+            $stmt = $conn->prepare("
+                SELECT p.*,
+                       a.appointment_date,
+                       a.queue_number,
+                       pat.user_id as patient_user_id,
+                       u.name as patient_name,
+                       d.doctor_id,
+                       du.name as doctor_name,
+                       st.status_name
+                FROM tbl_payments p
+                LEFT JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
+                LEFT JOIN tbl_patients pat ON p.patient_id = pat.patient_id
+                LEFT JOIN tbl_users u ON pat.user_id = u.user_id
+                LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
+                LEFT JOIN tbl_status st ON p.status_id = st.status_id
+                ORDER BY p.payment_date DESC
+            ");
+            $stmt->execute();
+            $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    public function get_all()
-    {
-        // List ALL appointments and join payment if present so Unpaid ones also show
-        $stmt = $this->conn->prepare("
-            SELECT a.appointment_id,
-                   a.appointment_date,
-                   u.name AS patient_name,
-                   du.name AS doctor_name,
-                   p.payment_id,
-                   p.amount,
-                   p.method,
-                   p.payment_date,
-                   p.status_id,
-                   s.status_name AS payment_status
-            FROM tbl_appointments a
-            JOIN tbl_patients pt ON a.patient_id = pt.patient_id
-            JOIN tbl_users u ON pt.user_id = u.user_id
-            LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
-            LEFT JOIN tbl_users du ON d.user_id = du.user_id
-            LEFT JOIN tbl_payments p ON p.appointment_id = a.appointment_id
-            LEFT JOIN tbl_status s ON p.status_id = s.status_id
-            ORDER BY a.appointment_date DESC, a.appointment_id DESC
-        ");
-        $stmt->execute();
-        echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
-    }
-
-    // Create or update payment for an appointment
-    public function set_status($data)
-    {
-        if (empty($data['appointment_id']) || empty($data['status_name'])) {
-            echo json_encode(["success" => false, "message" => "appointment_id and status_name are required."]); return;
+            return ['success' => true, 'payments' => $payments];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch payments: ' . $e->getMessage()];
         }
-        $statusId = $this->getPaymentStatusId($data['status_name']);
-        if (!$statusId) { echo json_encode(["success" => false, "message" => "Invalid payment status."]); return; }
-
-        $amount = isset($data['amount']) ? $data['amount'] : null;
-        $method = isset($data['method']) ? $data['method'] : null;
-
-        // Upsert logic
-        $stmt = $this->conn->prepare("SELECT payment_id FROM tbl_payments WHERE appointment_id = :aid LIMIT 1");
-        $stmt->bindParam(":aid", $data['appointment_id']);
-        $stmt->execute();
-        $existingId = $stmt->fetchColumn();
-
-        if ($existingId) {
-            $stmt = $this->conn->prepare("UPDATE tbl_payments SET amount = :amount, method = :method, status_id = :sid, payment_date = CASE WHEN :sidPaid = :sid THEN NOW() ELSE payment_date END WHERE appointment_id = :aid");
-            $stmt->bindParam(":amount", $amount);
-            $stmt->bindParam(":method", $method);
-            $stmt->bindParam(":sid", $statusId);
-            $stmt->bindParam(":sidPaid", $statusId);
-            $stmt->bindParam(":aid", $data['appointment_id']);
-            $ok = $stmt->execute();
-        } else {
-            $stmt = $this->conn->prepare("INSERT INTO tbl_payments (appointment_id, amount, method, status_id, payment_date) VALUES (:aid, :amount, :method, :sid, CASE WHEN :sidPaid = :sid THEN NOW() ELSE NULL END)");
-            $stmt->bindParam(":aid", $data['appointment_id']);
-            $stmt->bindParam(":amount", $amount);
-            $stmt->bindParam(":method", $method);
-            $stmt->bindParam(":sid", $statusId);
-            $stmt->bindParam(":sidPaid", $statusId);
-            $ok = $stmt->execute();
-        }
-
-        if ($ok) {
-            echo json_encode(["success" => true, "message" => "Payment updated."]); return;
-        }
-        echo json_encode(["success" => false, "message" => "Failed to update payment."]);
     }
 
-    public function get_by_patient($patientId)
+    function getPaymentsByPatient($patient_id)
     {
-        if (empty($patientId)) { echo json_encode(["success" => false, "message" => "patient_id required."]); return; }
-        $stmt = $this->conn->prepare("
-            SELECT p.payment_id, p.appointment_id, p.amount, p.method, p.payment_date, s.status_name AS payment_status,
-                   a.appointment_date
-            FROM tbl_payments p
-            JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
-            JOIN tbl_status s ON p.status_id = s.status_id
-            WHERE a.patient_id = :pid
-            ORDER BY p.payment_date DESC, p.payment_id DESC
-        ");
-        $stmt->bindParam(":pid", $patientId);
-        $stmt->execute();
-        echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT p.*,
+                       a.appointment_date,
+                       a.queue_number,
+                       st.status_name
+                FROM tbl_payments p
+                JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
+                LEFT JOIN tbl_status st ON p.status_id = st.status_id
+                WHERE p.patient_id = :patient_id
+                ORDER BY p.payment_date DESC
+            ");
+            $stmt->bindParam(":patient_id", $patient_id);
+            $stmt->execute();
+            $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'payments' => $payments];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch payments: ' . $e->getMessage()];
+        }
     }
 
-    public function get_by_appointment($appointmentId)
+    function getPaymentsByAppointment($appointment_id)
     {
-        if (empty($appointmentId)) { echo json_encode(["success" => false, "message" => "appointment_id required."]); return; }
-        $stmt = $this->conn->prepare("SELECT p.*, s.status_name AS payment_status FROM tbl_payments p LEFT JOIN tbl_status s ON p.status_id = s.status_id WHERE p.appointment_id = :aid LIMIT 1");
-        $stmt->bindParam(":aid", $appointmentId);
-        $stmt->execute();
-        echo json_encode(["success" => true, "data" => $stmt->fetch(PDO::FETCH_ASSOC)]);
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT p.*,
+                       pat.user_id as patient_user_id,
+                       u.name as patient_name,
+                       st.status_name
+                FROM tbl_payments p
+                JOIN tbl_patients pat ON p.patient_id = pat.patient_id
+                JOIN tbl_users u ON pat.user_id = u.user_id
+                LEFT JOIN tbl_status st ON p.status_id = st.status_id
+                WHERE p.appointment_id = :appointment_id
+                ORDER BY p.payment_date DESC
+            ");
+            $stmt->bindParam(":appointment_id", $appointment_id);
+            $stmt->execute();
+            $payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'payments' => $payments];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch payments: ' . $e->getMessage()];
+        }
+    }
+
+    function addPayment($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['appointment_id']) || empty($data['patient_id']) || !isset($data['amount'])) {
+            return ['success' => false, 'message' => 'Appointment ID, patient ID, and amount are required.'];
+        }
+
+        try {
+            $sql = "INSERT INTO tbl_payments (appointment_id, patient_id, amount, payment_method, status_id)
+                    VALUES (:appointment_id, :patient_id, :amount, :payment_method, :status_id)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":appointment_id", $data['appointment_id']);
+            $stmt->bindParam(":patient_id", $data['patient_id']);
+            $stmt->bindParam(":amount", $data['amount']);
+            $stmt->bindParam(":payment_method", $data['payment_method'] ?? 'Walk-in');
+            $stmt->bindParam(":status_id", $data['status_id'] ?? 11); // Default to Unpaid
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Payment added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add payment: ' . $e->getMessage()];
+        }
+    }
+
+    function updatePayment($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['payment_id'])) {
+            return ['success' => false, 'message' => 'Payment ID is required.'];
+        }
+
+        try {
+            $sql = "UPDATE tbl_payments SET
+                    amount = :amount,
+                    payment_method = :payment_method,
+                    status_id = :status_id
+                    WHERE payment_id = :payment_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":amount", $data['amount']);
+            $stmt->bindParam(":payment_method", $data['payment_method']);
+            $stmt->bindParam(":status_id", $data['status_id']);
+            $stmt->bindParam(":payment_id", $data['payment_id']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Payment updated successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update payment: ' . $e->getMessage()];
+        }
+    }
+
+    function deletePayment($payment_id)
+    {
+        include "connection.php";
+
+        if (empty($payment_id)) {
+            return ['success' => false, 'message' => 'Payment ID is required.'];
+        }
+
+        try {
+            $stmt = $conn->prepare("DELETE FROM tbl_payments WHERE payment_id = :payment_id");
+            $stmt->bindParam(":payment_id", $payment_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Payment deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Payment not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete payment: ' . $e->getMessage()];
+        }
+    }
+
+    function processOnlinePayment($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['payment_id'])) {
+            return ['success' => false, 'message' => 'Payment ID is required.'];
+        }
+
+        try {
+            // Simulate online payment processing
+            // In a real application, this would integrate with a payment gateway
+
+            $sql = "UPDATE tbl_payments SET
+                    status_id = 12,
+                    payment_method = 'Online',
+                    payment_date = NOW()
+                    WHERE payment_id = :payment_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":payment_id", $data['payment_id']);
+            $stmt->execute();
+
+            // Get payment details for notification
+            $stmt = $conn->prepare("
+                SELECT p.*,
+                       pat.user_id as patient_user_id,
+                       u.name as patient_name,
+                       a.appointment_date
+                FROM tbl_payments p
+                JOIN tbl_patients pat ON p.patient_id = pat.patient_id
+                JOIN tbl_users u ON pat.user_id = u.user_id
+                JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
+                WHERE p.payment_id = :payment_id
+            ");
+            $stmt->bindParam(":payment_id", $data['payment_id']);
+            $stmt->execute();
+            $payment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            return [
+                'success' => true,
+                'message' => 'Online payment processed successfully!',
+                'payment' => $payment
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to process online payment: ' . $e->getMessage()];
+        }
+    }
+
+    function getPaymentStatistics()
+    {
+        include "connection.php";
+
+        try {
+            // Total payments
+            $stmt = $conn->prepare("SELECT COUNT(*) as total_payments FROM tbl_payments");
+            $stmt->execute();
+            $totalPayments = $stmt->fetchColumn();
+
+            // Total amount
+            $stmt = $conn->prepare("SELECT SUM(amount) as total_amount FROM tbl_payments WHERE status_id = 12");
+            $stmt->execute();
+            $totalAmount = $stmt->fetchColumn();
+
+            // Pending payments
+            $stmt = $conn->prepare("SELECT COUNT(*) as pending_payments FROM tbl_payments WHERE status_id = 11");
+            $stmt->execute();
+            $pendingPayments = $stmt->fetchColumn();
+
+            // Online vs Walk-in payments
+            $stmt = $conn->prepare("
+                SELECT payment_method, COUNT(*) as count, SUM(amount) as total
+                FROM tbl_payments
+                WHERE status_id = 12
+                GROUP BY payment_method
+            ");
+            $stmt->execute();
+            $paymentMethods = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return [
+                'success' => true,
+                'statistics' => [
+                    'total_payments' => $totalPayments,
+                    'total_amount' => $totalAmount,
+                    'pending_payments' => $pendingPayments,
+                    'payment_methods' => $paymentMethods
+                ]
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch payment statistics: ' . $e->getMessage()];
+        }
     }
 }
 
-$operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
-$json = $_POST['json'] ?? $_GET['json'] ?? '';
+// Handle incoming request
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    $operation = $_GET['operation'] ?? "";
+    $json = $_GET['json'] ?? "";
+    $payment_id = $_GET['payment_id'] ?? "";
+    $patient_id = $_GET['patient_id'] ?? "";
+    $appointment_id = $_GET['appointment_id'] ?? "";
+} else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $operation = $_POST['operation'] ?? "";
+    $json = $_POST['json'] ?? "";
+    $payment_id = $_POST['payment_id'] ?? "";
+    $patient_id = $_POST['patient_id'] ?? "";
+    $appointment_id = $_POST['appointment_id'] ?? "";
+}
 
-$svc = new Payments();
+$payments = new Payments();
 
 switch ($operation) {
-    case 'get_all':
-        $svc->get_all();
+    case "getAll":
+        echo json_encode($payments->getAllPayments());
         break;
-    case 'set_status':
-        $data = json_decode($json ?: '{}', true);
-        $svc->set_status($data);
+    case "getByPatient":
+        echo json_encode($payments->getPaymentsByPatient($patient_id));
         break;
-    case 'get_by_patient':
-        $pid = $_GET['patient_id'] ?? '';
-        $svc->get_by_patient($pid);
+    case "getByAppointment":
+        echo json_encode($payments->getPaymentsByAppointment($appointment_id));
         break;
-    case 'get_by_appointment':
-        $aid = $_GET['appointment_id'] ?? '';
-        $svc->get_by_appointment($aid);
+    case "add":
+        echo json_encode($payments->addPayment($json));
+        break;
+    case "update":
+        echo json_encode($payments->updatePayment($json));
+        break;
+    case "delete":
+        echo json_encode($payments->deletePayment($payment_id));
+        break;
+    case "processOnline":
+        echo json_encode($payments->processOnlinePayment($json));
+        break;
+    case "getStatistics":
+        echo json_encode($payments->getPaymentStatistics());
         break;
     default:
-        echo json_encode(["success" => false, "message" => "Invalid operation"]);
+        echo json_encode(['success' => false, 'message' => 'Invalid operation.']);
         break;
 }
 ?>
-
-

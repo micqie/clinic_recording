@@ -4,148 +4,247 @@ header("Access-Control-Allow-Origin: *");
 
 class Medicines
 {
-    private $conn;
-
-    public function __construct()
+    function getAllMedicines()
     {
         include "connection.php";
-        $this->conn = $conn;
-    }
 
-    // Get all medicines with form name and unit name
-    public function get_all()
-    {
-        $stmt = $this->conn->prepare("
-            SELECT m.medicine_id,
-                   m.name,
-                   m.price,
-                   m.quantity,          -- amount per unit (e.g., 100)
-                   m.stock,             -- stock available
-                   u.unit_name AS unit, -- unit name from units table
-                   f.form_name AS form,
-                   m.created_at,
-                   m.updated_at
-            FROM tbl_medicines m
-            JOIN tbl_medicine_forms f ON m.form_id = f.form_id
-            JOIN tbl_medicine_units u ON m.unit_id = u.unit_id
-            ORDER BY m.medicine_id DESC
-        ");
-        $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode($result);
-    }
+        try {
+            $stmt = $conn->prepare("
+                SELECT m.*, f.form_name, w.weight_value
+                FROM tbl_medicines m
+                JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_weights w ON m.weight = w.weight_value
+                ORDER BY m.medicine_name
+            ");
+            $stmt->execute();
+            $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Add new medicine
-    public function add($data)
-    {
-        $stmt = $this->conn->prepare("
-            INSERT INTO tbl_medicines (name, price, quantity, unit_id, stock, form_id)
-            VALUES (:name, :price, :quantity, :unit_id, :stock, :form_id)
-        ");
-        $stmt->bindParam(":name", $data['name']);
-        $stmt->bindParam(":price", $data['price']);
-        $stmt->bindParam(":quantity", $data['quantity']);
-        $stmt->bindParam(":unit_id", $data['unit_id']);
-        $stmt->bindParam(":stock", $data['stock']);
-        $stmt->bindParam(":form_id", $data['form_id']);
-
-        if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Medicine added successfully"]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Failed to add medicine"]);
+            return ['success' => true, 'medicines' => $medicines];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch medicines: ' . $e->getMessage()];
         }
     }
 
-    // Get medicine forms
-    public function get_forms()
+    function addMedicine($json)
     {
-        $stmt = $this->conn->prepare("SELECT form_id, form_name FROM tbl_medicine_forms ORDER BY form_name ASC");
-        $stmt->execute();
-        $forms = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(["forms" => $forms]);
-    }
+        include "connection.php";
+        $data = json_decode($json, true);
 
-    // Get medicine units
-    public function get_units()
-    {
-        $stmt = $this->conn->prepare("SELECT unit_id, unit_name FROM tbl_medicine_units ORDER BY unit_name ASC");
-        $stmt->execute();
-        $units = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        echo json_encode(["units" => $units]);
-    }
+        if (empty($data['medicine_name']) || empty($data['form_id']) || !isset($data['price'])) {
+            return ['success' => false, 'message' => 'Medicine name, form, and price are required.'];
+        }
 
-    // Update medicine
-    public function update($data)
-    {
-        $stmt = $this->conn->prepare("
-            UPDATE tbl_medicines
-            SET name = :name, price = :price, quantity = :quantity,
-                unit_id = :unit_id, stock = :stock, form_id = :form_id
-            WHERE medicine_id = :medicine_id
-        ");
-        $stmt->bindParam(":name", $data['name']);
-        $stmt->bindParam(":price", $data['price']);
-        $stmt->bindParam(":quantity", $data['quantity']);
-        $stmt->bindParam(":unit_id", $data['unit_id']);
-        $stmt->bindParam(":stock", $data['stock']);
-        $stmt->bindParam(":form_id", $data['form_id']);
-        $stmt->bindParam(":medicine_id", $data['medicine_id']);
+        try {
+            // Check if medicine name already exists
+            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE medicine_name = :medicine_name");
+            $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Medicine name already exists.'];
+            }
 
-        if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Medicine updated successfully"]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Failed to update medicine"]);
+            $sql = "INSERT INTO tbl_medicines (medicine_name, weight, form_id, price)
+                    VALUES (:medicine_name, :weight, :form_id, :price)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            $stmt->bindParam(":weight", $data['weight'] ?? null);
+            $stmt->bindParam(":form_id", $data['form_id']);
+            $stmt->bindParam(":price", $data['price']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Medicine added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add medicine: ' . $e->getMessage()];
         }
     }
 
-    // Delete medicine
-    public function delete($medicine_id)
+    function updateMedicine($json)
     {
-        $stmt = $this->conn->prepare("DELETE FROM tbl_medicines WHERE medicine_id = :medicine_id");
-        $stmt->bindParam(":medicine_id", $medicine_id);
+        include "connection.php";
+        $data = json_decode($json, true);
 
-        if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Medicine deleted successfully"]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Failed to delete medicine"]);
+        if (empty($data['medicine_id']) || empty($data['medicine_name']) || empty($data['form_id']) || !isset($data['price'])) {
+            return ['success' => false, 'message' => 'Medicine ID, name, form, and price are required.'];
+        }
+
+        try {
+            // Check if medicine name already exists for other medicines
+            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE medicine_name = :medicine_name AND medicine_id != :medicine_id");
+            $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            $stmt->bindParam(":medicine_id", $data['medicine_id']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Medicine name already exists.'];
+            }
+
+            $sql = "UPDATE tbl_medicines SET medicine_name = :medicine_name, weight = :weight, form_id = :form_id, price = :price
+                    WHERE medicine_id = :medicine_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            $stmt->bindParam(":weight", $data['weight'] ?? null);
+            $stmt->bindParam(":form_id", $data['form_id']);
+            $stmt->bindParam(":price", $data['price']);
+            $stmt->bindParam(":medicine_id", $data['medicine_id']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Medicine updated successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update medicine: ' . $e->getMessage()];
+        }
+    }
+
+    function deleteMedicine($medicine_id)
+    {
+        include "connection.php";
+
+        if (empty($medicine_id)) {
+            return ['success' => false, 'message' => 'Medicine ID is required.'];
+        }
+
+        try {
+            $stmt = $conn->prepare("DELETE FROM tbl_medicines WHERE medicine_id = :medicine_id");
+            $stmt->bindParam(":medicine_id", $medicine_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Medicine deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Medicine not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete medicine: ' . $e->getMessage()];
+        }
+    }
+
+    function getMedicineForms()
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("SELECT * FROM tbl_medicine_forms ORDER BY form_name");
+            $stmt->execute();
+            $forms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'forms' => $forms];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch medicine forms: ' . $e->getMessage()];
+        }
+    }
+
+    function getMedicineWeights()
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("SELECT * FROM tbl_medicine_weights ORDER BY weight_value");
+            $stmt->execute();
+            $weights = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'weights' => $weights];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch medicine weights: ' . $e->getMessage()];
+        }
+    }
+
+    function addMedicineForm($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['form_name'])) {
+            return ['success' => false, 'message' => 'Form name is required.'];
+        }
+
+        try {
+            // Check if form name already exists
+            $stmt = $conn->prepare("SELECT form_id FROM tbl_medicine_forms WHERE form_name = :form_name");
+            $stmt->bindParam(":form_name", $data['form_name']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Form name already exists.'];
+            }
+
+            $sql = "INSERT INTO tbl_medicine_forms (form_name) VALUES (:form_name)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":form_name", $data['form_name']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Medicine form added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add medicine form: ' . $e->getMessage()];
+        }
+    }
+
+    function addMedicineWeight($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['weight_value'])) {
+            return ['success' => false, 'message' => 'Weight value is required.'];
+        }
+
+        try {
+            // Check if weight value already exists
+            $stmt = $conn->prepare("SELECT weight_id FROM tbl_medicine_weights WHERE weight_value = :weight_value");
+            $stmt->bindParam(":weight_value", $data['weight_value']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Weight value already exists.'];
+            }
+
+            $sql = "INSERT INTO tbl_medicine_weights (weight_value) VALUES (:weight_value)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":weight_value", $data['weight_value']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Medicine weight added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add medicine weight: ' . $e->getMessage()];
         }
     }
 }
 
-// Handle request
-$operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
+// Handle incoming request
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    $operation = $_GET['operation'] ?? "";
+    $json = $_GET['json'] ?? "";
+    $medicine_id = $_GET['medicine_id'] ?? "";
+} else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $operation = $_POST['operation'] ?? "";
+    $json = $_POST['json'] ?? "";
+    $medicine_id = $_POST['medicine_id'] ?? "";
+}
 
 $medicines = new Medicines();
 
 switch ($operation) {
-    case 'get_all':
-        $medicines->get_all();
+    case "getAll":
+        echo json_encode($medicines->getAllMedicines());
         break;
-
-    case 'get_forms':
-        $medicines->get_forms();
+    case "add":
+        echo json_encode($medicines->addMedicine($json));
         break;
-
-    case 'get_units':
-        $medicines->get_units();
+    case "update":
+        echo json_encode($medicines->updateMedicine($json));
         break;
-
-    case 'add':
-        $data = json_decode($_POST['json'] ?? '{}', true);
-        $medicines->add($data);
+    case "delete":
+        echo json_encode($medicines->deleteMedicine($medicine_id));
         break;
-
-    case 'update':
-        $data = json_decode($_POST['json'] ?? '{}', true);
-        $medicines->update($data);
+    case "getMedicineForms":
+        echo json_encode($medicines->getMedicineForms());
         break;
-
-    case 'delete':
-        $medicine_id = $_POST['medicine_id'] ?? $_GET['medicine_id'] ?? null;
-        $medicines->delete($medicine_id);
+    case "getMedicineWeights":
+        echo json_encode($medicines->getMedicineWeights());
         break;
-
+    case "addMedicineForm":
+        echo json_encode($medicines->addMedicineForm($json));
+        break;
+    case "addMedicineWeight":
+        echo json_encode($medicines->addMedicineWeight($json));
+        break;
     default:
-        echo json_encode(["success" => false, "message" => "Invalid operation"]);
+        echo json_encode(['success' => false, 'message' => 'Invalid operation.']);
         break;
 }
+?>

@@ -11,26 +11,60 @@
       const editMedicineModal = new bootstrap.Modal(document.getElementById('editMedicineModal'));
       const addMedicineModal = new bootstrap.Modal(document.getElementById('addMedicineModal'));
 
-      // Cache form and unit options for dropdowns (used in add/edit forms)
+      // Cache form and weight options for dropdowns (used in add/edit forms)
       let medicineForms = [];
-      let medicineUnits = [];
+      let medicineWeights = [];
 
-      // Load forms and units for dropdowns
-      async function loadFormsAndUnits() {
+      // Load forms and weights for dropdowns
+      async function loadFormsAndWeights() {
         try {
-          const [formsResp, unitsResp] = await Promise.all([
-            axios.get(`${medicineApiUrl}?operation=get_forms`),
-            axios.get(`${medicineApiUrl}?operation=get_units`),
+          console.log("Loading forms and weights...");
+
+          const [formsResp, weightsResp] = await Promise.all([
+            axios.get(`${medicineApiUrl}?operation=getMedicineForms`),
+            axios.get(`${medicineApiUrl}?operation=getMedicineWeights`),
           ]);
+
+          console.log("Forms response:", formsResp.data);
+          console.log("Weights response:", weightsResp.data);
+
           medicineForms = formsResp.data.forms || [];
-          medicineUnits = unitsResp.data.units || [];
+          medicineWeights = weightsResp.data.weights || [];
+
+          console.log("Medicine forms:", medicineForms);
+          console.log("Medicine weights:", medicineWeights);
+
+          // Populate form dropdowns
           populateSelectOptions('add_form_id', medicineForms, "form_name", "form_id", "Select Form");
-          populateSelectOptions('add_unit_id', medicineUnits, "unit_name", "unit_id", "Select Unit");
           populateSelectOptions('edit_form_id', medicineForms, "form_name", "form_id", "Select Form");
-          populateSelectOptions('edit_unit_id', medicineUnits, "unit_name", "unit_id", "Select Unit");
+
+          // Populate weight dropdowns
+          populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_id", "Select Weight");
+          populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_id", "Select Weight");
+
+          console.log("Dropdowns populated successfully");
         } catch (error) {
-          console.error("Failed to load forms or units", error);
+          console.error("Failed to load forms or weights", error);
+          // Show error to user
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to load medicine forms and weights. Please refresh the page.'
+          });
         }
+      }
+
+      // Helper: format date for display
+      function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
       }
 
       // Helper: populate a select element with options from array of objects
@@ -48,31 +82,57 @@
       // Load medicines and populate table
       async function loadMedicines() {
         try {
-          const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
-          const medicines = response.data || [];
+          const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
+          const medicines = response.data.medicines || [];
           medicineTableBody.innerHTML = "";
+
+          if (medicines.length === 0) {
+            medicineTableBody.innerHTML = `
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">
+                  <i class="fas fa-pills fa-3x mb-3"></i>
+                  <p>No medicines found</p>
+                </td>
+              </tr>
+            `;
+            return;
+          }
 
           medicines.forEach(med => {
             const row = document.createElement("tr");
             row.innerHTML = `
-              <td>${med.name}</td>
-              <td>${med.price}</td>
-              <td>${med.quantity}</td>
-              <td>${med.unit}</td>
-              <td>${med.stock}</td>
-              <td>${med.form}</td>
-              <td>${med.created_at}</td>
-              <td>${med.updated_at}</td>
+              <td>${med.medicine_name}</td>
+              <td>${med.weight || med.weight_value || 'N/A'}</td>
+              <td>${med.form_name || 'N/A'}</td>
+              <td>₱${parseFloat(med.price).toFixed(2)}</td>
+              <td>${formatDate(med.created_at)}</td>
+              <td>${formatDate(med.updated_at)}</td>
               <td>
-                <button type="button" class="btn btn-sm btn-info me-1" onclick="viewMedicine(${med.medicine_id})">View</button>
-                <button type="button" class="btn btn-sm btn-warning me-1" onclick="editMedicine(${med.medicine_id})">Edit</button>
-                <button type="button" class="btn btn-sm btn-danger" onclick="deleteMedicine(${med.medicine_id})">Delete</button>
+                <div class="btn-group" role="group">
+                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewMedicine(${med.medicine_id})">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-warning" onclick="editMedicine(${med.medicine_id})">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteMedicine(${med.medicine_id})">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
               </td>
             `;
             medicineTableBody.appendChild(row);
           });
         } catch (error) {
           console.error("Failed to load medicines", error);
+          medicineTableBody.innerHTML = `
+            <tr>
+              <td colspan="7" class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                <p>Failed to load medicines</p>
+              </td>
+            </tr>
+          `;
         }
       }
 
@@ -89,12 +149,10 @@
         const formData = new FormData(addMedicineForm);
 
         const jsonPayload = JSON.stringify({
-          name: formData.get("name"),
-          price: parseFloat(formData.get("price")),
-          quantity: parseInt(formData.get("quantity")),
-          unit_id: formData.get("unit_id"),
-          stock: parseInt(formData.get("stock")),
+          medicine_name: formData.get("medicine_name"),
+          weight: formData.get("weight"),
           form_id: formData.get("form_id"),
+          price: parseFloat(formData.get("price")),
         });
 
         const payload = new FormData();
@@ -151,22 +209,20 @@
       window.viewMedicine = async (medicineId) => {
         try {
           // No backend get by id; fetch all and find locally
-          const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
-          const med = response.data.find(m => m.medicine_id == medicineId);
+          const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
+          const med = response.data.medicines.find(m => m.medicine_id == medicineId);
           if (!med) {
             Swal.fire("Error", "Medicine not found", "error");
             return;
           }
 
           const content = `
-            <p><strong>Name:</strong> ${med.name}</p>
-            <p><strong>Price:</strong> ${med.price}</p>
-            <p><strong>Quantity:</strong> ${med.quantity}</p>
-            <p><strong>Unit:</strong> ${med.unit}</p>
-            <p><strong>Stock:</strong> ${med.stock}</p>
-            <p><strong>Form:</strong> ${med.form}</p>
-            <p><strong>Created At:</strong> ${med.created_at}</p>
-            <p><strong>Updated At:</strong> ${med.updated_at}</p>
+            <p><strong>Name:</strong> ${med.medicine_name}</p>
+            <p><strong>Weight:</strong> ${med.weight || med.weight_value || 'N/A'}</p>
+            <p><strong>Form:</strong> ${med.form_name || 'N/A'}</p>
+            <p><strong>Price:</strong> ₱${parseFloat(med.price).toFixed(2)}</p>
+            <p><strong>Created At:</strong> ${formatDate(med.created_at)}</p>
+            <p><strong>Updated At:</strong> ${formatDate(med.updated_at)}</p>
           `;
 
           document.getElementById("viewMedicineContent").innerHTML = content;
@@ -180,25 +236,38 @@
       // Edit medicine modal show + populate fields
       window.editMedicine = async (medicineId) => {
         try {
-          const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
-          const med = response.data.find(m => m.medicine_id == medicineId);
+          const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
+          const med = response.data.medicines.find(m => m.medicine_id == medicineId);
           if (!med) {
             Swal.fire("Error", "Medicine not found", "error");
             return;
           }
 
           document.getElementById("edit_medicine_id").value = med.medicine_id;
-          document.getElementById("edit_name").value = med.name;
+          document.getElementById("edit_name").value = med.medicine_name;
           document.getElementById("edit_price").value = med.price;
-          document.getElementById("edit_quantity").value = med.quantity;
-          document.getElementById("edit_stock").value = med.stock;
 
-          // Select unit and form dropdowns by matching id
-          const unitObj = medicineUnits.find(u => u.unit_name === med.unit);
-          const formObj = medicineForms.find(f => f.form_name === med.form);
+          // Set form dropdown by matching form_name
+          const formSelect = document.getElementById("edit_form_id");
+          if (formSelect) {
+            for (let i = 0; i < formSelect.options.length; i++) {
+              if (formSelect.options[i].text === med.form_name) {
+                formSelect.selectedIndex = i;
+                break;
+              }
+            }
+          }
 
-          document.getElementById("edit_unit_id").value = unitObj ? unitObj.unit_id : "";
-          document.getElementById("edit_form_id").value = formObj ? formObj.form_id : "";
+          // Set weight dropdown by matching weight_value
+          const weightSelect = document.getElementById("edit_weight");
+          if (weightSelect) {
+            for (let i = 0; i < weightSelect.options.length; i++) {
+              if (weightSelect.options[i].text === med.weight || weightSelect.options[i].text === med.weight_value) {
+                weightSelect.selectedIndex = i;
+                break;
+              }
+            }
+          }
 
           editMedicineModal.show();
         } catch (err) {
@@ -221,12 +290,10 @@
 
         const jsonPayload = JSON.stringify({
           medicine_id: formData.get("medicine_id"),
-          name: formData.get("name"),
-          price: parseFloat(formData.get("price")),
-          quantity: parseInt(formData.get("quantity")),
-          unit_id: formData.get("unit_id"),
-          stock: parseInt(formData.get("stock")),
+          medicine_name: formData.get("medicine_name"),
+          weight: formData.get("weight"),
           form_id: formData.get("form_id"),
+          price: parseFloat(formData.get("price")),
         });
 
         const payload = new FormData();
@@ -249,5 +316,5 @@
       });
 
       // Initial load
-      loadFormsAndUnits().then(loadMedicines);
+      loadFormsAndWeights().then(loadMedicines);
     });

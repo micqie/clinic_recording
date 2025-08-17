@@ -233,25 +233,24 @@
             <input type="password" class="form-control" id="register-password" name="password" required>
           </div>
           <div class="col-12">
-            <label for="register-role" class="form-label fw-bold">Role</label>
-            <select class="form-select" id="register-role" name="role" required>
-              <option value="">Select role</option>
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-              <option value="secretary">Secretary</option>
+            <label for="register-sex" class="form-label fw-bold">Sex</label>
+            <select class="form-select" id="register-sex" name="sex" required>
+              <option value="">Select sex</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
             </select>
           </div>
-
-          <!-- Doctor License Number -->
-          <div class="col-12" id="license-field" style="display: none;">
-            <label for="license-number" class="form-label fw-bold">License Number</label>
-            <input type="text" class="form-control" id="license-number" name="license_number">
+          <div class="col-12">
+            <label for="register-contact" class="form-label fw-bold">Contact Number</label>
+            <input type="tel" class="form-control" id="register-contact" name="contact_num" required>
           </div>
-
-          <!-- Secretary Employee ID -->
-          <div class="col-12" id="employee-id-field" style="display: none;">
-            <label for="employee-id" class="form-label fw-bold">Employee ID</label>
-            <input type="text" class="form-control" id="employee-id" name="employee_id">
+          <div class="col-12">
+            <label for="register-birthdate" class="form-label fw-bold">Birth Date</label>
+            <input type="date" class="form-control" id="register-birthdate" name="birthdate" required>
+          </div>
+          <div class="col-12">
+            <label for="register-address" class="form-label fw-bold">Address</label>
+            <textarea class="form-control" id="register-address" name="address" rows="3" required></textarea>
           </div>
 
           <div class="col-12 text-center mt-3">
@@ -259,7 +258,7 @@
           </div>
 
           <div class="col-12">
-            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-3">Register</button>
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold rounded-3">Register as Patient</button>
           </div>
         </form>
       </div>

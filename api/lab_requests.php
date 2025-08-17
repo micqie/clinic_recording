@@ -4,243 +4,245 @@ header("Access-Control-Allow-Origin: *");
 
 class LabRequests
 {
-    private $conn;
-
-    public function __construct()
+    function getAllLabRequests()
     {
         include "connection.php";
-        $this->conn = $conn;
-    }
 
-    private function getLabStatusId($statusName)
-    {
-        $stmt = $this->conn->prepare("SELECT s.status_id FROM tbl_status s JOIN tbl_status_type t ON s.status_type_id = t.status_type_id WHERE t.status_type_name = 'LabResult' AND s.status_name = :name LIMIT 1");
-        $stmt->bindParam(":name", $statusName);
-        $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? intval($row['status_id']) : null;
-    }
-
-    public function create($data)
-    {
-        if (empty($data['doctor_id']) || empty($data['patient_id']) || empty($data['request_text'])) {
-            echo json_encode(["success" => false, "message" => "doctor_id, patient_id and request_text are required."]); 
-            return;
-        }
-        
-        $statusId = $this->getLabStatusId('Processing');
-        if (!$statusId) {
-            echo json_encode(["success" => false, "message" => "Lab status 'Processing' not found."]); 
-            return;
-        }
-        
-        $stmt = $this->conn->prepare("INSERT INTO tbl_lab_requests (doctor_id, patient_id, appointment_id, request_text, status_id, created_at) VALUES (:doc, :pid, :aid, :txt, :sid, NOW())");
-        $stmt->bindParam(":doc", $data['doctor_id']);
-        $stmt->bindParam(":pid", $data['patient_id']);
-        $stmt->bindParam(":aid", $data['appointment_id']);
-        $stmt->bindParam(":txt", $data['request_text']);
-        $stmt->bindParam(":sid", $statusId);
-        
-        if ($stmt->execute()) { 
-            echo json_encode(["success" => true, "message" => "Lab request created successfully."]); 
-            return; 
-        }
-        echo json_encode(["success" => false, "message" => "Failed to create lab request."]);        
-    }
-
-    public function update_status($data)
-    {
-        if (empty($data['lab_request_id']) || empty($data['status'])) {
-            echo json_encode(["success" => false, "message" => "lab_request_id and status are required."]); 
-            return;
-        }
-        
-        $statusId = $this->getLabStatusId($data['status']);
-        if (!$statusId) {
-            echo json_encode(["success" => false, "message" => "Status '{$data['status']}' not found."]); 
-            return;
-        }
-        
-        $stmt = $this->conn->prepare("UPDATE tbl_lab_requests SET status_id = :sid, updated_at = NOW() WHERE lab_request_id = :id");
-        $stmt->bindParam(":sid", $statusId);
-        $stmt->bindParam(":id", $data['lab_request_id']);
-        
-        if ($stmt->execute()) { 
-            echo json_encode(["success" => true, "message" => "Lab request status updated."]); 
-            return; 
-        }
-        echo json_encode(["success" => false, "message" => "Failed to update status."]);        
-    }
-
-    public function get_all()
-    {
         try {
-            $stmt = $this->conn->prepare("
-                SELECT lr.lab_request_id, lr.request_text, lr.created_at, lr.updated_at,
-                       s.status_name, s.status_id,
-                       du.name AS doctor_name, d.license_number,
-                       u.name AS patient_name, p.patient_id,
-                       a.appointment_date, a.queue_number
+            $stmt = $conn->prepare("
+                SELECT lr.*,
+                       p.user_id as patient_user_id,
+                       u.name as patient_name,
+                       d.user_id as doctor_user_id,
+                       du.name as doctor_name,
+                       s.user_id as secretary_user_id,
+                       su.name as secretary_name,
+                       st.status_name
                 FROM tbl_lab_requests lr
-                JOIN tbl_status s ON lr.status_id = s.status_id
-                JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
-                JOIN tbl_users du ON d.user_id = du.user_id
                 JOIN tbl_patients p ON lr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
-                LEFT JOIN tbl_appointments a ON lr.appointment_id = a.appointment_id
-                ORDER BY lr.created_at DESC, lr.lab_request_id DESC
+                LEFT JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
+                LEFT JOIN tbl_secretaries s ON lr.secretary_id = s.secretary_id
+                LEFT JOIN tbl_users su ON s.user_id = su.user_id
+                LEFT JOIN tbl_status st ON lr.status_id = st.status_id
+                ORDER BY lr.created_at DESC
             ");
             $stmt->execute();
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (empty($results)) {
-                echo json_encode(["success" => true, "data" => [], "message" => "No lab requests found"]);
-            } else {
-                echo json_encode(["success" => true, "data" => $results]);
-            }
-        } catch (Exception $e) {
-            echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
+            $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'requests' => $requests];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch lab requests: ' . $e->getMessage()];
         }
     }
 
-    public function get_by_doctor($doctorId)
+    function getLabRequestsByPatient($patient_id)
     {
-        if (empty($doctorId)) { 
-            echo json_encode(["success" => false, "message" => "doctor_id required."]); 
-            return; 
-        }
-        
+        include "connection.php";
+
         try {
-            $stmt = $this->conn->prepare("
-                SELECT lr.lab_request_id, lr.request_text, lr.created_at, lr.updated_at,
-                       s.status_name, s.status_id,
-                       u.name AS patient_name, p.patient_id,
-                       a.appointment_date, a.queue_number
+            $stmt = $conn->prepare("
+                SELECT lr.*,
+                       d.user_id as doctor_user_id,
+                       du.name as doctor_name,
+                       s.user_id as secretary_user_id,
+                       su.name as secretary_name,
+                       st.status_name
                 FROM tbl_lab_requests lr
-                JOIN tbl_status s ON lr.status_id = s.status_id
+                LEFT JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
+                LEFT JOIN tbl_secretaries s ON lr.secretary_id = s.secretary_id
+                LEFT JOIN tbl_users su ON s.user_id = su.user_id
+                LEFT JOIN tbl_status st ON lr.status_id = st.status_id
+                WHERE lr.patient_id = :patient_id
+                ORDER BY lr.created_at DESC
+            ");
+            $stmt->bindParam(":patient_id", $patient_id);
+            $stmt->execute();
+            $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'requests' => $requests];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch lab requests: ' . $e->getMessage()];
+        }
+    }
+
+    function getLabRequestsByDoctor($doctor_id)
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT lr.*,
+                       p.user_id as patient_user_id,
+                       u.name as patient_name,
+                       st.status_name
+                FROM tbl_lab_requests lr
                 JOIN tbl_patients p ON lr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
-                LEFT JOIN tbl_appointments a ON lr.appointment_id = a.appointment_id
-                WHERE lr.doctor_id = :doc
-                ORDER BY lr.created_at DESC, lr.lab_request_id DESC
+                LEFT JOIN tbl_status st ON lr.status_id = st.status_id
+                WHERE lr.doctor_id = :doctor_id
+                ORDER BY lr.created_at DESC
             ");
-            $stmt->bindParam(":doc", $doctorId);
+            $stmt->bindParam(":doctor_id", $doctor_id);
             $stmt->execute();
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (empty($results)) {
-                echo json_encode(["success" => true, "data" => [], "message" => "No lab requests found for this doctor"]);
-            } else {
-                echo json_encode(["success" => true, "data" => $results]);
-            }
-        } catch (Exception $e) {
-            echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
+            $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'requests' => $requests];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch lab requests: ' . $e->getMessage()];
         }
     }
 
-    public function get_by_patient($patientId)
+    function addLabRequest($json)
     {
-        if (empty($patientId)) { 
-            echo json_encode(["success" => false, "message" => "patient_id required."]); 
-            return; 
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['patient_id']) || empty($data['request_text'])) {
+            return ['success' => false, 'message' => 'Patient ID and request text are required.'];
         }
-        
+
         try {
-            $stmt = $this->conn->prepare("
-                SELECT lr.lab_request_id, lr.request_text, lr.created_at, lr.updated_at,
-                       s.status_name, s.status_id,
-                       du.name AS doctor_name, d.license_number,
-                       a.appointment_date, a.queue_number
-                FROM tbl_lab_requests lr
-                JOIN tbl_status s ON lr.status_id = s.status_id
-                JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
-                JOIN tbl_users du ON d.user_id = du.user_id
-                LEFT JOIN tbl_appointments a ON lr.appointment_id = a.appointment_id
-                WHERE lr.patient_id = :pid
-                ORDER BY lr.created_at DESC, lr.lab_request_id DESC
-            ");
-            $stmt->bindParam(":pid", $patientId);
+            $sql = "INSERT INTO tbl_lab_requests (doctor_id, secretary_id, patient_id, appointment_id, request_text, status_id)
+                    VALUES (:doctor_id, :secretary_id, :patient_id, :appointment_id, :request_text, :status_id)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":doctor_id", $data['doctor_id'] ?? null);
+            $stmt->bindParam(":secretary_id", $data['secretary_id'] ?? null);
+            $stmt->bindParam(":patient_id", $data['patient_id']);
+            $stmt->bindParam(":appointment_id", $data['appointment_id'] ?? null);
+            $stmt->bindParam(":request_text", $data['request_text']);
+            $stmt->bindParam(":status_id", $data['status_id'] ?? 14); // Default to Processing
             $stmt->execute();
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (empty($results)) {
-                echo json_encode(["success" => true, "data" => [], "message" => "No lab requests found for this patient"]);
-            } else {
-                echo json_encode(["success" => true, "data" => $results]);
-            }
-        } catch (Exception $e) {
-            echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
+
+            return ['success' => true, 'message' => 'Lab request added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add lab request: ' . $e->getMessage()];
         }
     }
 
-    public function get_by_id($labRequestId)
+    function updateLabRequest($json)
     {
-        if (empty($labRequestId)) { 
-            echo json_encode(["success" => false, "message" => "lab_request_id required."]); 
-            return; 
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['lab_request_id']) || empty($data['request_text'])) {
+            return ['success' => false, 'message' => 'Lab request ID and request text are required.'];
         }
-        
-        $stmt = $this->conn->prepare("
-            SELECT lr.lab_request_id, lr.request_text, lr.created_at, lr.updated_at,
-                   s.status_name, s.status_id,
-                   du.name AS doctor_name, d.license_number,
-                   u.name AS patient_name, p.patient_id,
-                   a.appointment_date, a.queue_number
-            FROM tbl_lab_requests lr
-            JOIN tbl_status s ON lr.status_id = s.status_id
-            JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
-            JOIN tbl_users du ON d.user_id = du.user_id
-            JOIN tbl_patients p ON lr.patient_id = p.patient_id
-            JOIN tbl_users u ON p.user_id = u.user_id
-            LEFT JOIN tbl_appointments a ON lr.appointment_id = a.appointment_id
-            WHERE lr.lab_request_id = :id
-            LIMIT 1
-        ");
-        $stmt->bindParam(":id", $labRequestId);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($result) {
-            echo json_encode(["success" => true, "data" => $result]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Lab request not found."]);
+
+        try {
+            $sql = "UPDATE tbl_lab_requests SET
+                    doctor_id = :doctor_id,
+                    secretary_id = :secretary_id,
+                    patient_id = :patient_id,
+                    appointment_id = :appointment_id,
+                    request_text = :request_text,
+                    status_id = :status_id
+                    WHERE lab_request_id = :lab_request_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":doctor_id", $data['doctor_id'] ?? null);
+            $stmt->bindParam(":secretary_id", $data['secretary_id'] ?? null);
+            $stmt->bindParam(":patient_id", $data['patient_id']);
+            $stmt->bindParam(":appointment_id", $data['appointment_id'] ?? null);
+            $stmt->bindParam(":request_text", $data['request_text']);
+            $stmt->bindParam(":status_id", $data['status_id'] ?? 14);
+            $stmt->bindParam(":lab_request_id", $data['lab_request_id']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Lab request updated successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update lab request: ' . $e->getMessage()];
+        }
+    }
+
+    function deleteLabRequest($lab_request_id)
+    {
+        include "connection.php";
+
+        if (empty($lab_request_id)) {
+            return ['success' => false, 'message' => 'Lab request ID is required.'];
+        }
+
+        try {
+            $stmt = $conn->prepare("DELETE FROM tbl_lab_requests WHERE lab_request_id = :lab_request_id");
+            $stmt->bindParam(":lab_request_id", $lab_request_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Lab request deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Lab request not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete lab request: ' . $e->getMessage()];
+        }
+    }
+
+    function updateLabRequestStatus($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['lab_request_id']) || empty($data['status_id'])) {
+            return ['success' => false, 'message' => 'Lab request ID and status ID are required.'];
+        }
+
+        try {
+            $sql = "UPDATE tbl_lab_requests SET status_id = :status_id WHERE lab_request_id = :lab_request_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":status_id", $data['status_id']);
+            $stmt->bindParam(":lab_request_id", $data['lab_request_id']);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Lab request status updated successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update lab request status: ' . $e->getMessage()];
         }
     }
 }
 
-$operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
-$json = $_POST['json'] ?? $_GET['json'] ?? '';
+// Handle incoming request
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    $operation = $_GET['operation'] ?? "";
+    $json = $_GET['json'] ?? "";
+    $lab_request_id = $_GET['lab_request_id'] ?? "";
+    $patient_id = $_GET['patient_id'] ?? "";
+    $doctor_id = $_GET['doctor_id'] ?? "";
+} else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $operation = $_POST['operation'] ?? "";
+    $json = $_POST['json'] ?? "";
+    $lab_request_id = $_POST['lab_request_id'] ?? "";
+    $patient_id = $_POST['patient_id'] ?? "";
+    $doctor_id = $_POST['doctor_id'] ?? "";
+}
 
-$svc = new LabRequests();
+$labRequests = new LabRequests();
 
 switch ($operation) {
-    case 'create':
-        $data = json_decode($json ?: '{}', true);
-        $svc->create($data);
+    case "getAll":
+        echo json_encode($labRequests->getAllLabRequests());
         break;
-    case 'update_status':
-        $data = json_decode($json ?: '{}', true);
-        $svc->update_status($data);
+    case "getByPatient":
+        echo json_encode($labRequests->getLabRequestsByPatient($patient_id));
         break;
-    case 'get_by_patient':
-        $pid = $_GET['patient_id'] ?? '';
-        $svc->get_by_patient($pid);
+    case "getByDoctor":
+        echo json_encode($labRequests->getLabRequestsByDoctor($doctor_id));
         break;
-    case 'get_by_doctor':
-        $doc = $_GET['doctor_id'] ?? '';
-        $svc->get_by_doctor($doc);
+    case "add":
+        echo json_encode($labRequests->addLabRequest($json));
         break;
-    case 'get_all':
-        $svc->get_all();
+    case "update":
+        echo json_encode($labRequests->updateLabRequest($json));
         break;
-    case 'get_by_id':
-        $id = $_GET['lab_request_id'] ?? '';
-        $svc->get_by_id($id);
+    case "delete":
+        echo json_encode($labRequests->deleteLabRequest($lab_request_id));
+        break;
+    case "updateStatus":
+        echo json_encode($labRequests->updateLabRequestStatus($json));
         break;
     default:
-        echo json_encode(["success" => false, "message" => "Invalid operation"]);
+        echo json_encode(['success' => false, 'message' => 'Invalid operation.']);
         break;
 }
 ?>
-
-

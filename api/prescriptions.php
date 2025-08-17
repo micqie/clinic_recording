@@ -2,209 +2,194 @@
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 
-class Prescription
+class Prescriptions
 {
-    function get_all()
+    function getAllPrescriptions()
     {
         include "connection.php";
 
-        $stmt = $conn->prepare("
-            SELECT
-                p.prescription_id,
-                p.diagnosis_id,
-                p.appointment_id,
-                p.doctor_id,
-                p.patient_id,
-                p.medicine_id,
-                p.dosage,
-                p.frequency,
-                p.duration,
-                p.instructions,
-                p.status,
-                p.created_at,
-                p.updated_at,
-                u.name AS patient_name,
-                doc.name AS doctor_name,
-                m.name AS medicine_name,
-                m.price AS medicine_price,
-                d.condition_name,
-                a.appointment_date
-            FROM tbl_prescriptions p
-            JOIN tbl_patients pat ON p.patient_id = pat.patient_id
-            JOIN tbl_users u ON pat.user_id = u.user_id
-            JOIN tbl_doctors doc_tbl ON p.doctor_id = doc_tbl.doctor_id
-            JOIN tbl_users doc ON doc_tbl.user_id = doc.user_id
-            JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
-            JOIN tbl_diagnoses d ON p.diagnosis_id = d.diagnosis_id
-            JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
-            ORDER BY p.created_at DESC
-        ");
+        try {
+            $stmt = $conn->prepare("
+                SELECT pr.*,
+                       d.condition_name,
+                       a.appointment_date,
+                       a.queue_number,
+                       p.user_id as patient_user_id,
+                       u.name as patient_name,
+                       doc.user_id as doctor_user_id,
+                       du.name as doctor_name,
+                       m.medicine_name,
+                       m.weight,
+                       f.form_name
+                FROM tbl_prescriptions pr
+                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
+                JOIN tbl_patients p ON pr.patient_id = p.patient_id
+                JOIN tbl_users u ON p.user_id = u.user_id
+                JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
+                JOIN tbl_users du ON doc.user_id = du.user_id
+                JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                ORDER BY pr.created_at DESC
+            ");
+            $stmt->execute();
+            $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $stmt->execute();
-        return ['success' => true, 'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
-    }
-
-    function get_by_diagnosis($diagnosis_id)
-    {
-        include "connection.php";
-
-        $stmt = $conn->prepare("
-            SELECT
-                p.prescription_id,
-                p.diagnosis_id,
-                p.appointment_id,
-                p.doctor_id,
-                p.patient_id,
-                p.medicine_id,
-                p.dosage,
-                p.frequency,
-                p.duration,
-                p.instructions,
-                p.status,
-                p.created_at,
-                p.updated_at,
-                m.name AS medicine_name,
-                m.price AS medicine_price,
-                mf.form_name AS medicine_form,
-                mu.unit_name AS medicine_unit
-            FROM tbl_prescriptions p
-            JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
-            JOIN tbl_medicine_forms mf ON m.form_id = mf.form_id
-            JOIN tbl_medicine_units mu ON m.unit_id = mu.unit_id
-            WHERE p.diagnosis_id = :diagnosis_id
-            ORDER BY p.created_at DESC
-        ");
-        
-        $stmt->bindParam(":diagnosis_id", $diagnosis_id);
-        $stmt->execute();
-        return ['success' => true, 'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
-    }
-
-    function get_by_appointment($appointment_id)
-    {
-        include "connection.php";
-
-        $stmt = $conn->prepare("
-            SELECT
-                p.prescription_id,
-                p.diagnosis_id,
-                p.appointment_id,
-                p.doctor_id,
-                p.patient_id,
-                p.medicine_id,
-                p.dosage,
-                p.frequency,
-                p.duration,
-                p.instructions,
-                p.status,
-                p.created_at,
-                p.updated_at,
-                m.name AS medicine_name,
-                m.price AS medicine_price,
-                d.condition_name
-            FROM tbl_prescriptions p
-            JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
-            JOIN tbl_diagnoses d ON p.diagnosis_id = d.diagnosis_id
-            WHERE p.appointment_id = :appointment_id
-            ORDER BY p.created_at DESC
-        ");
-        
-        $stmt->bindParam(":appointment_id", $appointment_id);
-        $stmt->execute();
-        return ['success' => true, 'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
-    }
-
-    function get($id = null)
-    {
-        include "connection.php";
-
-        $query = "
-            SELECT
-                p.prescription_id,
-                p.diagnosis_id,
-                p.appointment_id,
-                p.doctor_id,
-                p.patient_id,
-                p.medicine_id,
-                p.dosage,
-                p.frequency,
-                p.duration,
-                p.instructions,
-                p.status,
-                p.created_at,
-                p.updated_at,
-                u.name AS patient_name,
-                doc.name AS doctor_name,
-                m.name AS medicine_name,
-                m.price AS medicine_price,
-                d.condition_name,
-                a.appointment_date
-            FROM tbl_prescriptions p
-            JOIN tbl_patients pat ON p.patient_id = pat.patient_id
-            JOIN tbl_users u ON pat.user_id = u.user_id
-            JOIN tbl_doctors doc_tbl ON p.doctor_id = doc_tbl.doctor_id
-            JOIN tbl_users doc ON doc_tbl.user_id = doc.user_id
-            JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
-            JOIN tbl_diagnoses d ON p.diagnosis_id = d.diagnosis_id
-            JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
-        ";
-
-        if ($id === null) {
-            $query .= "ORDER BY p.created_at DESC LIMIT 1";
-            $stmt = $conn->prepare($query);
-        } else {
-            $query .= "WHERE p.prescription_id = :prescription_id LIMIT 1";
-            $stmt = $conn->prepare($query);
-            $stmt->bindParam(":prescription_id", $id);
-        }
-
-        $stmt->execute();
-        $data = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($data) {
-            return ['success' => true, 'data' => $data];
-        } else {
-            return ['success' => false, 'message' => 'Prescription not found.'];
+            return ['success' => true, 'prescriptions' => $prescriptions];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch prescriptions: ' . $e->getMessage()];
         }
     }
 
-    function add($json)
+    function getPrescriptionsByPatient($patient_id)
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT pr.*,
+                       d.condition_name,
+                       a.appointment_date,
+                       a.queue_number,
+                       doc.user_id as doctor_user_id,
+                       du.name as doctor_name,
+                       m.medicine_name,
+                       m.weight,
+                       f.form_name
+                FROM tbl_prescriptions pr
+                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
+                JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
+                JOIN tbl_users du ON doc.user_id = du.user_id
+                JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                WHERE pr.patient_id = :patient_id
+                ORDER BY pr.created_at DESC
+            ");
+            $stmt->bindParam(":patient_id", $patient_id);
+            $stmt->execute();
+            $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'prescriptions' => $prescriptions];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch prescriptions: ' . $e->getMessage()];
+        }
+    }
+
+    function getPrescriptionsByDoctor($doctor_id)
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT pr.*,
+                       d.condition_name,
+                       a.appointment_date,
+                       a.queue_number,
+                       p.user_id as patient_user_id,
+                       u.name as patient_name,
+                       m.medicine_name,
+                       m.weight,
+                       f.form_name
+                FROM tbl_prescriptions pr
+                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
+                JOIN tbl_patients p ON pr.patient_id = p.patient_id
+                JOIN tbl_users u ON p.user_id = u.user_id
+                JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                WHERE pr.doctor_id = :doctor_id
+                ORDER BY pr.created_at DESC
+            ");
+            $stmt->bindParam(":doctor_id", $doctor_id);
+            $stmt->execute();
+            $prescriptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'prescriptions' => $prescriptions];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch prescriptions: ' . $e->getMessage()];
+        }
+    }
+
+    function getPrescriptionById($prescription_id)
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT pr.*,
+                       d.condition_name,
+                       a.appointment_date,
+                       a.queue_number,
+                       p.user_id as patient_user_id,
+                       u.name as patient_name,
+                       doc.user_id as doctor_user_id,
+                       du.name as doctor_name,
+                       m.medicine_name,
+                       m.weight,
+                       f.form_name
+                FROM tbl_prescriptions pr
+                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
+                JOIN tbl_patients p ON pr.patient_id = p.patient_id
+                JOIN tbl_users u ON p.user_id = u.user_id
+                JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
+                JOIN tbl_users du ON doc.user_id = du.user_id
+                JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                WHERE pr.prescription_id = :prescription_id
+                LIMIT 1
+            ");
+            $stmt->bindParam(":prescription_id", $prescription_id);
+            $stmt->execute();
+            $prescription = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($prescription) {
+                return ['success' => true, 'prescription' => $prescription];
+            } else {
+                return ['success' => false, 'message' => 'Prescription not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch prescription: ' . $e->getMessage()];
+        }
+    }
+
+    function addPrescription($json)
     {
         include "connection.php";
         $data = json_decode($json, true);
 
-        if (empty($data['diagnosis_id']) || empty($data['appointment_id']) || empty($data['doctor_id']) || 
-            empty($data['patient_id']) || empty($data['medicine_id']) || empty($data['dosage']) || 
+        if (empty($data['diagnosis_id']) || empty($data['appointment_id']) || empty($data['doctor_id']) ||
+            empty($data['patient_id']) || empty($data['medicine_id']) || empty($data['dosage']) ||
             empty($data['frequency']) || empty($data['duration'])) {
             return ['success' => false, 'message' => 'All required fields must be provided.'];
         }
 
         try {
-            $stmt = $conn->prepare("
-                INSERT INTO tbl_prescriptions (diagnosis_id, appointment_id, doctor_id, patient_id, medicine_id, dosage, frequency, duration, instructions, status)
-                VALUES (:diagnosis_id, :appointment_id, :doctor_id, :patient_id, :medicine_id, :dosage, :frequency, :duration, :instructions, :status)
-            ");
-            
-            $status = $data['status'] ?? 'Active';
-            
-            $stmt->bindParam(':diagnosis_id', $data['diagnosis_id']);
-            $stmt->bindParam(':appointment_id', $data['appointment_id']);
-            $stmt->bindParam(':doctor_id', $data['doctor_id']);
-            $stmt->bindParam(':patient_id', $data['patient_id']);
-            $stmt->bindParam(':medicine_id', $data['medicine_id']);
-            $stmt->bindParam(':dosage', $data['dosage']);
-            $stmt->bindParam(':frequency', $data['frequency']);
-            $stmt->bindParam(':duration', $data['duration']);
-            $stmt->bindParam(':instructions', $data['instructions']);
-            $stmt->bindParam(':status', $status);
+            $sql = "INSERT INTO tbl_prescriptions (diagnosis_id, appointment_id, doctor_id, patient_id, medicine_id, dosage, frequency, duration, instructions, status)
+                    VALUES (:diagnosis_id, :appointment_id, :doctor_id, :patient_id, :medicine_id, :dosage, :frequency, :duration, :instructions, :status)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":diagnosis_id", $data['diagnosis_id']);
+            $stmt->bindParam(":appointment_id", $data['appointment_id']);
+            $stmt->bindParam(":doctor_id", $data['doctor_id']);
+            $stmt->bindParam(":patient_id", $data['patient_id']);
+            $stmt->bindParam(":medicine_id", $data['medicine_id']);
+            $stmt->bindParam(":dosage", $data['dosage']);
+            $stmt->bindParam(":frequency", $data['frequency']);
+            $stmt->bindParam(":duration", $data['duration']);
+            $stmt->bindParam(":instructions", $data['instructions'] ?? null);
+            $stmt->bindParam(":status", $data['status'] ?? 'Active');
             $stmt->execute();
 
-            return ['success' => true, 'message' => 'Prescription added successfully.', 'prescription_id' => $conn->lastInsertId()];
-        } catch (Exception $e) {
+            $prescription_id = $conn->lastInsertId();
+
+            return ['success' => true, 'message' => 'Prescription added successfully!', 'prescription_id' => $prescription_id];
+        } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to add prescription: ' . $e->getMessage()];
         }
     }
 
-    function update($json)
+    function updatePrescription($json)
     {
         include "connection.php";
         $data = json_decode($json, true);
@@ -214,114 +199,164 @@ class Prescription
         }
 
         try {
-            $fields = [];
-            $params = [':prescription_id' => $data['prescription_id']];
-
-            if (!empty($data['dosage'])) {
-                $fields[] = "dosage = :dosage";
-                $params[':dosage'] = $data['dosage'];
-            }
-            if (!empty($data['frequency'])) {
-                $fields[] = "frequency = :frequency";
-                $params[':frequency'] = $data['frequency'];
-            }
-            if (!empty($data['duration'])) {
-                $fields[] = "duration = :duration";
-                $params[':duration'] = $data['duration'];
-            }
-            if (isset($data['instructions'])) {
-                $fields[] = "instructions = :instructions";
-                $params[':instructions'] = $data['instructions'];
-            }
-            if (!empty($data['status'])) {
-                $fields[] = "status = :status";
-                $params[':status'] = $data['status'];
-            }
-
-            if (empty($fields)) {
-                return ['success' => false, 'message' => 'No fields to update.'];
-            }
-
-            $sql = "UPDATE tbl_prescriptions SET " . implode(", ", $fields) . " WHERE prescription_id = :prescription_id";
+            $sql = "UPDATE tbl_prescriptions SET
+                    medicine_id = :medicine_id,
+                    dosage = :dosage,
+                    frequency = :frequency,
+                    duration = :duration,
+                    instructions = :instructions,
+                    status = :status
+                    WHERE prescription_id = :prescription_id";
             $stmt = $conn->prepare($sql);
-            
-            foreach ($params as $key => $val) {
-                $stmt->bindValue($key, $val);
-            }
+            $stmt->bindParam(":medicine_id", $data['medicine_id']);
+            $stmt->bindParam(":dosage", $data['dosage']);
+            $stmt->bindParam(":frequency", $data['frequency']);
+            $stmt->bindParam(":duration", $data['duration']);
+            $stmt->bindParam(":instructions", $data['instructions'] ?? null);
+            $stmt->bindParam(":status", $data['status']);
+            $stmt->bindParam(":prescription_id", $data['prescription_id']);
             $stmt->execute();
 
-            return ['success' => true, 'message' => 'Prescription updated successfully.'];
-        } catch (Exception $e) {
+            return ['success' => true, 'message' => 'Prescription updated successfully!'];
+        } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to update prescription: ' . $e->getMessage()];
         }
     }
 
-    function delete($json)
+    function deletePrescription($prescription_id)
     {
         include "connection.php";
-        $data = json_decode($json, true);
 
-        if (empty($data['prescription_id'])) {
+        if (empty($prescription_id)) {
             return ['success' => false, 'message' => 'Prescription ID is required.'];
         }
 
         try {
             $stmt = $conn->prepare("DELETE FROM tbl_prescriptions WHERE prescription_id = :prescription_id");
+            $stmt->bindParam(":prescription_id", $prescription_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Prescription deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Prescription not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete prescription: ' . $e->getMessage()];
+        }
+    }
+
+    function updatePrescriptionStatus($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['prescription_id']) || empty($data['status'])) {
+            return ['success' => false, 'message' => 'Prescription ID and status are required.'];
+        }
+
+        try {
+            $sql = "UPDATE tbl_prescriptions SET status = :status WHERE prescription_id = :prescription_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":status", $data['status']);
             $stmt->bindParam(":prescription_id", $data['prescription_id']);
             $stmt->execute();
 
-            return ['success' => true, 'message' => 'Prescription deleted successfully.'];
-        } catch (Exception $e) {
-            return ['success' => false, 'message' => 'Delete failed: ' . $e->getMessage()];
+            return ['success' => true, 'message' => 'Prescription status updated successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update prescription status: ' . $e->getMessage()];
+        }
+    }
+
+    function getPrescriptionStatistics()
+    {
+        include "connection.php";
+
+        try {
+            // Total prescriptions
+            $stmt = $conn->prepare("SELECT COUNT(*) as total_prescriptions FROM tbl_prescriptions");
+            $stmt->execute();
+            $totalPrescriptions = $stmt->fetchColumn();
+
+            // Prescriptions by status
+            $stmt = $conn->prepare("
+                SELECT status, COUNT(*) as count
+                FROM tbl_prescriptions
+                GROUP BY status
+            ");
+            $stmt->execute();
+            $statusStats = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Recent prescriptions (last 30 days)
+            $stmt = $conn->prepare("
+                SELECT COUNT(*) as recent_prescriptions
+                FROM tbl_prescriptions
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            ");
+            $stmt->execute();
+            $recentPrescriptions = $stmt->fetchColumn();
+
+            return [
+                'success' => true,
+                'statistics' => [
+                    'total_prescriptions' => $totalPrescriptions,
+                    'recent_prescriptions' => $recentPrescriptions,
+                    'status_stats' => $statusStats
+                ]
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch prescription statistics: ' . $e->getMessage()];
         }
     }
 }
 
-// Handle request
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+// Handle incoming request
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $operation = $_GET['operation'] ?? "";
     $json = $_GET['json'] ?? "";
-} else {
+    $prescription_id = $_GET['prescription_id'] ?? "";
+    $patient_id = $_GET['patient_id'] ?? "";
+    $doctor_id = $_GET['doctor_id'] ?? "";
+} else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $operation = $_POST['operation'] ?? "";
     $json = $_POST['json'] ?? "";
+    $prescription_id = $_POST['prescription_id'] ?? "";
+    $patient_id = $_POST['patient_id'] ?? "";
+    $doctor_id = $_POST['doctor_id'] ?? "";
 }
 
-$prescription = new Prescription();
+$prescriptions = new Prescriptions();
 
 switch ($operation) {
-    case "get_all":
-        echo json_encode($prescription->get_all());
+    case "getAll":
+        echo json_encode($prescriptions->getAllPrescriptions());
         break;
-    case "get":
-        $id = $_GET['id'] ?? null;
-        echo json_encode($prescription->get($id));
+    case "getByPatient":
+        echo json_encode($prescriptions->getPrescriptionsByPatient($patient_id));
         break;
-    case "get_by_diagnosis":
-        $diagnosis_id = $_GET['diagnosis_id'] ?? null;
-        if ($diagnosis_id) {
-            echo json_encode($prescription->get_by_diagnosis($diagnosis_id));
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Diagnosis ID is required.']);
-        }
+    case "getByDoctor":
+        echo json_encode($prescriptions->getPrescriptionsByDoctor($doctor_id));
         break;
-    case "get_by_appointment":
-        $appointment_id = $_GET['appointment_id'] ?? null;
-        if ($appointment_id) {
-            echo json_encode($prescription->get_by_appointment($appointment_id));
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Appointment ID is required.']);
-        }
+    case "getById":
+        echo json_encode($prescriptions->getPrescriptionById($prescription_id));
         break;
     case "add":
-        echo json_encode($prescription->add($json));
+        echo json_encode($prescriptions->addPrescription($json));
         break;
     case "update":
-        echo json_encode($prescription->update($json));
+        echo json_encode($prescriptions->updatePrescription($json));
         break;
     case "delete":
-        echo json_encode($prescription->delete($json));
+        echo json_encode($prescriptions->deletePrescription($prescription_id));
+        break;
+    case "updateStatus":
+        echo json_encode($prescriptions->updatePrescriptionStatus($json));
+        break;
+    case "getStatistics":
+        echo json_encode($prescriptions->getPrescriptionStatistics());
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);
         break;
 }
+?>

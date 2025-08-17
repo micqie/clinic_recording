@@ -53,7 +53,7 @@ class Appointments
                    du.name AS doctor_name,
                    pmt.payment_id,
                    pmt.amount,
-                   pmt.method AS payment_method,
+                   pmt.payment_method,
                    pmt.payment_date,
                    pmt.status_id AS payment_status_id,
                    sp.status_name AS payment_status
@@ -263,5 +263,3 @@ switch ($operation) {
         break;
 }
 ?>
-
-

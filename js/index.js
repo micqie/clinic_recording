@@ -2,49 +2,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
   const loginForm = document.getElementById("login-form");
   const registerForm = document.getElementById("register-form");
-  const registerRole = document.getElementById("register-role");
-  const licenseField = document.getElementById("license-field");
-  const employeeIdField = document.getElementById("employee-id-field");
-
-  // Show/hide role-specific fields based on selection
-  registerRole?.addEventListener("change", () => {
-    const role = registerRole.value;
-    licenseField.style.display = role === "doctor" ? "block" : "none";
-    employeeIdField.style.display = role === "secretary" ? "block" : "none";
-    
-    // Clear fields when role changes
-    if (role !== "doctor") {
-      document.getElementById("license-number").value = "";
-    }
-    if (role !== "secretary") {
-      document.getElementById("employee-id").value = "";
-    }
-  });
 
   // Registration form handling
   registerForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    
+
     const formData = new FormData(registerForm);
-    const role = formData.get("role");
-    
-    // Validate role-specific fields
-    if (role === "doctor" && !formData.get("license_number")) {
-      Swal.fire("Error", "License number is required for doctors.", "error");
-      return;
-    }
-    if (role === "secretary" && !formData.get("employee_id")) {
-      Swal.fire("Error", "Employee ID is required for secretaries.", "error");
-      return;
+
+    // Validate required fields
+    const requiredFields = ['name', 'email', 'password', 'sex', 'contact_num', 'birthdate', 'address'];
+    for (let field of requiredFields) {
+      if (!formData.get(field)) {
+        Swal.fire("Error", `Please fill in the ${field.replace('_', ' ')} field.`, "error");
+        return;
+      }
     }
 
     const jsonPayload = JSON.stringify({
       name: formData.get("name"),
       email: formData.get("email"),
       password: formData.get("password"),
-      role: role,
-      license_number: formData.get("license_number"),
-      employee_id: formData.get("employee_id")
+      sex: formData.get("sex"),
+      contact_num: formData.get("contact_num"),
+      birthdate: formData.get("birthdate"),
+      address: formData.get("address")
     });
 
     const payload = new FormData();
@@ -69,12 +50,10 @@ document.addEventListener("DOMContentLoaded", () => {
           showConfirmButton: false,
           timer: 2000
         });
-        
+
         // Reset form and close modal
         registerForm.reset();
-        licenseField.style.display = "none";
-        employeeIdField.style.display = "none";
-        
+
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById("registerModal"));
         modal?.hide();
