@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 17, 2025 at 07:01 AM
+-- Generation Time: Aug 19, 2025 at 07:31 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -45,7 +45,7 @@ INSERT INTO `tbl_appointments` (`appointment_id`, `patient_id`, `doctor_id`, `se
 (12, 9, 1, NULL, '2025-08-29', 1, 7),
 (14, 11, NULL, NULL, '2025-08-14', NULL, 6),
 (15, 9, NULL, NULL, '2025-08-20', NULL, 6),
-(16, 13, NULL, NULL, '2025-08-26', NULL, 6);
+(16, 13, 1, NULL, '2025-08-26', 1, 7);
 
 -- --------------------------------------------------------
 
@@ -260,7 +260,8 @@ INSERT INTO `tbl_patients` (`patient_id`, `user_id`, `sex`, `contact_num`, `birt
 (11, 11, NULL, NULL, NULL, NULL, '2025-08-13 19:12:20', '2025-08-13 19:12:20'),
 (12, 23, NULL, NULL, NULL, NULL, '2025-08-16 08:53:24', '2025-08-16 08:53:24'),
 (13, 24, NULL, NULL, NULL, NULL, '2025-08-17 03:29:08', '2025-08-17 03:29:08'),
-(14, 25, NULL, NULL, NULL, NULL, '2025-08-17 04:00:10', '2025-08-17 04:00:10');
+(14, 25, NULL, NULL, NULL, NULL, '2025-08-17 04:00:10', '2025-08-17 04:00:10'),
+(15, 27, 'Male', '12312334', '2025-08-06', 'Tablon', '2025-08-17 09:38:02', '2025-08-17 09:38:02');
 
 -- --------------------------------------------------------
 
@@ -480,7 +481,13 @@ INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `cre
 (23, 'Sean ', 'sean@gmail.com', '$2y$10$DsLyM1L3/k2iMduqW2ZegOA5gbcbLv1xBngj/2HndmK4QlAU4Gvy6', 3, '2025-08-16 08:53:24'),
 (24, 'Mckenzie', 'mckenzie@gmail.com', '$2y$10$OFSl/JnOcUsxmNg.q60CoOjEGd2iRNIb0jofBJfEzCjTKa71vFVsa', 3, '2025-08-17 03:29:08'),
 (25, 'Laurice', 'laurice@gmail.com', '$2y$10$aQMsjAzelO6rpPbZuiJbU.2PRLnxHMjpk5MP57ia0ze2us8h/6RZm', 3, '2025-08-17 04:00:10'),
-(26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, '2025-08-17 04:01:53');
+(26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, '2025-08-17 04:01:53'),
+(27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, '2025-08-17 09:38:02'),
+(39, 'HENRY KING', 'henry222@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, '2025-08-17 11:04:26'),
+(40, 'henry', 'henry@gmail.com', '$2y$10$ZHyfN2NZXzqUhjNOXflXxOee1gw36h/OHV/kg4UvTFzy.O0QKKE3q', 2, '2025-08-17 11:05:27'),
+(41, 'HAHAYS', 'ha@gmail.com', '$2y$10$iPVS6yxHU0sqwDUswjPSJuo6N79f1aZoK1VBB1yv3N37clusOPj3K', 2, '2025-08-17 12:34:50'),
+(42, 'HAHAYS', 'haasdasd@gmail.com', '$2y$10$qeu1hGzOyohcrcUORfJhJOjgXf1LcD1gIo4yl818J2XSyHevGycYK', 2, '2025-08-17 12:44:39'),
+(43, 'HAHAYS', 'shan@gmail.com', '$2y$10$zYZCG.SEZCqegNvP7yuwm.mVREmHg0UnI91URuwNt8Rum5moyd/ei', 2, '2025-08-18 09:49:50');
 
 --
 -- Indexes for dumped tables
@@ -644,7 +651,7 @@ ALTER TABLE `tbl_diagnoses`
 -- AUTO_INCREMENT for table `tbl_doctors`
 --
 ALTER TABLE `tbl_doctors`
-  MODIFY `doctor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `doctor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tbl_lab_requests`
@@ -680,7 +687,7 @@ ALTER TABLE `tbl_medicine_weights`
 -- AUTO_INCREMENT for table `tbl_patients`
 --
 ALTER TABLE `tbl_patients`
-  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `tbl_payments`
@@ -728,7 +735,7 @@ ALTER TABLE `tbl_status_type`
 -- AUTO_INCREMENT for table `tbl_users`
 --
 ALTER TABLE `tbl_users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- Constraints for dumped tables
