@@ -59,8 +59,8 @@ class Doctors
         $data = json_decode($json, true);
 
         if (empty($data['name']) || empty($data['email']) || empty($data['password']) ||
-            empty($data['license_number']) || empty($data['specialization_id'])) {
-            return ['success' => false, 'message' => 'All required fields must be provided.'];
+            empty($data['license_number'])) {
+            return ['success' => false, 'message' => 'Name, email, password, and license number are required.'];
         }
 
         try {
@@ -118,8 +118,8 @@ class Doctors
         $data = json_decode($json, true);
 
         if (empty($data['doctor_id']) || empty($data['name']) || empty($data['email']) ||
-            empty($data['license_number']) || empty($data['specialization_id'])) {
-            return ['success' => false, 'message' => 'All required fields must be provided.'];
+            empty($data['license_number'])) {
+            return ['success' => false, 'message' => 'Doctor ID, name, email, and license number are required.'];
         }
 
         try {

@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 specializationSelect.innerHTML = `<option value="">-- Select Specialization --</option>`;
                 data.specializations.forEach(spec => {
                     const option = document.createElement("option");
-                    option.value = spec.id;
+                    option.value = spec.specialization_id;
                     option.textContent = spec.name;
                     specializationSelect.appendChild(option);
                 });
@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 editSpecializationSelect.innerHTML = `<option value="">-- Select Specialization --</option>`;
                 data.specializations.forEach(spec => {
                     const option = document.createElement("option");
-                    option.value = spec.id;
+                    option.value = spec.specialization_id;
                     option.textContent = spec.name;
                     editSpecializationSelect.appendChild(option);
                 });
@@ -48,12 +48,20 @@ document.addEventListener("DOMContentLoaded", () => {
     async function registerDoctor(form) {
         const formData = new FormData(form);
 
-        const requiredFields = ["name", "email", "password", "license_number", "specialization"];
+        const requiredFields = ["name", "email", "password", "license_number"];
         for (let field of requiredFields) {
-            if (!formData.get(field)) {
+            const value = formData.get(field);
+            if (!value || value === "") {
                 showAlert("error", `Please fill in the ${field.replace("_", " ")} field.`);
                 return;
             }
+        }
+        
+        // Check specialization separately since it can be optional
+        const specialization_id = formData.get("specialization_id");
+        if (!specialization_id || specialization_id === "") {
+            showAlert("error", "Please select a specialization.");
+            return;
         }
 
         const doctorData = {
@@ -61,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
             email: formData.get("email"),
             password: formData.get("password"),
             license_number: formData.get("license_number"),
-            specialization: formData.get("specialization"),
+            specialization_id: formData.get("specialization_id"),
             years_experience: formData.get("years_experience") || null
         };
 
@@ -193,11 +201,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // ======================== Edit Doctor ========================
     window.editDoctor = async function (doctorId) {
         try {
+            console.log("Loading doctor details for ID:", doctorId);
             const response = await axios.get(`${baseApiUrl}/doctors.php?operation=getById&doctor_id=${doctorId}`);
+            console.log("Doctor details response:", response.data);
 
             if (response.data.success) {
                 populateEditForm(response.data.doctor);
-                bootstrap.Modal.getOrCreateInstance(document.getElementById("editDoctorModal")).show();
+                const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("editDoctorModal"));
+                modal.show();
             } else {
                 showAlert("error", response.data.message);
             }
@@ -208,32 +219,66 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     function populateEditForm(doctor) {
+        console.log("Populating edit form with doctor data:", doctor);
+        
         document.getElementById("editDoctorId").value = doctor.doctor_id;
         document.getElementById("editDoctorName").value = doctor.name;
         document.getElementById("editDoctorEmail").value = doctor.email;
         document.getElementById("editDoctorLicense").value = doctor.license_number;
-        document.getElementById("editDoctorSpecialization").value = doctor.specialization || "";
         document.getElementById("editDoctorExperience").value = doctor.years_experience || "";
+        
+        // Set specialization dropdown by matching specialization name
+        const specializationSelect = document.getElementById("editDoctorSpecialization");
+        if (specializationSelect) {
+            console.log("Specialization dropdown options:", Array.from(specializationSelect.options).map(opt => ({text: opt.text, value: opt.value})));
+            console.log("Looking for specialization:", doctor.specialization_name);
+            
+            let found = false;
+            for (let i = 0; i < specializationSelect.options.length; i++) {
+                if (specializationSelect.options[i].text === doctor.specialization_name) {
+                    specializationSelect.selectedIndex = i;
+                    found = true;
+                    console.log("Specialization matched at index:", i);
+                    break;
+                }
+            }
+            
+            if (!found) {
+                console.log("No specialization match found, setting to empty");
+                specializationSelect.selectedIndex = 0; // Set to "Select Specialization"
+            }
+        }
     }
 
     window.updateDoctor = async function () {
         const form = document.getElementById("editDoctorForm");
         const formData = new FormData(form);
 
+        // Validate required fields
+        const specialization_id = formData.get("specialization_id");
+        if (!specialization_id || specialization_id === "") {
+            showAlert("error", "Please select a specialization.");
+            return;
+        }
+
         const doctorData = {
             doctor_id: formData.get("doctor_id"),
             name: formData.get("name"),
             email: formData.get("email"),
             license_number: formData.get("license_number"),
-            specialization: formData.get("specialization"),
+            specialization_id: specialization_id,
             years_experience: formData.get("years_experience") || null
         };
+        
+        console.log("Doctor update data:", doctorData);
 
         try {
+            console.log("Sending doctor update request:", doctorData);
             const response = await axios.post(`${baseApiUrl}/doctors.php`, {
                 operation: "update",
                 json: JSON.stringify(doctorData)
             });
+            console.log("Doctor update response:", response.data);
 
             if (response.data.success) {
                 showAlert("success", "Doctor updated successfully!");
@@ -244,9 +289,14 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error("Error updating doctor:", error);
-            showAlert("error", "Failed to update doctor. Please try again.");
+            console.error("Error response:", error.response?.data);
+            showAlert("error", "Failed to update doctor: " + (error.response?.data?.message || error.message));
         }
     };
+
+    // Connect update button to the updateDoctor function
+    const updateDoctorBtn = document.getElementById("updateDoctorBtn");
+    updateDoctorBtn?.addEventListener("click", updateDoctor);
 
     // ======================== Delete Doctor ========================
     window.deleteDoctor = async function (doctorId) {

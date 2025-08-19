@@ -203,6 +203,79 @@ class Medicines
             return ['success' => false, 'message' => 'Failed to add medicine weight: ' . $e->getMessage()];
         }
     }
+
+    function deleteMedicineForm($form_id)
+    {
+        include "connection.php";
+
+        if (empty($form_id)) {
+            return ['success' => false, 'message' => 'Form ID is required.'];
+        }
+
+        try {
+            // Check if form is being used by any medicines
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM tbl_medicines WHERE form_id = :form_id");
+            $stmt->bindParam(":form_id", $form_id);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($result['count'] > 0) {
+                return ['success' => false, 'message' => 'Cannot delete form. It is being used by existing medicines.'];
+            }
+
+            $stmt = $conn->prepare("DELETE FROM tbl_medicine_forms WHERE form_id = :form_id");
+            $stmt->bindParam(":form_id", $form_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Medicine form deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Medicine form not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete medicine form: ' . $e->getMessage()];
+        }
+    }
+
+    function deleteMedicineWeight($weight_id)
+    {
+        include "connection.php";
+
+        if (empty($weight_id)) {
+            return ['success' => false, 'message' => 'Weight ID is required.'];
+        }
+
+        try {
+            // Check if weight is being used by any medicines
+            $stmt = $conn->prepare("SELECT weight_value FROM tbl_medicine_weights WHERE weight_id = :weight_id");
+            $stmt->bindParam(":weight_id", $weight_id);
+            $stmt->execute();
+            $weight = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($weight) {
+                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM tbl_medicines WHERE weight = :weight_value");
+                $stmt->bindParam(":weight_value", $weight['weight_value']);
+                $stmt->execute();
+                $result = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($result['count'] > 0) {
+                    return ['success' => false, 'message' => 'Cannot delete weight. It is being used by existing medicines.'];
+                }
+            }
+
+            $stmt = $conn->prepare("DELETE FROM tbl_medicine_weights WHERE weight_id = :weight_id");
+            $stmt->bindParam(":weight_id", $weight_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Medicine weight deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Medicine weight not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete medicine weight: ' . $e->getMessage()];
+        }
+    }
 }
 
 // Handle incoming request
@@ -210,10 +283,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $operation = $_GET['operation'] ?? "";
     $json = $_GET['json'] ?? "";
     $medicine_id = $_GET['medicine_id'] ?? "";
+    $form_id = $_GET['form_id'] ?? "";
+    $weight_id = $_GET['weight_id'] ?? "";
 } else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $operation = $_POST['operation'] ?? "";
     $json = $_POST['json'] ?? "";
     $medicine_id = $_POST['medicine_id'] ?? "";
+    $form_id = $_POST['form_id'] ?? "";
+    $weight_id = $_POST['weight_id'] ?? "";
 }
 
 $medicines = new Medicines();
@@ -242,6 +319,12 @@ switch ($operation) {
         break;
     case "addMedicineWeight":
         echo json_encode($medicines->addMedicineWeight($json));
+        break;
+    case "deleteMedicineForm":
+        echo json_encode($medicines->deleteMedicineForm($form_id));
+        break;
+    case "deleteMedicineWeight":
+        echo json_encode($medicines->deleteMedicineWeight($weight_id));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

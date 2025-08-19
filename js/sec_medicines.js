@@ -39,8 +39,8 @@
           populateSelectOptions('edit_form_id', medicineForms, "form_name", "form_id", "Select Form");
 
           // Populate weight dropdowns
-          populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_id", "Select Weight");
-          populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_id", "Select Weight");
+          populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_value", "Select Weight");
+          populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_value", "Select Weight");
 
           console.log("Dropdowns populated successfully");
         } catch (error) {
@@ -236,12 +236,15 @@
       // Edit medicine modal show + populate fields
       window.editMedicine = async (medicineId) => {
         try {
+          console.log("Loading medicine details for ID:", medicineId);
           const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
           const med = response.data.medicines.find(m => m.medicine_id == medicineId);
           if (!med) {
             Swal.fire("Error", "Medicine not found", "error");
             return;
           }
+          
+          console.log("Medicine data found:", med);
 
           document.getElementById("edit_medicine_id").value = med.medicine_id;
           document.getElementById("edit_name").value = med.medicine_name;
@@ -261,11 +264,25 @@
           // Set weight dropdown by matching weight_value
           const weightSelect = document.getElementById("edit_weight");
           if (weightSelect) {
+            console.log("Medicine weight data:", med.weight, med.weight_value);
+            console.log("Weight dropdown options:", Array.from(weightSelect.options).map(opt => ({text: opt.text, value: opt.value})));
+            
+            // Try to match by value first, then by text
+            let found = false;
             for (let i = 0; i < weightSelect.options.length; i++) {
-              if (weightSelect.options[i].text === med.weight || weightSelect.options[i].text === med.weight_value) {
+              const option = weightSelect.options[i];
+              if (option.value === med.weight || option.value === med.weight_value || 
+                  option.text === med.weight || option.text === med.weight_value) {
                 weightSelect.selectedIndex = i;
+                found = true;
+                console.log("Weight matched at index:", i, "with option:", option.text);
                 break;
               }
+            }
+            
+            if (!found) {
+              console.log("No weight match found, setting to empty");
+              weightSelect.selectedIndex = 0; // Set to "Select Weight"
             }
           }
 
@@ -295,13 +312,24 @@
           form_id: formData.get("form_id"),
           price: parseFloat(formData.get("price")),
         });
+        
+        console.log("Edit form data:", {
+          medicine_id: formData.get("medicine_id"),
+          medicine_name: formData.get("medicine_name"),
+          weight: formData.get("weight"),
+          form_id: formData.get("form_id"),
+          price: formData.get("price"),
+        });
 
         const payload = new FormData();
         payload.append("operation", "update");
         payload.append("json", jsonPayload);
 
         try {
+          console.log("Sending update request with payload:", payload);
           const response = await axios.post(medicineApiUrl, payload);
+          console.log("Update response:", response.data);
+          
           if (response.data.success) {
             Swal.fire("Success", response.data.message, "success");
             editMedicineModal.hide();
@@ -311,7 +339,8 @@
           }
         } catch (error) {
           console.error("Error updating medicine", error);
-          Swal.fire("Error", "Something went wrong", "error");
+          console.error("Error response:", error.response?.data);
+          Swal.fire("Error", "Something went wrong: " + (error.response?.data?.message || error.message), "error");
         }
       });
 
