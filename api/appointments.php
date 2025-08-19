@@ -250,6 +250,7 @@ class Appointments
             JOIN tbl_users du ON d.user_id = du.user_id
             LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
             JOIN tbl_appointments a ON a.doctor_id = d.doctor_id AND a.appointment_date = :d
+            JOIN tbl_status st ON a.status_id = st.status_id AND st.status_name = 'Confirmed'
             GROUP BY d.doctor_id, du.name, s.name
             ORDER BY du.name ASC
         ");
@@ -264,7 +265,7 @@ class Appointments
             JOIN tbl_patients p ON a.patient_id = p.patient_id
             JOIN tbl_users pu ON p.user_id = pu.user_id
             JOIN tbl_status st ON a.status_id = st.status_id
-            WHERE a.doctor_id = :doc AND a.appointment_date = :d
+            WHERE a.doctor_id = :doc AND a.appointment_date = :d AND st.status_name = 'Confirmed'
             ORDER BY COALESCE(a.queue_number, 9999), a.appointment_id
         ");
 
@@ -278,21 +279,40 @@ class Appointments
         return $doctors;
     }
 
-    // New: patients list for a specific doctor on a date
+    // New: patients list for a specific doctor (date optional; only Confirmed)
     public function get_doctor_patients_on_date($doctorId, $date)
     {
-        if (empty($doctorId) || empty($date)) { echo json_encode(["success" => false, "message" => "doctor_id and date are required."]); return; }
-        $stmt = $this->conn->prepare("
-            SELECT a.appointment_id, a.queue_number, st.status_name AS appointment_status, pu.name AS patient_name
+        if (empty($doctorId)) { echo json_encode(["success" => false, "message" => "doctor_id is required."]); return; }
+        $filterByDate = !empty($date);
+        $sql = "
+            SELECT
+                a.appointment_id,
+                a.appointment_date,
+                a.queue_number,
+                st.status_name AS appointment_status,
+                pu.name AS patient_name,
+                (
+                    SELECT GROUP_CONCAT(DISTINCT a2.appointment_date ORDER BY a2.appointment_date SEPARATOR ', ')
+                    FROM tbl_appointments a2
+                    JOIN tbl_status st2 ON a2.status_id = st2.status_id AND st2.status_name = 'Confirmed'
+                    WHERE a2.patient_id = a.patient_id
+                ) AS confirmed_dates,
+                (
+                    SELECT COUNT(*)
+                    FROM tbl_appointments a3
+                    JOIN tbl_status st3 ON a3.status_id = st3.status_id AND st3.status_name = 'Confirmed'
+                    WHERE a3.patient_id = a.patient_id
+                ) AS confirmed_count
             FROM tbl_appointments a
             JOIN tbl_patients p ON a.patient_id = p.patient_id
             JOIN tbl_users pu ON p.user_id = pu.user_id
             JOIN tbl_status st ON a.status_id = st.status_id
-            WHERE a.doctor_id = :doc AND a.appointment_date = :d
-            ORDER BY COALESCE(a.queue_number, 9999), a.appointment_id
-        ");
+            WHERE a.doctor_id = :doc " . ($filterByDate ? "AND a.appointment_date = :d " : "") . "AND st.status_name = 'Confirmed'
+            ORDER BY a.appointment_date DESC, COALESCE(a.queue_number, 9999), a.appointment_id
+        ";
+        $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":doc", $doctorId);
-        $stmt->bindParam(":d", $date);
+        if ($filterByDate) { $stmt->bindParam(":d", $date); }
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     }
