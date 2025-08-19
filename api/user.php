@@ -84,9 +84,9 @@ function registerDoctor($json)
         empty($data['email']) ||
         empty($data['password']) ||
         empty($data['license_number']) ||
-        empty($data['specialization']) // This should be specialization_id from dropdown
+        empty($data['specialization_id'])
     ) {
-        return ['success' => false, 'message' => 'All fields are required.'];
+        return ['success' => false, 'message' => 'Name, email, password, license, and specialization are required.'];
     }
 
     // 2. Set role to doctor
@@ -119,37 +119,58 @@ function registerDoctor($json)
         return ['success' => false, 'message' => 'License number is already registered.'];
     }
 
-    // 6. Insert into tbl_users
-    $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-    $sql = "INSERT INTO tbl_users (name, email, password, role_id)
-            VALUES (:name, :email, :password, :role_id)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(":name", $data['name']);
-    $stmt->bindParam(":email", $data['email']);
-    $stmt->bindParam(":password", $hashedPassword);
-    $stmt->bindParam(":role_id", $role_id);
-
-    if (!$stmt->execute()) {
-        return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $stmt->errorInfo())];
-    }
-
-    $user_id = $conn->lastInsertId();
-
-    // 7. Insert into tbl_doctors (use specialization_id not specialization name)
     try {
+        $conn->beginTransaction();
+
+        // 6. Insert into tbl_users
+        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+        $sql = "INSERT INTO tbl_users (name, email, password, role_id)
+                VALUES (:name, :email, :password, :role_id)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(":name", $data['name']);
+        $stmt->bindParam(":email", $data['email']);
+        $stmt->bindParam(":password", $hashedPassword);
+        $stmt->bindParam(":role_id", $role_id);
+        if (!$stmt->execute()) {
+            $conn->rollBack();
+            $err = $stmt->errorInfo();
+            file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | USERS INSERT ERROR: " . implode(" | ", $err) . PHP_EOL, FILE_APPEND);
+            return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $err)];
+        }
+
+        $user_id = $conn->lastInsertId();
+
+        // 7. Insert into tbl_doctors (use specialization_id)
         $sqlDoctor = "INSERT INTO tbl_doctors (user_id, license_number, specialization_id, years_experience)
                       VALUES (:user_id, :license_number, :specialization_id, :years_experience)";
         $stmt = $conn->prepare($sqlDoctor);
-        $stmt->bindParam(":user_id", $user_id);
+        $stmt->bindParam(":user_id", $user_id, PDO::PARAM_INT);
         $stmt->bindParam(":license_number", $data['license_number']);
-        $stmt->bindParam(":specialization_id", $data['specialization']); // <-- must be ID from dropdown
-        $stmt->bindParam(":years_experience", $data['years_experience']);
-        $stmt->execute();
-    } catch (PDOException $e) {
-        return ['success' => false, 'message' => 'Doctor insert failed: ' . $e->getMessage()];
-    }
+        $stmt->bindParam(":specialization_id", $data['specialization_id'], PDO::PARAM_INT);
+        if (isset($data['years_experience']) && $data['years_experience'] !== '' && $data['years_experience'] !== null) {
+            $years_experience = (int)$data['years_experience'];
+            $stmt->bindParam(":years_experience", $years_experience, PDO::PARAM_INT);
+        } else {
+            $years_experience = null;
+            $stmt->bindParam(":years_experience", $years_experience, PDO::PARAM_NULL);
+        }
+        if (!$stmt->execute()) {
+            $conn->rollBack();
+            $err = $stmt->errorInfo();
+            file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | DOCTORS INSERT ERROR: " . implode(" | ", $err) . PHP_EOL, FILE_APPEND);
+            return ['success' => false, 'message' => 'Doctor insert failed: ' . implode(" | ", $err)];
+        }
 
-    return ['success' => true, 'message' => 'Doctor registration successful!'];
+        $conn->commit();
+        file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | SUCCESS user_id={$user_id}" . PHP_EOL, FILE_APPEND);
+        return ['success' => true, 'message' => 'Doctor registration successful!'];
+    } catch (PDOException $e) {
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | EXCEPTION: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
+        return ['success' => false, 'message' => 'Registration failed: ' . $e->getMessage()];
+    }
 }
 
 function registerPatient($json)

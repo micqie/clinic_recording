@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
         }
-        
+
         // Check specialization separately since it can be optional
         const specialization_id = formData.get("specialization_id");
         if (!specialization_id || specialization_id === "") {
@@ -75,10 +75,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         try {
             const payload = new FormData();
-            payload.append("operation", "registerDoctor");
+            payload.append("operation", "add");
             payload.append("json", JSON.stringify(doctorData));
 
-            const response = await axios.post(`${baseApiUrl}/user.php`, payload);
+            const response = await axios.post(`${baseApiUrl}/doctors.php`, payload);
 
             if (response.data.success) {
                 showAlert("success", "Doctor registered successfully!");
@@ -201,10 +201,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // ======================== Edit Doctor ========================
     window.editDoctor = async function (doctorId) {
         try {
-            console.log("Loading doctor details for ID:", doctorId);
+            // Ensure specializations are loaded before populating form
+            await loadSpecializations();
             const response = await axios.get(`${baseApiUrl}/doctors.php?operation=getById&doctor_id=${doctorId}`);
-            console.log("Doctor details response:", response.data);
-
             if (response.data.success) {
                 populateEditForm(response.data.doctor);
                 const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("editDoctorModal"));
@@ -220,33 +219,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function populateEditForm(doctor) {
         console.log("Populating edit form with doctor data:", doctor);
-        
+
         document.getElementById("editDoctorId").value = doctor.doctor_id;
         document.getElementById("editDoctorName").value = doctor.name;
         document.getElementById("editDoctorEmail").value = doctor.email;
         document.getElementById("editDoctorLicense").value = doctor.license_number;
         document.getElementById("editDoctorExperience").value = doctor.years_experience || "";
-        
-        // Set specialization dropdown by matching specialization name
+
+        // Set specialization by id value directly
         const specializationSelect = document.getElementById("editDoctorSpecialization");
         if (specializationSelect) {
-            console.log("Specialization dropdown options:", Array.from(specializationSelect.options).map(opt => ({text: opt.text, value: opt.value})));
-            console.log("Looking for specialization:", doctor.specialization_name);
-            
-            let found = false;
-            for (let i = 0; i < specializationSelect.options.length; i++) {
-                if (specializationSelect.options[i].text === doctor.specialization_name) {
-                    specializationSelect.selectedIndex = i;
-                    found = true;
-                    console.log("Specialization matched at index:", i);
-                    break;
-                }
-            }
-            
-            if (!found) {
-                console.log("No specialization match found, setting to empty");
-                specializationSelect.selectedIndex = 0; // Set to "Select Specialization"
-            }
+            specializationSelect.value = doctor.specialization_id ?? "";
         }
     }
 
@@ -269,15 +252,15 @@ document.addEventListener("DOMContentLoaded", () => {
             specialization_id: specialization_id,
             years_experience: formData.get("years_experience") || null
         };
-        
+
         console.log("Doctor update data:", doctorData);
 
         try {
             console.log("Sending doctor update request:", doctorData);
-            const response = await axios.post(`${baseApiUrl}/doctors.php`, {
-                operation: "update",
-                json: JSON.stringify(doctorData)
-            });
+            const payload = new FormData();
+            payload.append("operation", "update");
+            payload.append("json", JSON.stringify(doctorData));
+            const response = await axios.post(`${baseApiUrl}/doctors.php`, payload);
             console.log("Doctor update response:", response.data);
 
             if (response.data.success) {
@@ -312,10 +295,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (result.isConfirmed) {
             try {
-                const response = await axios.post(`${baseApiUrl}/doctors.php`, {
-                    operation: "delete",
-                    doctor_id: doctorId
-                });
+                const payload = new FormData();
+                payload.append("operation", "delete");
+                payload.append("doctor_id", doctorId);
+                const response = await axios.post(`${baseApiUrl}/doctors.php`, payload);
 
                 if (response.data.success) {
                     showAlert("success", "Doctor deleted successfully!");
