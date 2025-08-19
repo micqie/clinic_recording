@@ -363,65 +363,54 @@ class Doctors
         }
     }
 
-    // =============== Doctor Schedules ===============
-    function getSchedulesByDoctor($doctor_id)
+    // New: Today overview based on appointments only
+    function getTodayDoctorAppointments()
     {
         include "connection.php";
-        if (empty($doctor_id)) {
-            return ['success' => false, 'message' => 'doctor_id is required.'];
-        }
         try {
-            $stmt = $conn->prepare("SELECT * FROM tbl_doctor_schedules WHERE doctor_id = :doctor_id ORDER BY day_of_week, start_time");
-            $stmt->bindParam(":doctor_id", $doctor_id);
-            $stmt->execute();
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            return ['success' => true, 'schedules' => $rows];
-        } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Failed to fetch schedules: ' . $e->getMessage()];
-        }
-    }
-
-    function upsertSchedule($json)
-    {
-        include "connection.php";
-        $data = json_decode($json, true);
-        if (empty($data['doctor_id']) || !isset($data['day_of_week']) || empty($data['start_time']) || empty($data['end_time'])) {
-            return ['success' => false, 'message' => 'doctor_id, day_of_week, start_time, end_time are required.'];
-        }
-        $is_available = isset($data['is_available']) ? (int)$data['is_available'] : 1;
-        try {
-            // Try update by unique key
-            $sql = "INSERT INTO tbl_doctor_schedules (doctor_id, day_of_week, start_time, end_time, is_available)
-                    VALUES (:doctor_id, :day_of_week, :start_time, :end_time, :is_available)
-                    ON DUPLICATE KEY UPDATE is_available = VALUES(is_available), start_time = VALUES(start_time), end_time = VALUES(end_time)";
+            $sql = "
+                SELECT
+                    d.doctor_id,
+                    u.name AS doctor_name,
+                    s.name AS specialization_name,
+                    COUNT(a.appointment_id) AS patient_count
+                FROM tbl_doctors d
+                JOIN tbl_users u ON d.user_id = u.user_id
+                LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
+                LEFT JOIN tbl_appointments a ON a.doctor_id = d.doctor_id AND a.appointment_date = CURDATE()
+                WHERE d.doctor_id IN (
+                    SELECT DISTINCT doctor_id FROM tbl_appointments WHERE doctor_id IS NOT NULL AND appointment_date = CURDATE()
+                )
+                GROUP BY d.doctor_id, u.name, s.name
+                ORDER BY u.name
+            ";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(":doctor_id", $data['doctor_id']);
-            $stmt->bindParam(":day_of_week", $data['day_of_week']);
-            $stmt->bindParam(":start_time", $data['start_time']);
-            $stmt->bindParam(":end_time", $data['end_time']);
-            $stmt->bindParam(":is_available", $is_available);
             $stmt->execute();
-            return ['success' => true, 'message' => 'Schedule saved'];
+            $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Fetch patients per doctor for today
+            $detailStmt = $conn->prepare("
+                SELECT a.appointment_id, a.patient_id, a.queue_number, a.status_id,
+                       pu.name AS patient_name
+                FROM tbl_appointments a
+                JOIN tbl_patients p ON a.patient_id = p.patient_id
+                JOIN tbl_users pu ON p.user_id = pu.user_id
+                WHERE a.doctor_id = :doctor_id AND a.appointment_date = CURDATE()
+                ORDER BY COALESCE(a.queue_number, 9999), a.appointment_id
+            ");
+
+            foreach ($doctors as &$doc) {
+                $detailStmt->bindParam(":doctor_id", $doc['doctor_id']);
+                $detailStmt->execute();
+                $doc['patients'] = $detailStmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            return ['success' => true, 'today' => $doctors];
         } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Failed to save schedule: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Failed to fetch today appointments: ' . $e->getMessage()];
         }
     }
 
-    function deleteSchedule($schedule_id)
-    {
-        include "connection.php";
-        if (empty($schedule_id)) {
-            return ['success' => false, 'message' => 'schedule_id is required.'];
-        }
-        try {
-            $stmt = $conn->prepare("DELETE FROM tbl_doctor_schedules WHERE schedule_id = :sid");
-            $stmt->bindParam(":sid", $schedule_id);
-            $stmt->execute();
-            return ['success' => true, 'message' => 'Schedule deleted'];
-        } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Failed to delete schedule: ' . $e->getMessage()];
-        }
-    }
 }
 
 
@@ -473,6 +462,9 @@ switch ($operation) {
     case "deleteSchedule":
         $sid = $_GET['schedule_id'] ?? $_POST['schedule_id'] ?? '';
         echo json_encode($doctors->deleteSchedule($sid));
+        break;
+    case "getTodayDoctorAppointments":
+        echo json_encode($doctors->getTodayDoctorAppointments());
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

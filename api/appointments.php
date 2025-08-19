@@ -217,6 +217,85 @@ class Appointments
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     }
+
+    // New: per-doctor overview for a date, including specialization and patients, with fallback to latest date
+    public function get_doctor_day_overview($date)
+    {
+        if (empty($date)) {
+            // Leave empty; we will fallback later if no data for today
+            $stmt = $this->conn->prepare("SELECT CURDATE()");
+            $stmt->execute();
+            $date = $stmt->fetchColumn();
+        }
+        $doctors = $this->fetch_doctor_overview_for_date($date);
+        if (empty($doctors)) {
+            // Fallback to most recent date that has any doctor appointments
+            $q = $this->conn->prepare("SELECT MAX(appointment_date) FROM tbl_appointments WHERE doctor_id IS NOT NULL");
+            $q->execute();
+            $latest = $q->fetchColumn();
+            if ($latest) {
+                $date = $latest;
+                $doctors = $this->fetch_doctor_overview_for_date($date);
+            }
+        }
+        echo json_encode(["success" => true, "date" => $date, "data" => $doctors]);
+    }
+
+    private function fetch_doctor_overview_for_date($date)
+    {
+        // Doctors who have appointments on the date
+        $stmt = $this->conn->prepare("
+            SELECT d.doctor_id, du.name AS doctor_name, s.name AS specialization_name, COUNT(a.appointment_id) AS patient_count
+            FROM tbl_doctors d
+            JOIN tbl_users du ON d.user_id = du.user_id
+            LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
+            JOIN tbl_appointments a ON a.doctor_id = d.doctor_id AND a.appointment_date = :d
+            GROUP BY d.doctor_id, du.name, s.name
+            ORDER BY du.name ASC
+        ");
+        $stmt->bindParam(":d", $date);
+        $stmt->execute();
+        $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Patients per doctor on the date
+        $detail = $this->conn->prepare("
+            SELECT a.appointment_id, a.queue_number, st.status_name AS appointment_status, pu.name AS patient_name
+            FROM tbl_appointments a
+            JOIN tbl_patients p ON a.patient_id = p.patient_id
+            JOIN tbl_users pu ON p.user_id = pu.user_id
+            JOIN tbl_status st ON a.status_id = st.status_id
+            WHERE a.doctor_id = :doc AND a.appointment_date = :d
+            ORDER BY COALESCE(a.queue_number, 9999), a.appointment_id
+        ");
+
+        foreach ($doctors as &$doc) {
+            $detail->bindParam(":doc", $doc['doctor_id']);
+            $detail->bindParam(":d", $date);
+            $detail->execute();
+            $doc['patients'] = $detail->fetchAll(PDO::FETCH_ASSOC);
+            $doc['date'] = $date;
+        }
+        return $doctors;
+    }
+
+    // New: patients list for a specific doctor on a date
+    public function get_doctor_patients_on_date($doctorId, $date)
+    {
+        if (empty($doctorId) || empty($date)) { echo json_encode(["success" => false, "message" => "doctor_id and date are required."]); return; }
+        $stmt = $this->conn->prepare("
+            SELECT a.appointment_id, a.queue_number, st.status_name AS appointment_status, pu.name AS patient_name
+            FROM tbl_appointments a
+            JOIN tbl_patients p ON a.patient_id = p.patient_id
+            JOIN tbl_users pu ON p.user_id = pu.user_id
+            JOIN tbl_status st ON a.status_id = st.status_id
+            WHERE a.doctor_id = :doc AND a.appointment_date = :d
+            ORDER BY COALESCE(a.queue_number, 9999), a.appointment_id
+        ");
+        $stmt->bindParam(":doc", $doctorId);
+        $stmt->bindParam(":d", $date);
+        $stmt->execute();
+        echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    }
 }
 
 // Router
@@ -257,6 +336,15 @@ switch ($operation) {
         break;
     case 'list_doctors':
         $svc->list_doctors();
+        break;
+    case 'get_doctor_day_overview':
+        $date = $_GET['date'] ?? '';
+        $svc->get_doctor_day_overview($date);
+        break;
+    case 'get_doctor_patients_on_date':
+        $doctorId = $_GET['doctor_id'] ?? '';
+        $date = $_GET['date'] ?? '';
+        $svc->get_doctor_patients_on_date($doctorId, $date);
         break;
     default:
         echo json_encode(["success" => false, "message" => "Invalid operation"]);

@@ -394,21 +394,6 @@ INSERT INTO `tbl_specializations` (`specialization_id`, `name`, `description`) V
 -- --------------------------------------------------------
 
 --
--- Table structure for table `tbl_doctor_schedules`
---
-
-CREATE TABLE `tbl_doctor_schedules` (
-  `schedule_id` int(11) NOT NULL,
-  `doctor_id` int(11) NOT NULL,
-  `day_of_week` tinyint(1) NOT NULL COMMENT '0=Sun,1=Mon,...,6=Sat',
-  `start_time` time NOT NULL,
-  `end_time` time NOT NULL,
-  `is_available` tinyint(1) NOT NULL DEFAULT 1,
-  `created_at` datetime DEFAULT current_timestamp(),
-  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
 
 --
 -- Table structure for table `tbl_status`
@@ -641,13 +626,6 @@ ALTER TABLE `tbl_status_type`
   ADD PRIMARY KEY (`status_type_id`);
 
 --
--- Indexes for table `tbl_doctor_schedules`
---
-
-ALTER TABLE `tbl_doctor_schedules`
-  ADD PRIMARY KEY (`schedule_id`),
-  ADD KEY `doctor_id` (`doctor_id`),
-  ADD UNIQUE KEY `uniq_doctor_day_time` (`doctor_id`, `day_of_week`, `start_time`, `end_time`);
 
 --
 -- Indexes for table `tbl_users`
@@ -758,11 +736,6 @@ ALTER TABLE `tbl_status_type`
   MODIFY `status_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `tbl_doctor_schedules`
---
-
-ALTER TABLE `tbl_doctor_schedules`
-  MODIFY `schedule_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1;
 
 --
 -- AUTO_INCREMENT for table `tbl_users`
@@ -841,11 +814,6 @@ ALTER TABLE `tbl_prescriptions`
   ADD CONSTRAINT `tbl_prescriptions_ibfk_5` FOREIGN KEY (`medicine_id`) REFERENCES `tbl_medicines` (`medicine_id`) ON DELETE CASCADE;
 
 --
--- Constraints for table `tbl_doctor_schedules`
---
-
-ALTER TABLE `tbl_doctor_schedules`
-  ADD CONSTRAINT `tbl_doctor_schedules_ibfk_1` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
