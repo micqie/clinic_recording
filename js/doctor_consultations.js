@@ -3,28 +3,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const consultationsApi = `${baseApiUrl}/consultations.php`;
     const patientsApi = `${baseApiUrl}/patients.php`;
     const appointmentsApi = `${baseApiUrl}/appointments.php`;
+    const userApi = `${baseApiUrl}/user.php`;
 
-    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const form = document.getElementById('consultationForm');
+    const patientSelect = document.getElementById('patient_id');
+    const appointmentSelect = document.getElementById('appointment_id');
+    const consultationsTableBody = document.getElementById('consultationsTableBody');
+
+    // Check if user is logged in and is a doctor
+    const user = JSON.parse(sessionStorage.getItem("user") || "{}");
     if (!user.id || user.role !== 'doctor') {
         window.location.href = '../../index.html';
         return;
     }
 
-    const patientSelect = document.getElementById('patientSelect');
-    const appointmentSelect = document.getElementById('appointmentSelect');
-    const consultationsTableBody = document.getElementById('consultationsTableBody');
-    const form = document.getElementById('consultationForm');
+    let doctorId = null;
+
+    // Get doctor_id from user profile
+    async function getDoctorId() {
+        if (doctorId) return doctorId;
+        try {
+            const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
+            doctorId = prof.data?.context?.doctor_id || null;
+            return doctorId;
+        } catch (e) {
+            console.error('Failed to get doctor profile:', e);
+            return null;
+        }
+    }
 
     async function loadPatients() {
         try {
-            const res = await axios.get(`${patientsApi}?operation=get_all`);
+            const docId = await getDoctorId();
+            if (!docId) {
+                console.error('No doctor_id found');
+                return;
+            }
+            // Load only patients assigned to this doctor (from appointments)
+            const res = await axios.get(`${appointmentsApi}?operation=get_by_doctor&doctor_id=${docId}`);
             if (res.data.success) {
+                const seen = new Set();
                 patientSelect.innerHTML = '<option value="">Select patient</option>';
-                res.data.data.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p.patient_id;
-                    opt.textContent = p.full_name;
-                    patientSelect.appendChild(opt);
+                res.data.data.forEach(a => {
+                    if (!seen.has(a.patient_id)) {
+                        seen.add(a.patient_id);
+                        const opt = document.createElement('option');
+                        opt.value = a.patient_id;
+                        opt.textContent = a.patient_name;
+                        patientSelect.appendChild(opt);
+                    }
                 });
             }
         } catch (e) { console.error(e); }
@@ -35,19 +62,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await axios.get(`${appointmentsApi}?operation=get_by_patient&patient_id=${patientId}`);
             if (res.data.success) {
                 appointmentSelect.innerHTML = '<option value="">Select appointment</option>';
-                res.data.data.forEach(a => {
-                    const opt = document.createElement('option');
-                    opt.value = a.appointment_id;
-                    opt.textContent = `${a.appointment_date} - ${a.doctor_name || 'Assigned'} (#${a.appointment_id})`;
-                    appointmentSelect.appendChild(opt);
-                });
+                res.data.data
+                    .filter(a => (a.doctor_name ? true : true))
+                    .forEach(a => {
+                        const opt = document.createElement('option');
+                        opt.value = a.appointment_id;
+                        opt.textContent = `${a.appointment_date} (#${a.appointment_id})`;
+                        appointmentSelect.appendChild(opt);
+                    });
             }
         } catch (e) { console.error(e); }
     }
 
     async function loadMyConsultations() {
         try {
-            const res = await axios.get(`${consultationsApi}?operation=getByDoctor&doctor_id=${user.id}`);
+            const docId = await getDoctorId();
+            if (!docId) {
+                console.error('No doctor_id found');
+                return;
+            }
+            const res = await axios.get(`${consultationsApi}?operation=getByDoctor&doctor_id=${docId}`);
             consultationsTableBody.innerHTML = '';
             if (res.data.success && Array.isArray(res.data.data)) {
                 res.data.data.forEach(c => {
@@ -83,12 +117,18 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const docId = await getDoctorId();
+        if (!docId) {
+            Swal.fire('Error', 'Doctor profile not found.', 'error');
+            return;
+        }
+
         const fd = new FormData(form);
         const payload = new FormData();
         payload.append('operation', 'add');
         payload.append('json', JSON.stringify({
             patient_id: fd.get('patient_id'),
-            doctor_id: user.id,
+            doctor_id: docId,
             appointment_id: fd.get('appointment_id'),
             summary: fd.get('summary'),
             notes: fd.get('notes') || ''

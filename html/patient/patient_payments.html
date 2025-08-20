@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MCSTUFFIN's Patient - Dashboard</title>
+  <title>MCSTUFFIN's Patient - Payments</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -11,9 +11,7 @@
   <link rel="stylesheet" href="../../css/table.css">
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="../../js/patient_dashboard.js" defer></script>
+  <script src="../../js/patient_payments.js" defer></script>
   <script src="../../js/logout.js" defer></script>
   <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
 </head>
@@ -54,7 +52,7 @@
     <!-- Sidebar Navigation -->
     <nav id="sidebar-wrapper" role="navigation" aria-label="Sidebar menu" tabindex="0">
       <div class="list-group list-group-flush">
-        <a href="patient_dashboard.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
+        <a href="patient_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
           <i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
         </a>
         <a href="patient_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
@@ -66,7 +64,7 @@
         <a href="patient_lab_results.html" class="list-group-item list-group-item-action py-3 ripple">
           <i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Results
         </a>
-        <a href="patient_payments.html" class="list-group-item list-group-item-action py-3 ripple">
+        <a href="patient_payments.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
           <i class="fa-solid fa-credit-card me-2" aria-hidden="true"></i>Payments
         </a>
       </div>
@@ -78,102 +76,129 @@
         <!-- Header Section -->
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
           <div>
-            <h1 class="fw-bold text-secondary mb-1">Welcome Back!</h1>
-            <p class="text-muted mb-0">Here's your health summary</p>
+            <h1 class="fw-bold text-secondary mb-1">Payment History</h1>
+            <p class="text-muted mb-0">Track your medical expenses and payments</p>
           </div>
           <div class="d-flex gap-2">
-            <a href="patient_appointments.html" class="btn btn-primary">
-              <i class="fas fa-calendar-plus me-2"></i>Book Appointment
-            </a>
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+              <i class="fas fa-filter me-2"></i>Filters
+            </button>
           </div>
         </div>
 
-        <!-- KPI Cards -->
+        <!-- Payment Summary Cards -->
         <div class="row g-3 mb-4">
           <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 kpi-card">
+            <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center p-3">
-                <div class="kpi-icon mb-2">
-                  <i class="fas fa-calendar-check text-primary"></i>
+                <div class="text-primary mb-2">
+                  <i class="fas fa-credit-card fa-2x"></i>
                 </div>
-                <div class="kpi-label text-muted small">Total</div>
-                <div class="kpi-value fw-bold text-primary" id="stat_total">0</div>
+                <div class="text-muted small">Total Paid</div>
+                <div class="fw-bold text-success" id="totalPaid">₱0.00</div>
               </div>
             </div>
           </div>
           <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 kpi-card">
+            <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center p-3">
-                <div class="kpi-icon mb-2">
-                  <i class="fas fa-clock text-warning"></i>
+                <div class="text-warning mb-2">
+                  <i class="fas fa-clock fa-2x"></i>
                 </div>
-                <div class="kpi-label text-muted small">Upcoming</div>
-                <div class="kpi-value fw-bold text-warning" id="stat_upcoming">0</div>
+                <div class="text-muted small">Pending</div>
+                <div class="fw-bold text-warning" id="totalPending">₱0.00</div>
               </div>
             </div>
           </div>
           <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 kpi-card">
+            <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center p-3">
-                <div class="kpi-icon mb-2">
-                  <i class="fas fa-check-circle text-success"></i>
+                <div class="text-danger mb-2">
+                  <i class="fas fa-exclamation-triangle fa-2x"></i>
                 </div>
-                <div class="kpi-label text-muted small">Completed</div>
-                <div class="kpi-value fw-bold text-success" id="stat_completed">0</div>
+                <div class="text-muted small">Overdue</div>
+                <div class="fw-bold text-danger" id="totalOverdue">₱0.00</div>
               </div>
             </div>
           </div>
           <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm h-100 kpi-card">
+            <div class="card border-0 shadow-sm h-100">
               <div class="card-body text-center p-3">
-                <div class="kpi-icon mb-2">
-                  <i class="fas fa-exclamation-triangle text-danger"></i>
+                <div class="text-info mb-2">
+                  <i class="fas fa-calendar fa-2x"></i>
                 </div>
-                <div class="kpi-label text-muted small">Unpaid</div>
-                <div class="kpi-value fw-bold text-danger" id="stat_unpaid">0</div>
+                <div class="text-muted small">This Month</div>
+                <div class="fw-bold text-info" id="thisMonth">₱0.00</div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Recent Appointments Section -->
-        <div class="card border-0 shadow-sm mb-4">
-          <div class="card-header bg-primary text-white d-flex align-items-center justify-content-between">
-            <h5 class="mb-0 fw-bold">
-              <i class="fas fa-calendar-check me-2"></i>Recent Appointments
-            </h5>
-            <a href="patient_appointments.html" class="btn btn-light btn-sm">
-              <i class="fas fa-external-link-alt me-1"></i>View All
-            </a>
-          </div>
-          <div class="card-body p-0">
-            <div class="list-group list-group-flush" id="recent_list">
-              <!-- Appointments will be loaded here -->
+        <!-- Filter Section (Collapsible) -->
+        <div class="collapse mb-4" id="filterSection">
+          <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+              <h6 class="mb-0 fw-bold text-secondary">
+                <i class="fas fa-filter me-2"></i>Filter Payments
+              </h6>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Status</label>
+                  <select class="form-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="paid">Paid</option>
+                    <option value="pending">Pending</option>
+                    <option value="overdue">Overdue</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">Service Type</label>
+                  <select class="form-select" id="serviceFilter">
+                    <option value="">All Services</option>
+                    <option value="consultation">Consultation</option>
+                    <option value="laboratory">Laboratory</option>
+                    <option value="prescription">Prescription</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">From Date</label>
+                  <input type="date" class="form-control" id="fromDateFilter" />
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label fw-semibold">To Date</label>
+                  <input type="date" class="form-control" id="toDateFilter" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Lab Requests Section -->
+        <!-- Payments List -->
         <div class="card border-0 shadow-sm">
           <div class="card-header bg-light d-flex align-items-center justify-content-between">
             <h5 class="mb-0 fw-bold text-secondary">
-              <i class="fas fa-flask me-2"></i>Lab Requests
+              <i class="fas fa-credit-card me-2"></i>Payment Records
             </h5>
-            <span class="badge bg-primary" id="labRequestCount">0</span>
+            <span class="badge bg-primary" id="paymentsCount">0</span>
           </div>
           <div class="card-body p-0">
             <div class="table-responsive table-compact">
               <table class="custom-table">
                 <thead>
                   <tr>
-                    <th>Created</th>
-                    <th>Doctor</th>
+                    <th>Date</th>
+                    <th>Service</th>
+                    <th>Description</th>
+                    <th>Amount</th>
                     <th>Status</th>
-                    <th>Details</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody id="patientLabRequestsTbody"></tbody>
+                <tbody id="paymentsTableBody">
+                  <!-- Payments will be loaded here -->
+                </tbody>
               </table>
             </div>
           </div>

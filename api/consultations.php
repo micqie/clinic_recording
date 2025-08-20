@@ -20,6 +20,7 @@ class Consultations
         }
 
         try {
+            // Don't specify consultation_id - let database auto-increment handle it
             $stmt = $this->conn->prepare("INSERT INTO tbl_consultations (appointment_id, doctor_id, patient_id, summary, notes) VALUES (:aid, :did, :pid, :summary, :notes)");
             $stmt->bindParam(":aid", $data['appointment_id']);
             $stmt->bindParam(":did", $data['doctor_id']);

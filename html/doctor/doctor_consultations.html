@@ -50,6 +50,9 @@
         <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
           <i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>My Appointments
         </a>
+        <a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
+          <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
+        </a>
         <a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
           <i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>My Patients
         </a>
@@ -58,9 +61,6 @@
         </a>
         <a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
           <i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Requests
-        </a>
-        <a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
-          <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
         </a>
       </div>
     </nav>
@@ -83,14 +83,14 @@
             <form id="consultationForm" class="row g-3 needs-validation" novalidate>
               <div class="col-md-6">
                 <label class="form-label">Patient</label>
-                <select class="form-select" id="patientSelect" name="patient_id" required>
+                <select class="form-select" id="patient_id" name="patient_id" required>
                   <option value="">Select patient</option>
                 </select>
                 <div class="invalid-feedback">Please select a patient.</div>
               </div>
               <div class="col-md-6">
                 <label class="form-label">Appointment</label>
-                <select class="form-select" id="appointmentSelect" name="appointment_id" required>
+                <select class="form-select" id="appointment_id" name="appointment_id" required>
                   <option value="">Select appointment</option>
                 </select>
                 <div class="invalid-feedback">Please select an appointment.</div>

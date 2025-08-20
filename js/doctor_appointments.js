@@ -17,10 +17,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tbody = document.getElementById('docAppointmentsTableBody');
   const lrTbody = document.getElementById('docLabRequestsTableBody');
   const presTbody = document.getElementById('docPrescriptionsTableBody');
-  const labModal = new bootstrap.Modal(document.getElementById('labRequestModal'));
-  const statusModal = new bootstrap.Modal(document.getElementById('updateStatusModal'));
-  const diagnosisModal = new bootstrap.Modal(document.getElementById('diagnosisModal'));
-  const prescriptionModal = new bootstrap.Modal(document.getElementById('prescriptionModal'));
+  const labModalEl = document.getElementById('labRequestModal');
+  const statusModalEl = document.getElementById('updateStatusModal');
+  const diagnosisModalEl = document.getElementById('diagnosisModal');
+  const prescriptionModalEl = document.getElementById('prescriptionModal');
+  const labModal = labModalEl ? new bootstrap.Modal(labModalEl) : null;
+  const statusModal = statusModalEl ? new bootstrap.Modal(statusModalEl) : null;
+  const diagnosisModal = diagnosisModalEl ? new bootstrap.Modal(diagnosisModalEl) : null;
+  const prescriptionModal = prescriptionModalEl ? new bootstrap.Modal(prescriptionModalEl) : null;
   const labForm = document.getElementById('labRequestForm');
   const statusForm = document.getElementById('updateStatusForm');
   const diagnosisForm = document.getElementById('diagnosisForm');
@@ -31,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const resp = await axios.get(`${apptApi}?operation=get_by_doctor&doctor_id=${doctorId}`);
       const rows = resp.data.data || [];
       tbody.innerHTML = '';
-      rows.forEach(r => {
+      rows.forEach(async (r) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${r.appointment_date}</td>
@@ -39,18 +43,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td>${r.patient_name}</td>
           <td><span class="status-badge status--${r.appointment_status.toLowerCase().replace(/\s/g, '')}">${r.appointment_status}</span></td>
           <td class="text-nowrap">
-            <button class="btn btn-sm btn-outline-primary me-1" data-lr="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}">
-              <i class="fas fa-flask me-1"></i>Lab Request
+            <button class="btn btn-sm btn-outline-success me-1" data-consult="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}">
+              <i class="fas fa-user-doctor me-1"></i>Consult
             </button>
-            <button class="btn btn-sm btn-outline-success me-1" data-diagnosis="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}">
-              <i class="fas fa-stethoscope me-1"></i>Diagnosis
+            <button class="btn btn-sm btn-outline-primary me-1" data-lr="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}" disabled>
+              <i class="fas fa-flask me-1"></i>Request Lab
             </button>
-            <button class="btn btn-sm btn-outline-info" data-prescription="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}">
-              <i class="fas fa-pills me-1"></i>Prescription
+            <button class="btn btn-sm btn-outline-secondary me-1" data-print="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}" disabled>
+              <i class="fas fa-print me-1"></i>Print Result
+            </button>
+            <button class="btn btn-sm btn-outline-info" data-prescription="${r.patient_id}" data-appt="${r.appointment_id}" data-patient="${r.patient_name}" data-date="${r.appointment_date}" disabled>
+              <i class="fas fa-pills me-1"></i>Prescribe
             </button>
           </td>
         `;
         tbody.appendChild(tr);
+        await updateRowGates(r.appointment_id, r.patient_id, tr);
       });
     } catch (error) {
       console.error('Error loading appointments:', error);
@@ -58,13 +66,72 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  async function loadLabRequests() {
+  async function updateRowGates(appointmentId, patientId, rowEl) {
     try {
-      const resp = await axios.get(`${labApi}?operation=get_by_doctor&doctor_id=${doctorId}`);
-      const rows = resp.data.data || [];
+      const hasDiag = await hasDiagnosisForAppointment(appointmentId);
+      const requestInfo = await getLatestLabRequestForAppointment(appointmentId, patientId);
+
+      const lrBtn = rowEl.querySelector('[data-lr]');
+      const printBtn = rowEl.querySelector('[data-print]');
+      const prescribeBtn = rowEl.querySelector('[data-prescription]');
+
+      if (hasDiag) {
+        lrBtn?.removeAttribute('disabled');
+      } else {
+        lrBtn?.setAttribute('disabled', 'disabled');
+        printBtn?.setAttribute('disabled', 'disabled');
+        prescribeBtn?.setAttribute('disabled', 'disabled');
+        return;
+      }
+
+      if (requestInfo && (requestInfo.status_id == 16 || (requestInfo.status_name || '').toLowerCase() === 'delivered')) {
+        printBtn?.removeAttribute('disabled');
+        prescribeBtn?.removeAttribute('disabled');
+        if (printBtn?.classList.contains('btn-outline-secondary')) {
+          printBtn.classList.remove('btn-outline-secondary');
+          printBtn.classList.add('btn-outline-success');
+        }
+      } else {
+        printBtn?.setAttribute('disabled', 'disabled');
+        prescribeBtn?.setAttribute('disabled', 'disabled');
+      }
+    } catch (e) {
+      console.error('Failed to update gates', e);
+    }
+  }
+
+  async function hasDiagnosisForAppointment(appointmentId) {
+    try {
+      const resp = await axios.get(`${diagnosisApi}?operation=getByDoctor&doctor_id=${doctorId}`);
+      const list = resp.data?.diagnoses || resp.data?.data || [];
+      return list.some(d => String(d.appointment_id) === String(appointmentId));
+    } catch {
+      return false;
+    }
+  }
+
+  async function getLatestLabRequestForAppointment(appointmentId, patientId) {
+    try {
+      const resp = await axios.get(`${labApi}?operation=getByDoctor&doctor_id=${doctorId}`);
+      const list = resp.data?.requests || resp.data?.data || [];
+      const filtered = list.filter(lr => String(lr.appointment_id) === String(appointmentId) && String(lr.patient_id) === String(patientId));
+      if (filtered.length === 0) return null;
+      filtered.sort((a,b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      return filtered[filtered.length - 1];
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadLabRequests() {
+    if (!lrTbody) return; // page without lab requests section
+    try {
+      const resp = await axios.get(`${labApi}?operation=getByDoctor&doctor_id=${doctorId}`);
+      const rows = resp.data.requests || resp.data.data || [];
       lrTbody.innerHTML = '';
-      document.getElementById('labRequestCount').textContent = rows.length;
-      
+      const count = document.getElementById('labRequestCount');
+      if (count) count.textContent = rows.length;
+
       if (rows.length === 0) {
         lrTbody.innerHTML = `
           <tr>
@@ -79,10 +146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         return;
       }
-      
+
       rows.forEach(r => {
         const tr = document.createElement('tr');
-        const statusClass = r.status_name.toLowerCase().replace(/\s/g, '');
+        const statusClass = (r.status_name || '').toLowerCase().replace(/\s/g, '');
         tr.innerHTML = `
           <td>${new Date(r.created_at).toLocaleDateString()}</td>
           <td><strong>${r.patient_name}</strong></td>
@@ -107,12 +174,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadPrescriptions() {
+    if (!presTbody) return; // page without prescriptions section
     try {
-      const resp = await axios.get(`${prescriptionApi}?operation=get_all`);
-      const rows = resp.data.data || [];
+      const resp = await axios.get(`${prescriptionApi}?operation=getByDoctor&doctor_id=${doctorId}`);
+      const rows = resp.data.prescriptions || resp.data.data || [];
       presTbody.innerHTML = '';
-      document.getElementById('prescriptionCount').textContent = rows.length;
-      
+      const count = document.getElementById('prescriptionCount');
+      if (count) count.textContent = rows.length;
+
       if (rows.length === 0) {
         presTbody.innerHTML = `
           <tr>
@@ -127,10 +196,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         return;
       }
-      
+
       rows.forEach(r => {
         const tr = document.createElement('tr');
-        const statusClass = r.status.toLowerCase().replace(/\s/g, '');
+        const statusClass = (r.status || '').toLowerCase().replace(/\s/g, '');
         tr.innerHTML = `
           <td>${new Date(r.created_at).toLocaleDateString()}</td>
           <td><strong>${r.patient_name}</strong></td>
@@ -158,12 +227,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   tbody.addEventListener('click', (e) => {
     const target = e.target.closest('button');
     if (!target) return;
-    
-    const pid = target.getAttribute('data-lr') || target.getAttribute('data-diagnosis') || target.getAttribute('data-prescription');
+
+    const pid = target.getAttribute('data-lr') || target.getAttribute('data-consult') || target.getAttribute('data-prescription') || target.getAttribute('data-print');
     const aid = target.getAttribute('data-appt');
     const patientName = target.getAttribute('data-patient');
     const apptDate = target.getAttribute('data-date');
-    
+
     // Lab Request
     if (target.getAttribute('data-lr')) {
       document.getElementById('lr_patient_id').value = pid;
@@ -174,9 +243,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       labForm.classList.remove('was-validated');
       labModal.show();
     }
-    
-    // Diagnosis
-    if (target.getAttribute('data-diagnosis')) {
+
+    // Consult (opens diagnosis modal)
+    if (target.getAttribute('data-consult')) {
       document.getElementById('diag_patient_id').value = pid;
       document.getElementById('diag_appointment_id').value = aid || '';
       document.getElementById('diag_doctor_id').value = doctorId;
@@ -189,7 +258,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       diagnosisForm.classList.remove('was-validated');
       diagnosisModal.show();
     }
-    
+
+    // Print if delivered
+    if (target.getAttribute('data-print')) {
+      openPrintForAppointment(aid, pid, patientName);
+    }
+
     // Prescription
     if (target.getAttribute('data-prescription')) {
       // First check if there's a diagnosis for this appointment
@@ -198,14 +272,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Handle lab request table actions
-  lrTbody.addEventListener('click', (e) => {
+  lrTbody?.addEventListener('click', (e) => {
     const target = e.target.closest('button');
     if (!target) return;
-    
+
     const updateId = target.getAttribute('data-update');
     const viewId = target.getAttribute('data-view');
     const currentStatus = target.getAttribute('data-status');
-    
+
     if (updateId) {
       document.getElementById('us_lab_request_id').value = updateId;
       document.getElementById('us_current_status').value = currentStatus;
@@ -219,12 +293,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Handle prescription table actions
-  presTbody.addEventListener('click', (e) => {
+  presTbody?.addEventListener('click', (e) => {
     const target = e.target.closest('button');
     if (!target) return;
-    
+
     const viewPrescriptionId = target.getAttribute('data-view-prescription');
-    
+
     if (viewPrescriptionId) {
       // View prescription details
       viewPrescription(viewPrescriptionId);
@@ -233,9 +307,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function viewLabRequest(labRequestId) {
     try {
-      const resp = await axios.get(`${labApi}?operation=get_by_id&lab_request_id=${labRequestId}`);
+      const resp = await axios.get(`${labApi}?operation=getById&lab_request_id=${labRequestId}`);
       if (resp.data.success) {
-        const lr = resp.data.data;
+        const lr = resp.data.request || resp.data.data;
         Swal.fire({
           title: `Lab Request #${lr.lab_request_id}`,
           html: `
@@ -261,9 +335,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function viewPrescription(prescriptionId) {
     try {
-      const resp = await axios.get(`${prescriptionApi}?operation=get&id=${prescriptionId}`);
+      const resp = await axios.get(`${prescriptionApi}?operation=getById&prescription_id=${prescriptionId}`);
       if (resp.data.success) {
-        const prescription = resp.data.data;
+        const prescription = resp.data.prescription || resp.data.data;
         Swal.fire({
           title: `Prescription #${prescription.prescription_id}`,
           html: `
@@ -278,7 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <p><strong>Dosage:</strong> ${prescription.dosage}</p>
               <p><strong>Frequency:</strong> ${prescription.frequency}</p>
               <p><strong>Duration:</strong> ${prescription.duration}</p>
-              <p><strong>Price:</strong> ₱${prescription.medicine_price}</p>
+              ${prescription.medicine_price ? `<p><strong>Price:</strong> ₱${prescription.medicine_price}</p>` : ''}
               ${prescription.instructions ? `<p><strong>Instructions:</strong> ${prescription.instructions}</p>` : ''}
             </div>
           `,
@@ -295,26 +369,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Handle lab request form submission
   labForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!labForm.checkValidity()) { 
-      labForm.classList.add('was-validated'); 
-      return; 
+    if (!labForm.checkValidity()) {
+      labForm.classList.add('was-validated');
+      return;
     }
-    
+
     try {
       const fd = new FormData(labForm);
       const payload = new FormData();
-      payload.append('operation', 'create');
+      payload.append('operation', 'add');
       payload.append('json', JSON.stringify({
         doctor_id: doctorId,
         patient_id: fd.get('patient_id'),
         appointment_id: fd.get('appointment_id') || null,
         request_text: fd.get('request_text')
       }));
-      
+
       const resp = await axios.post(labApi, payload);
       if (resp.data.success) {
         labModal.hide();
         await loadLabRequests();
+        await loadAppointments();
         Swal.fire('Success', 'Lab request sent to patient', 'success');
       } else {
         Swal.fire('Error', resp.data.message || 'Failed to send lab request', 'error');
@@ -328,24 +403,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Handle status update form submission
   statusForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!statusForm.checkValidity()) { 
-      statusForm.classList.add('was-validated'); 
-      return; 
+    if (!statusForm.checkValidity()) {
+      statusForm.classList.add('was-validated');
+      return;
     }
-    
+
     try {
       const fd = new FormData(statusForm);
       const payload = new FormData();
-      payload.append('operation', 'update_status');
+      const statusMap = { 'Processing': 14, 'Ready': 15, 'Delivered': 16 };
+      payload.append('operation', 'updateStatus');
       payload.append('json', JSON.stringify({
         lab_request_id: fd.get('lab_request_id'),
-        status: fd.get('status')
+        status_id: statusMap[fd.get('status')] || 14
       }));
-      
+
       const resp = await axios.post(labApi, payload);
       if (resp.data.success) {
         statusModal.hide();
         await loadLabRequests();
+        await loadAppointments();
         Swal.fire('Success', 'Lab request status updated', 'success');
       } else {
         Swal.fire('Error', resp.data.message || 'Failed to update status', 'error');
@@ -359,10 +436,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check if diagnosis exists for prescription
   async function checkDiagnosisForPrescription(appointmentId, patientId, patientName, appointmentDate) {
     try {
-      const response = await axios.get(`${diagnosisApi}?operation=get_by_appointment&appointment_id=${appointmentId}`);
-      if (response.data.success && response.data.data.length > 0) {
+      const response = await axios.get(`${diagnosisApi}?operation=getByDoctor&doctor_id=${doctorId}`);
+      const list = response.data?.diagnoses || response.data?.data || [];
+      const diagnosis = list.find(d => String(d.appointment_id) === String(appointmentId));
+      if (diagnosis) {
         // Diagnosis exists, show prescription modal
-        const diagnosis = response.data.data[0];
         document.getElementById('pres_patient_id').value = patientId;
         document.getElementById('pres_appointment_id').value = appointmentId;
         document.getElementById('pres_doctor_id').value = doctorId;
@@ -375,7 +453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('pres_duration').value = '';
         document.getElementById('pres_instructions').value = '';
         prescriptionForm.classList.remove('was-validated');
-        
+
         // Load medicines
         await loadMedicines();
         prescriptionModal.show();
@@ -391,15 +469,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load medicines for prescription
   async function loadMedicines() {
     try {
-      const response = await axios.get(`${medicineApi}?operation=get_all`);
+      const response = await axios.get(`${medicineApi}?operation=getAll`);
       const medicineSelect = document.getElementById('pres_medicine_id');
       medicineSelect.innerHTML = '<option value="">Select Medicine</option>';
-      
-      if (response.data && response.data.length > 0) {
-        response.data.forEach((medicine) => {
+
+      const meds = response.data?.medicines || [];
+      if (meds.length > 0) {
+        meds.forEach((medicine) => {
           const option = document.createElement('option');
           option.value = medicine.medicine_id;
-          option.textContent = `${medicine.name} (${medicine.form}) - ₱${medicine.price} - Stock: ${medicine.stock}`;
+          const weight = medicine.weight_value || medicine.weight || '';
+          const form = medicine.form_name || '';
+          option.textContent = `${medicine.medicine_name}${weight ? ` ${weight}` : ''}${form ? ` (${form})` : ''}`;
           medicineSelect.appendChild(option);
         });
       } else {
@@ -419,11 +500,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Handle diagnosis form submission
   diagnosisForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!diagnosisForm.checkValidity()) { 
-      diagnosisForm.classList.add('was-validated'); 
-      return; 
+    if (!diagnosisForm.checkValidity()) {
+      diagnosisForm.classList.add('was-validated');
+      return;
     }
-    
+
     try {
       const fd = new FormData(diagnosisForm);
       const payload = new FormData();
@@ -437,7 +518,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         severity: fd.get('severity'),
         notes: fd.get('notes')
       }));
-      
+
       const resp = await axios.post(diagnosisApi, payload);
       if (resp.data.success) {
         diagnosisModal.hide();
@@ -454,11 +535,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Handle prescription form submission
   prescriptionForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!prescriptionForm.checkValidity()) { 
-      prescriptionForm.classList.add('was-validated'); 
-      return; 
+    if (!prescriptionForm.checkValidity()) {
+      prescriptionForm.classList.add('was-validated');
+      return;
     }
-    
+
     try {
       const fd = new FormData(prescriptionForm);
       const payload = new FormData();
@@ -474,14 +555,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         duration: fd.get('duration'),
         instructions: fd.get('instructions')
       }));
-      
+
              const resp = await axios.post(prescriptionApi, payload);
        if (resp.data.success) {
          prescriptionModal.hide();
-         
+
          // Reload prescriptions table
          await loadPrescriptions();
-         
+
          // Show success message and stay on doctor page
          Swal.fire({
            title: 'Prescription Added Successfully!',
@@ -504,5 +585,3 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadLabRequests();
   await loadPrescriptions();
 });
-
-

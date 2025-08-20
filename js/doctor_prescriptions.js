@@ -1,15 +1,22 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
   const prescriptionApiUrl = `${baseApiUrl}/prescriptions.php`;
   const patientApiUrl = `${baseApiUrl}/patients.php`;
   const medicineApiUrl = `${baseApiUrl}/medicines.php`;
-  
+  const userApiUrl = `${baseApiUrl}/user.php`;
+
   // Check if user is logged in and is a doctor
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
   if (!user.id || user.role !== "doctor") {
     window.location.href = "../../index.html";
     return;
   }
+
+  let doctorId = null;
+  try {
+    const prof = await axios.get(`${userApiUrl}?operation=profile&user_id=${user.id}`);
+    doctorId = prof.data?.context?.doctor_id || null;
+  } catch (e) { console.error(e); }
 
   const prescriptionsTableBody = document.getElementById("prescriptionsTableBody");
   const addPrescriptionForm = document.getElementById("addPrescriptionForm");
@@ -19,9 +26,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadPrescriptions() {
     try {
-      const response = await axios.get(`${prescriptionApiUrl}?operation=get_doctor_prescriptions&doctor_id=${user.id}`);
+      const response = await axios.get(`${prescriptionApiUrl}?operation=getByDoctor&doctor_id=${doctorId || ''}`);
       if (response.data.success) {
-        displayPrescriptions(response.data.data);
+        displayPrescriptions(response.data.prescriptions || response.data.data);
       } else {
         Swal.fire("Error", response.data.message, "error");
       }
@@ -50,13 +57,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadMedicines() {
     try {
-      const response = await axios.get(`${medicineApiUrl}?operation=get_all`);
+      const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
       if (response.data.success) {
         const medicineSelects = document.querySelectorAll('select[name="medicine_id"]');
         medicineSelects.forEach(select => {
           select.innerHTML = '<option value="">Select medicine</option>';
-          response.data.data.forEach(medicine => {
-            select.innerHTML += `<option value="${medicine.medicine_id}">${medicine.medicine_name} - ${medicine.dosage_form}</option>`;
+          (response.data.medicines || response.data.data || []).forEach(medicine => {
+            const weight = medicine.weight_value || medicine.weight || '';
+            const form = medicine.form_name || '';
+            const text = `${medicine.medicine_name}${weight ? ` ${weight}` : ''}${form ? ` (${form})` : ''}`;
+            select.innerHTML += `<option value="${medicine.medicine_id}">${text}</option>`;
           });
         });
       }
@@ -67,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function displayPrescriptions(prescriptions) {
     prescriptionsTableBody.innerHTML = "";
-    
+
     prescriptions.forEach(prescription => {
       const row = document.createElement("tr");
       row.innerHTML = `
@@ -113,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
       frequency: formData.get("frequency"),
       duration: formData.get("duration"),
       instructions: formData.get("instructions"),
-      doctor_id: user.id
+      doctor_id: doctorId
     });
 
     const payload = new FormData();
@@ -139,10 +149,10 @@ document.addEventListener("DOMContentLoaded", () => {
   // Edit prescription
   window.editPrescription = async (prescriptionId) => {
     try {
-      const response = await axios.get(`${prescriptionApiUrl}?operation=get&id=${prescriptionId}`);
+      const response = await axios.get(`${prescriptionApiUrl}?operation=getById&prescription_id=${prescriptionId}`);
       if (response.data.success) {
-        const prescription = response.data.data;
-        
+        const prescription = response.data.prescription || response.data.data;
+
         document.getElementById("edit_prescription_id").value = prescription.prescription_id;
         document.getElementById("edit_patient_id").value = prescription.patient_id;
         document.getElementById("edit_medicine_id").value = prescription.medicine_id;
@@ -151,7 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("edit_duration").value = prescription.duration;
         document.getElementById("edit_status").value = prescription.status;
         document.getElementById("edit_instructions").value = prescription.instructions || "";
-        
+
         editPrescriptionModal.show();
       } else {
         Swal.fire("Error", response.data.message, "error");
@@ -230,7 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Load data on page load
-  loadPrescriptions();
-  loadPatients();
-  loadMedicines();
+  await loadPrescriptions();
+  await loadPatients();
+  await loadMedicines();
 });

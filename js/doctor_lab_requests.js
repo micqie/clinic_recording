@@ -3,7 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const labRequestApiUrl = `${baseApiUrl}/lab_requests.php`;
   const patientApiUrl = `${baseApiUrl}/patients.php`;
   const appointmentApiUrl = `${baseApiUrl}/appointments.php`;
-  
+  const userApiUrl = `${baseApiUrl}/user.php`;
+
   // Check if user is logged in and is a doctor
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
   if (!user.id || user.role !== "doctor") {
@@ -12,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const labRequestsTableBody = document.getElementById("labRequestsTableBody");
+  let doctorId = null;
   const addLabRequestForm = document.getElementById("addLabRequestForm");
   const updateStatusForm = document.getElementById("updateStatusForm");
   const addLabRequestModal = new bootstrap.Modal(document.getElementById("addLabRequestModal"));
@@ -19,9 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadLabRequests() {
     try {
-      const response = await axios.get(`${labRequestApiUrl}?operation=get_doctor_requests&doctor_id=${user.id}`);
+      if (!doctorId) {
+        const prof = await axios.get(`${userApiUrl}?operation=profile&user_id=${user.id}`);
+        doctorId = prof.data?.context?.doctor_id || null;
+      }
+      const response = await axios.get(`${labRequestApiUrl}?operation=getByDoctor&doctor_id=${doctorId}`);
       if (response.data.success) {
-        displayLabRequests(response.data.data);
+        displayLabRequests(response.data.requests || response.data.data);
       } else {
         Swal.fire("Error", response.data.message, "error");
       }
@@ -48,12 +54,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadAppointments(patientId) {
     try {
-      const response = await axios.get(`${appointmentApiUrl}?operation=get_patient_appointments&patient_id=${patientId}`);
+      const response = await axios.get(`${appointmentApiUrl}?operation=get_by_patient&patient_id=${patientId}`);
       if (response.data.success) {
         const appointmentSelect = document.querySelector('select[name="appointment_id"]');
         appointmentSelect.innerHTML = '<option value="">Select appointment</option>';
         response.data.data.forEach(appointment => {
-          appointmentSelect.innerHTML += `<option value="${appointment.appointment_id}">${appointment.appointment_date} - ${appointment.status}</option>`;
+          appointmentSelect.innerHTML += `<option value="${appointment.appointment_id}">${appointment.appointment_date} - ${appointment.appointment_status}</option>`;
         });
       }
     } catch (error) {
@@ -63,7 +69,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function displayLabRequests(labRequests) {
     labRequestsTableBody.innerHTML = "";
-    
+
     labRequests.forEach(request => {
       const row = document.createElement("tr");
       row.innerHTML = `
@@ -71,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${request.patient_name}</td>
         <td>${request.appointment_date}</td>
         <td>${request.request_text}</td>
-        <td><span class="badge bg-${getStatusBadgeColor(request.status)}">${request.status}</span></td>
+        <td><span class="badge bg-${getStatusBadgeColor(request.status_name || request.status)}">${request.status_name || request.status}</span></td>
         <td>${new Date(request.created_at).toLocaleDateString()}</td>
         <td>
           <button class="btn btn-sm btn-outline-success me-1" onclick="updateStatus(${request.lab_request_id}, '${request.status}')">
@@ -101,11 +107,15 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const formData = new FormData(addLabRequestForm);
 
+    if (!doctorId) {
+      const prof = await axios.get(`${userApiUrl}?operation=profile&user_id=${user.id}`);
+      doctorId = prof.data?.context?.doctor_id || null;
+    }
     const jsonPayload = JSON.stringify({
       patient_id: formData.get("patient_id"),
       appointment_id: formData.get("appointment_id"),
       request_text: formData.get("request_text"),
-      doctor_id: user.id
+      doctor_id: doctorId
     });
 
     const payload = new FormData();
@@ -140,13 +150,14 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     const formData = new FormData(updateStatusForm);
 
+    const statusMap = { 'Processing': 14, 'Ready': 15, 'Delivered': 16 };
     const jsonPayload = JSON.stringify({
       lab_request_id: formData.get("lab_request_id"),
-      status: formData.get("status")
+      status_id: statusMap[formData.get("status")] || 14
     });
 
     const payload = new FormData();
-    payload.append("operation", "update_status");
+    payload.append("operation", "updateStatus");
     payload.append("json", jsonPayload);
 
     try {
@@ -180,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const payload = new FormData();
         payload.append("operation", "delete");
-        payload.append("id", labRequestId);
+        payload.append("lab_request_id", labRequestId);
 
         const response = await axios.post(labRequestApiUrl, payload);
         if (response.data.success) {

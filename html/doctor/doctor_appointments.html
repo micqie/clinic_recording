@@ -46,6 +46,9 @@
           <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
             <i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>My Appointments
           </a>
+          <a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple">
+            <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
+          </a>
           <a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
             <i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>My Patients
           </a>
@@ -83,56 +86,7 @@
             </div>
           </div>
 
-          <div class="card border-0 shadow-sm mt-4">
-            <div class="card-body p-0">
-              <div class="p-3 d-flex align-items-center justify-content-between">
-                <h5 class="section-title mb-0"><i class="fa-solid fa-flask me-1"></i> My Lab Requests</h5>
-                <span class="badge bg-primary fs-6" id="labRequestCount">0</span>
-              </div>
-              <div class="table-responsive table-compact">
-                <table class="custom-table table-doctor-lab-requests">
-                  <thead>
-                    <tr>
-                      <th>Created</th>
-                      <th>Patient</th>
-                      <th>Appointment</th>
-                      <th>Status</th>
-                      <th>Request Details</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="docLabRequestsTableBody"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
 
-          <div class="card border-0 shadow-sm mt-4">
-            <div class="card-body p-0">
-              <div class="p-3 d-flex align-items-center justify-content-between">
-                <h5 class="section-title mb-0"><i class="fa-solid fa-pills me-1"></i> My Prescriptions</h5>
-                <span class="badge bg-info fs-6" id="prescriptionCount">0</span>
-              </div>
-              <div class="table-responsive table-compact">
-                <table class="custom-table table-doctor-prescriptions">
-                  <thead>
-                    <tr>
-                      <th>Created</th>
-                      <th>Patient</th>
-                      <th>Diagnosis</th>
-                      <th>Medicine</th>
-                      <th>Dosage</th>
-                      <th>Frequency</th>
-                      <th>Duration</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="docPrescriptionsTableBody"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
     </div>
