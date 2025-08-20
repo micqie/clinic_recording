@@ -10,6 +10,7 @@
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
+SET FOREIGN_KEY_CHECKS = 0;
 
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
@@ -110,6 +111,7 @@ CREATE TABLE `tbl_lab_requests` (
   `secretary_id` int(11) DEFAULT NULL,
   `patient_id` int(11) NOT NULL,
   `appointment_id` int(11) DEFAULT NULL,
+  `lab_test_type_id` int(11) DEFAULT NULL,
   `request_text` text NOT NULL,
   `status_id` int(11) DEFAULT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
@@ -153,6 +155,57 @@ INSERT INTO `tbl_lab_results` (`result_id`, `lab_request_id`, `patient_id`, `doc
 (1, 2, 10, NULL, 'blood_sugar_test_2025_08_16.pdf', 'Blood Sugar Level: 95 mg/dL (Normal Range: 70-100 mg/dL)\n\nResults: Normal\n\nRecommendations: Continue current diet and exercise routine.', 5, '2025-08-16 15:30:00', 15),
 (2, 4, 9, NULL, 'lipid_profile_2025_08_18.pdf', 'Total Cholesterol: 180 mg/dL (Normal: <200)\nHDL: 55 mg/dL (Normal: >40)\nLDL: 100 mg/dL (Normal: <100)\nTriglycerides: 120 mg/dL (Normal: <150)\n\nResults: All values within normal range', 5, '2025-08-18 13:20:00', 15),
 (3, 5, 10, 1, 'liver_function_2025_08_19.pdf', 'ALT: 25 U/L (Normal: 7-55)\nAST: 28 U/L (Normal: 8-48)\nAlkaline Phosphatase: 70 U/L (Normal: 44-147)\nTotal Bilirubin: 0.8 mg/dL (Normal: 0.3-1.2)\n\nResults: Normal liver function\n\nCleared for surgery.', 5, '2025-08-19 17:45:00', 15);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tbl_consultations`
+--
+
+CREATE TABLE `tbl_consultations` (
+  `consultation_id` int(11) NOT NULL,
+  `appointment_id` int(11) NOT NULL,
+  `doctor_id` int(11) NOT NULL,
+  `patient_id` int(11) NOT NULL,
+  `summary` text NOT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_consultations`
+--
+
+INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id`, `patient_id`, `summary`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 12, 1, 9, 'Upper Respiratory Tract Infection', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
+(2, 14, 1, 11, 'Hypertension', 'Blood pressure reading: 150/95 mmHg. Lifestyle modifications recommended along with medication.', '2025-08-14 15:30:00', '2025-08-14 15:30:00'),
+(3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed.', '2025-08-20 11:15:00', '2025-08-20 11:15:00');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tbl_lab_test_types`
+--
+
+CREATE TABLE `tbl_lab_test_types` (
+  `lab_test_type_id` int(11) NOT NULL,
+  `type_name` varchar(150) NOT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_lab_test_types`
+--
+
+INSERT INTO `tbl_lab_test_types` (`lab_test_type_id`, `type_name`, `description`, `created_at`, `updated_at`) VALUES
+(1, 'Complete Blood Count (CBC)', 'Measures red/white cells, hemoglobin, etc.', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(2, 'Blood Sugar Test', 'Measures glucose levels for diabetes screening/monitoring', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(3, 'Urinalysis', 'Checks urine components to detect disorders', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(4, 'Lipid Profile', 'Measures cholesterol and triglycerides', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(5, 'Liver Function Test', 'Assesses liver enzymes and proteins', '2025-08-10 15:35:40', '2025-08-10 15:35:40');
 
 -- --------------------------------------------------------
 
@@ -530,6 +583,7 @@ ALTER TABLE `tbl_lab_requests`
   ADD KEY `doctor_id` (`doctor_id`),
   ADD KEY `patient_id` (`patient_id`),
   ADD KEY `appointment_id` (`appointment_id`),
+  ADD KEY `lab_test_type_id` (`lab_test_type_id`),
   ADD KEY `status_id` (`status_id`),
   ADD KEY `secretary_id` (`secretary_id`);
 
@@ -545,231 +599,26 @@ ALTER TABLE `tbl_lab_results`
   ADD KEY `uploaded_by` (`uploaded_by`);
 
 --
--- Indexes for table `tbl_medicines`
+-- Indexes for table `tbl_consultations`
 --
-ALTER TABLE `tbl_medicines`
-  ADD PRIMARY KEY (`medicine_id`),
-  ADD UNIQUE KEY `medicine_name` (`medicine_name`),
-  ADD KEY `form_id` (`form_id`);
-
---
--- Indexes for table `tbl_medicine_forms`
---
-ALTER TABLE `tbl_medicine_forms`
-  ADD PRIMARY KEY (`form_id`),
-  ADD UNIQUE KEY `form_name` (`form_name`);
-
---
--- Indexes for table `tbl_medicine_weights`
---
-ALTER TABLE `tbl_medicine_weights`
-  ADD PRIMARY KEY (`weight_id`),
-  ADD UNIQUE KEY `weight_value` (`weight_value`);
-
---
--- Indexes for table `tbl_patients`
---
-ALTER TABLE `tbl_patients`
-  ADD PRIMARY KEY (`patient_id`),
-  ADD KEY `user_id` (`user_id`);
-
---
--- Indexes for table `tbl_payments`
---
-ALTER TABLE `tbl_payments`
-  ADD PRIMARY KEY (`payment_id`),
+ALTER TABLE `tbl_consultations`
+  ADD PRIMARY KEY (`consultation_id`),
   ADD KEY `appointment_id` (`appointment_id`),
-  ADD KEY `status_id` (`status_id`),
+  ADD KEY `doctor_id` (`doctor_id`),
   ADD KEY `patient_id` (`patient_id`);
 
 --
--- Indexes for table `tbl_prescriptions`
+-- Indexes for table `tbl_lab_test_types`
 --
-ALTER TABLE `tbl_prescriptions`
-  ADD PRIMARY KEY (`prescription_id`),
-  ADD KEY `diagnosis_id` (`diagnosis_id`),
-  ADD KEY `appointment_id` (`appointment_id`),
-  ADD KEY `doctor_id` (`doctor_id`),
-  ADD KEY `patient_id` (`patient_id`),
-  ADD KEY `medicine_id` (`medicine_id`);
+ALTER TABLE `tbl_lab_test_types`
+  ADD PRIMARY KEY (`lab_test_type_id`),
+  ADD UNIQUE KEY `type_name` (`type_name`);
 
 --
--- Indexes for table `tbl_roles`
+-- AUTO_INCREMENT for table `tbl_lab_test_types`
 --
-ALTER TABLE `tbl_roles`
-  ADD PRIMARY KEY (`role_id`);
-
---
--- Indexes for table `tbl_secretaries`
---
-ALTER TABLE `tbl_secretaries`
-  ADD PRIMARY KEY (`secretary_id`),
-  ADD KEY `user_id` (`user_id`);
-
---
--- Indexes for table `tbl_specializations`
---
-ALTER TABLE `tbl_specializations`
-  ADD PRIMARY KEY (`specialization_id`);
-
---
--- Indexes for table `tbl_status`
---
-ALTER TABLE `tbl_status`
-  ADD PRIMARY KEY (`status_id`),
-  ADD KEY `status_type_id` (`status_type_id`);
-
---
--- Indexes for table `tbl_status_type`
---
-ALTER TABLE `tbl_status_type`
-  ADD PRIMARY KEY (`status_type_id`);
-
---
-
---
--- Indexes for table `tbl_users`
---
-ALTER TABLE `tbl_users`
-  ADD PRIMARY KEY (`user_id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `role_id` (`role_id`);
-
---
--- AUTO_INCREMENT for dumped tables
---
-
---
--- AUTO_INCREMENT for table `tbl_appointments`
---
-ALTER TABLE `tbl_appointments`
-  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
-
---
--- AUTO_INCREMENT for table `tbl_diagnoses`
---
-ALTER TABLE `tbl_diagnoses`
-  MODIFY `diagnosis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
--- AUTO_INCREMENT for table `tbl_doctors`
---
-ALTER TABLE `tbl_doctors`
-  MODIFY `doctor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
-
---
--- AUTO_INCREMENT for table `tbl_lab_requests`
---
-ALTER TABLE `tbl_lab_requests`
-  MODIFY `lab_request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT for table `tbl_lab_results`
---
-ALTER TABLE `tbl_lab_results`
-  MODIFY `result_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
--- AUTO_INCREMENT for table `tbl_medicines`
---
-ALTER TABLE `tbl_medicines`
-  MODIFY `medicine_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
-
---
--- AUTO_INCREMENT for table `tbl_medicine_forms`
---
-ALTER TABLE `tbl_medicine_forms`
-  MODIFY `form_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT for table `tbl_medicine_weights`
---
-ALTER TABLE `tbl_medicine_weights`
-  MODIFY `weight_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
-
---
--- AUTO_INCREMENT for table `tbl_patients`
---
-ALTER TABLE `tbl_patients`
-  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
-
---
--- AUTO_INCREMENT for table `tbl_payments`
---
-ALTER TABLE `tbl_payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
-
---
--- AUTO_INCREMENT for table `tbl_prescriptions`
---
-ALTER TABLE `tbl_prescriptions`
-  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
-
---
--- AUTO_INCREMENT for table `tbl_roles`
---
-ALTER TABLE `tbl_roles`
-  MODIFY `role_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
--- AUTO_INCREMENT for table `tbl_secretaries`
---
-ALTER TABLE `tbl_secretaries`
-  MODIFY `secretary_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT for table `tbl_specializations`
---
-ALTER TABLE `tbl_specializations`
-  MODIFY `specialization_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
-
---
--- AUTO_INCREMENT for table `tbl_status`
---
-ALTER TABLE `tbl_status`
-  MODIFY `status_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
-
---
--- AUTO_INCREMENT for table `tbl_status_type`
---
-ALTER TABLE `tbl_status_type`
-  MODIFY `status_type_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
-
---
-
---
--- AUTO_INCREMENT for table `tbl_users`
---
-ALTER TABLE `tbl_users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
-
---
--- Constraints for dumped tables
---
-
---
--- Constraints for table `tbl_appointments`
---
-ALTER TABLE `tbl_appointments`
-  ADD CONSTRAINT `tbl_appointments_ibfk_1` FOREIGN KEY (`status_id`) REFERENCES `tbl_status` (`status_id`),
-  ADD CONSTRAINT `tbl_appointments_ibfk_2` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`),
-  ADD CONSTRAINT `tbl_appointments_ibfk_3` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`),
-  ADD CONSTRAINT `tbl_appointments_ibfk_4` FOREIGN KEY (`secretary_id`) REFERENCES `tbl_secretaries` (`secretary_id`);
-
---
--- Constraints for table `tbl_diagnoses`
---
-ALTER TABLE `tbl_diagnoses`
-  ADD CONSTRAINT `tbl_diagnoses_ibfk_1` FOREIGN KEY (`appointment_id`) REFERENCES `tbl_appointments` (`appointment_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `tbl_diagnoses_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `tbl_diagnoses_ibfk_3` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `tbl_doctors`
---
-ALTER TABLE `tbl_doctors`
-  ADD CONSTRAINT `fk_doctor_specialization` FOREIGN KEY (`specialization_id`) REFERENCES `tbl_specializations` (`specialization_id`) ON DELETE SET NULL ON UPDATE CASCADE,
-  ADD CONSTRAINT `tbl_doctors_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `tbl_users` (`user_id`) ON DELETE CASCADE;
+ALTER TABLE `tbl_lab_test_types`
+  MODIFY `lab_test_type_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- Constraints for table `tbl_lab_requests`
@@ -779,7 +628,8 @@ ALTER TABLE `tbl_lab_requests`
   ADD CONSTRAINT `tbl_lab_requests_ibfk_2` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `tbl_lab_requests_ibfk_3` FOREIGN KEY (`appointment_id`) REFERENCES `tbl_appointments` (`appointment_id`) ON DELETE SET NULL,
   ADD CONSTRAINT `tbl_lab_requests_ibfk_4` FOREIGN KEY (`status_id`) REFERENCES `tbl_status` (`status_id`),
-  ADD CONSTRAINT `tbl_lab_requests_ibfk_5` FOREIGN KEY (`secretary_id`) REFERENCES `tbl_secretaries` (`secretary_id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `tbl_lab_requests_ibfk_5` FOREIGN KEY (`secretary_id`) REFERENCES `tbl_secretaries` (`secretary_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `tbl_lab_requests_ibfk_6` FOREIGN KEY (`lab_test_type_id`) REFERENCES `tbl_lab_test_types` (`lab_test_type_id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `tbl_lab_results`
@@ -790,6 +640,14 @@ ALTER TABLE `tbl_lab_results`
   ADD CONSTRAINT `tbl_lab_results_ibfk_3` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`) ON DELETE SET NULL,
   ADD CONSTRAINT `tbl_lab_results_ibfk_4` FOREIGN KEY (`status_id`) REFERENCES `tbl_status` (`status_id`),
   ADD CONSTRAINT `tbl_lab_results_ibfk_5` FOREIGN KEY (`uploaded_by`) REFERENCES `tbl_users` (`user_id`);
+
+--
+-- Constraints for table `tbl_consultations`
+--
+ALTER TABLE `tbl_consultations`
+  ADD CONSTRAINT `tbl_consultations_ibfk_1` FOREIGN KEY (`appointment_id`) REFERENCES `tbl_appointments` (`appointment_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_consultations_ibfk_2` FOREIGN KEY (`doctor_id`) REFERENCES `tbl_doctors` (`doctor_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tbl_consultations_ibfk_3` FOREIGN KEY (`patient_id`) REFERENCES `tbl_patients` (`patient_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `tbl_medicines`
@@ -815,6 +673,7 @@ ALTER TABLE `tbl_prescriptions`
 
 --
 COMMIT;
+SET FOREIGN_KEY_CHECKS = 1;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

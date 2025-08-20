@@ -67,7 +67,7 @@
           <div class="card border-0 shadow-sm">
             <div class="card-body p-0">
               <div class="table-responsive">
-                <table class="custom-table">
+                <table class="custom-table table-doctor-appts">
                   <thead>
                     <tr>
                       <th>Date</th>
@@ -90,7 +90,7 @@
                 <span class="badge bg-primary fs-6" id="labRequestCount">0</span>
               </div>
               <div class="table-responsive table-compact">
-                <table class="custom-table">
+                <table class="custom-table table-doctor-lab-requests">
                   <thead>
                     <tr>
                       <th>Created</th>
@@ -114,7 +114,7 @@
                 <span class="badge bg-info fs-6" id="prescriptionCount">0</span>
               </div>
               <div class="table-responsive table-compact">
-                <table class="custom-table">
+                <table class="custom-table table-doctor-prescriptions">
                   <thead>
                     <tr>
                       <th>Created</th>
@@ -164,7 +164,7 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold">Lab Request Details</label>
-              <textarea id="lr_text" name="request_text" class="form-control" rows="6" 
+              <textarea id="lr_text" name="request_text" class="form-control" rows="6"
                 placeholder="Enter detailed lab request instructions (e.g., CBC, X-ray, Blood Chemistry, etc.)" required></textarea>
               <div class="invalid-feedback">Please enter lab request details.</div>
               <div class="form-text">Be specific about the tests, procedures, or examinations needed.</div>
@@ -245,7 +245,7 @@
               <div class="col-md-6">
                 <div class="mb-3">
                   <label class="form-label fw-bold">Condition Name</label>
-                  <input type="text" class="form-control" id="diag_condition_name" name="condition_name" 
+                  <input type="text" class="form-control" id="diag_condition_name" name="condition_name"
                     placeholder="e.g., Hypertension, Diabetes, etc." required />
                   <div class="invalid-feedback">Please enter the condition name.</div>
                 </div>
@@ -275,7 +275,7 @@
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold">Notes</label>
-              <textarea class="form-control" id="diag_notes" name="notes" rows="3" 
+              <textarea class="form-control" id="diag_notes" name="notes" rows="3"
                 placeholder="Additional notes about the diagnosis"></textarea>
             </div>
           </div>
@@ -332,7 +332,7 @@
                <div class="col-md-6">
                  <div class="mb-3">
                    <label class="form-label fw-bold">Dosage</label>
-                   <input type="text" class="form-control" id="pres_dosage" name="dosage" 
+                   <input type="text" class="form-control" id="pres_dosage" name="dosage"
                      placeholder="e.g., 500mg, 1 tablet" required />
                    <div class="invalid-feedback">Please enter dosage.</div>
                  </div>
@@ -340,7 +340,7 @@
                <div class="col-md-6">
                  <div class="mb-3">
                    <label class="form-label fw-bold">Frequency</label>
-                   <input type="text" class="form-control" id="pres_frequency" name="frequency" 
+                   <input type="text" class="form-control" id="pres_frequency" name="frequency"
                      placeholder="e.g., 3 times a day" required />
                    <div class="invalid-feedback">Please enter frequency.</div>
                  </div>
@@ -350,7 +350,7 @@
                <div class="col-md-6">
                  <div class="mb-3">
                    <label class="form-label fw-bold">Duration</label>
-                   <input type="text" class="form-control" id="pres_duration" name="duration" 
+                   <input type="text" class="form-control" id="pres_duration" name="duration"
                      placeholder="e.g., 7 days, until finished" required />
                    <div class="invalid-feedback">Please enter duration.</div>
                  </div>
@@ -358,7 +358,7 @@
              </div>
             <div class="mb-3">
               <label class="form-label fw-bold">Instructions</label>
-              <textarea class="form-control" id="pres_instructions" name="instructions" rows="3" 
+              <textarea class="form-control" id="pres_instructions" name="instructions" rows="3"
                 placeholder="Special instructions for the patient"></textarea>
             </div>
           </div>
@@ -398,5 +398,3 @@
     </script>
   </body>
   </html>
-
-

@@ -59,6 +59,9 @@
         <a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
           <i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Requests
         </a>
+        <a href="doctor_lab_results.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-file-medical me-2" aria-hidden="true"></i>Lab Results
+        </a>
       </div>
     </nav>
 
@@ -70,9 +73,6 @@
       <div class="content-container mt-5 p-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h1 class="fw-bold text-secondary">My Patients</h1>
-          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPatientModal">
-            <i class="fas fa-plus me-2"></i>Add New Patient
-          </button>
         </div>
 
         <div class="card border-0 shadow-sm">
@@ -81,13 +81,9 @@
               <table class="custom-table">
                 <thead>
                   <tr>
-                    <th>Patient ID</th>
-                    <th>Full Name</th>
-                    <th>Email</th>
-                    <th>Contact Number</th>
-                    <th>Sex</th>
-                    <th>Birthdate</th>
-                    <th>Address</th>
+                    <th>Patient</th>
+                    <th>Appointment Date</th>
+                    <th>Queue #</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -100,77 +96,54 @@
     </main>
   </div>
 
-  <!-- Add Patient Modal -->
-  <div class="modal fade" id="addPatientModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <form id="addPatientForm" class="modal-content needs-validation" novalidate>
+  <!-- Consultation Modal -->
+  <div class="modal fade" id="consultationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form id="consultationForm" class="modal-content needs-validation" novalidate>
         <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New Patient</h5>
+          <h5 class="modal-title"><i class="fas fa-stethoscope me-2"></i>Add Consultation</h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Full Name</label>
-                <input type="text" class="form-control" name="full_name" required />
-                <div class="invalid-feedback">Please enter the full name.</div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Email</label>
-                <input type="email" class="form-control" name="email" required />
-                <div class="invalid-feedback">Please enter a valid email.</div>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Contact Number</label>
-                <input type="text" class="form-control" name="contact_num" required />
-                <div class="invalid-feedback">Please enter contact number.</div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Sex</label>
-                <select class="form-select" name="sex" required>
-                  <option value="">Select sex</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
-                <div class="invalid-feedback">Please select sex.</div>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Birthdate</label>
-                <input type="date" class="form-control" name="birthdate" required />
-                <div class="invalid-feedback">Please select birthdate.</div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label class="form-label fw-bold">Password</label>
-                <input type="password" class="form-control" name="password" required />
-                <div class="invalid-feedback">Please enter password.</div>
-              </div>
-            </div>
+          <input type="hidden" id="c_patient_id" name="patient_id" />
+          <input type="hidden" id="c_appointment_id" name="appointment_id" />
+          <div class="mb-3">
+            <label class="form-label">Summary</label>
+            <input type="text" class="form-control" name="summary" required />
+            <div class="invalid-feedback">Please enter a summary.</div>
           </div>
           <div class="mb-3">
-            <label class="form-label fw-bold">Address</label>
-            <textarea class="form-control" name="address" rows="3" required></textarea>
-            <div class="invalid-feedback">Please enter address.</div>
+            <label class="form-label">Notes</label>
+            <textarea class="form-control" name="notes" rows="3"></textarea>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-2"></i>Add Patient
-          </button>
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lab Request Modal -->
+  <div class="modal fade" id="labRequestModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <form id="labRequestForm" class="modal-content needs-validation" novalidate>
+        <div class="modal-header bg-warning text-white">
+          <h5 class="modal-title"><i class="fas fa-flask me-2"></i>Create Lab Request</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="lr_patient_id" name="patient_id" />
+          <input type="hidden" id="lr_appointment_id" name="appointment_id" />
+          <div class="mb-3">
+            <label class="form-label">Request Details</label>
+            <textarea class="form-control" name="request_text" rows="4" required></textarea>
+            <div class="invalid-feedback">Please enter details.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-warning">Send</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         </div>
       </form>

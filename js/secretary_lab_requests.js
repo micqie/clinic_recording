@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadPatients();
     loadDoctors();
     loadAppointments();
+    populateLabTestTypeSelects();
+    prefillFromConsultationIfPresent();
     setupEventListeners();
 });
 
@@ -73,6 +75,7 @@ function displayLabRequests(requests) {
                 </div>
             </td>
             <td>${request.doctor_name || 'Not assigned'}</td>
+            <td>${request.lab_test_type_name || '-'}</td>
             <td>
                 <div class="text-truncate" style="max-width: 200px;" title="${request.request_text}">
                     ${request.request_text}
@@ -117,10 +120,10 @@ function formatDate(dateString) {
 
 async function loadPatients() {
     try {
-        const response = await axios.get('../../api/patients.php?operation=getAll');
+        const response = await axios.get('../../api/patients.php?operation=get_all');
 
         if (response.data.success) {
-            populatePatientSelects(response.data.patients);
+            populatePatientSelects(response.data.data);
         }
     } catch (error) {
         console.error('Error loading patients:', error);
@@ -141,10 +144,10 @@ async function loadDoctors() {
 
 async function loadAppointments() {
     try {
-        const response = await axios.get('../../api/appointments.php?operation=getAll');
+        const response = await axios.get('../../api/appointments.php?operation=get_all');
 
         if (response.data.success) {
-            populateAppointmentSelects(response.data.appointments);
+            populateAppointmentSelects(response.data.data);
         }
     } catch (error) {
         console.error('Error loading appointments:', error);
@@ -161,7 +164,7 @@ function populatePatientSelects(patients) {
             patients.forEach(patient => {
                 const option = document.createElement('option');
                 option.value = patient.patient_id;
-                option.textContent = `${patient.name} (ID: ${patient.patient_id})`;
+                option.textContent = `${patient.full_name} (ID: ${patient.patient_id})`;
                 select.appendChild(option);
             });
         }
@@ -202,6 +205,27 @@ function populateAppointmentSelects(appointments) {
     });
 }
 
+async function populateLabTestTypeSelects() {
+    try {
+        const response = await axios.get('../../api/lab_test_types.php?operation=getAll');
+        const types = response.data.types || [];
+        const selects = ['testTypeSelect', 'editTestTypeSelect'];
+        selects.forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            sel.innerHTML = '<option value="">Select Test Type</option>';
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.lab_test_type_id;
+                opt.textContent = t.type_name;
+                sel.appendChild(opt);
+            });
+        });
+    } catch (e) {
+        console.error('Failed to load lab test types', e);
+    }
+}
+
 async function addLabRequest() {
     const form = document.getElementById('addLabRequestForm');
     const formData = new FormData(form);
@@ -216,7 +240,8 @@ async function addLabRequest() {
         patient_id: formData.get('patient_id'),
         doctor_id: formData.get('doctor_id') || null,
         appointment_id: formData.get('appointment_id') || null,
-        request_text: formData.get('request_text'),
+        lab_test_type_id: formData.get('lab_test_type_id') || null,
+        request_text: formData.get('request_text') || '',
         status_id: formData.get('status_id') || 14
     };
 
@@ -246,7 +271,7 @@ async function editLabRequest(labRequestId) {
         if (response.data.success) {
             const request = response.data.request;
             populateEditForm(request);
-            bootstrap.Modal.getInstance(document.getElementById('editLabRequestModal')).show();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('editLabRequestModal')).show();
         } else {
             showAlert('error', response.data.message);
         }
@@ -262,7 +287,12 @@ function populateEditForm(request) {
     document.getElementById('editDoctorSelect').value = request.doctor_id || '';
     document.getElementById('editAppointmentSelect').value = request.appointment_id || '';
     document.getElementById('editRequestStatus').value = request.status_id || 14;
-    document.getElementById('editRequestText').value = request.request_text;
+    // Try to split test type from text if present
+    const editSelect = document.getElementById('editTestTypeSelect');
+    if (editSelect) {
+        editSelect.value = request.lab_test_type_id || '';
+    }
+    document.getElementById('editRequestText').value = request.request_text || '';
 }
 
 async function updateLabRequest() {
@@ -274,7 +304,8 @@ async function updateLabRequest() {
         patient_id: formData.get('patient_id'),
         doctor_id: formData.get('doctor_id') || null,
         appointment_id: formData.get('appointment_id') || null,
-        request_text: formData.get('request_text'),
+        lab_test_type_id: formData.get('lab_test_type_id') || null,
+        request_text: formData.get('request_text') || '',
         status_id: formData.get('status_id')
     };
 
@@ -359,3 +390,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Prefill from consultation flow
+async function prefillFromConsultationIfPresent() {
+    const params = new URLSearchParams(window.location.search);
+    const consultationId = params.get('consultation_id');
+    if (!consultationId) return;
+    try {
+        const res = await axios.get(`../../api/consultations.php?operation=getById&id=${consultationId}`);
+        if (!res.data.success) return;
+        const c = res.data.consultation;
+        // Open add modal and prefill
+        const modalEl = document.getElementById('addLabRequestModal');
+        const modal = new bootstrap.Modal(modalEl);
+        modal.show();
+        document.getElementById('patientSelect').value = c.patient_id;
+        document.getElementById('doctorSelect').value = c.doctor_id || '';
+        document.getElementById('appointmentSelect').value = c.appointment_id || '';
+        const requestText = `From Consultation #${c.consultation_id} on ${new Date(c.created_at).toLocaleString()}\n\nSummary: ${c.summary || ''}\nNotes: ${c.notes || ''}`;
+        document.getElementById('requestText').value = requestText;
+    } catch (e) {
+        console.error('Failed to prefill from consultation', e);
+    }
+}

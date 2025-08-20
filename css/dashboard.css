@@ -519,4 +519,27 @@
       .kpi-card { padding: 0.75rem 1rem; }
       .kpi-card .kpi-value { font-size: 1.6rem; }
       .content-container { padding: 0.75rem; }
+      /* Doctor tables: hide less critical columns on phones */
+      /* Appointments: hide Queue # */
+      table.table-doctor-appts th:nth-child(2),
+      table.table-doctor-appts td:nth-child(2) { display: none; }
+
+      /* Lab Requests: hide Request ID and Created Date */
+      table.table-doctor-lab-requests th:nth-child(1),
+      table.table-doctor-lab-requests td:nth-child(1),
+      table.table-doctor-lab-requests th:nth-child(6),
+      table.table-doctor-lab-requests td:nth-child(6) { display: none; }
+      table.table-doctor-lab-requests td:nth-child(5) { white-space: nowrap; }
+
+      /* Prescriptions: hide Dosage, Frequency, Duration */
+      table.table-doctor-prescriptions th:nth-child(5),
+      table.table-doctor-prescriptions td:nth-child(5),
+      table.table-doctor-prescriptions th:nth-child(6),
+      table.table-doctor-prescriptions td:nth-child(6),
+      table.table-doctor-prescriptions th:nth-child(7),
+      table.table-doctor-prescriptions td:nth-child(7) { display: none; }
+
+      /* General compact adjustments */
+      .custom-table th, .custom-table td { padding: 0.65rem 0.6rem; font-size: 0.9rem; }
+      .btn { padding: 0.35rem 0.6rem; font-size: 0.9rem; }
     }

@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
   const patientApiUrl = `${baseApiUrl}/patients.php`;
-  
+
   // Check if user is logged in and is a doctor
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
   if (!user.id || user.role !== "doctor") {
@@ -10,14 +10,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const patientsTableBody = document.getElementById("patientsTableBody");
-  const addPatientForm = document.getElementById("addPatientForm");
-  const editPatientForm = document.getElementById("editPatientForm");
-  const addPatientModal = new bootstrap.Modal(document.getElementById("addPatientModal"));
-  const editPatientModal = new bootstrap.Modal(document.getElementById("editPatientModal"));
+  const consultationForm = document.getElementById("consultationForm");
+  const labRequestForm = document.getElementById("labRequestForm");
+  const consultationModal = document.getElementById("consultationModal") ? new bootstrap.Modal(document.getElementById("consultationModal")) : null;
+  const labRequestModal = document.getElementById("labRequestModal") ? new bootstrap.Modal(document.getElementById("labRequestModal")) : null;
+  const consultationsApi = `${baseApiUrl}/consultations.php`;
+  const appointmentsApi = `${baseApiUrl}/appointments.php`;
+  const labRequestsApi = `${baseApiUrl}/lab_requests.php`;
 
   async function loadPatients() {
     try {
-      const response = await axios.get(`${patientApiUrl}?operation=get_all`);
+      const response = await axios.get(`${appointmentsApi}?operation=get_by_doctor&doctor_id=${user.id}`);
       if (response.data.success) {
         displayPatients(response.data.data);
       } else {
@@ -29,157 +32,95 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function displayPatients(patients) {
+  function displayPatients(appointments) {
     patientsTableBody.innerHTML = "";
-    
-    patients.forEach(patient => {
+
+    appointments.forEach(appt => {
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${patient.patient_id}</td>
-        <td>${patient.full_name}</td>
-        <td>${patient.email}</td>
-        <td>${patient.contact_num || "N/A"}</td>
-        <td>${patient.sex || "N/A"}</td>
-        <td>${patient.birthdate || "N/A"}</td>
-        <td>${patient.address || "N/A"}</td>
+        <td>${appt.patient_name}</td>
+        <td>${appt.appointment_date}</td>
+        <td>${appt.queue_number ?? '-'}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary me-1" onclick="editPatient(${patient.patient_id})">
-            <i class="fas fa-edit"></i>
+          <button class="btn btn-sm btn-success me-1" onclick="startConsultation(${appt.patient_id}, ${appt.appointment_id}, '${appt.patient_name.replace(/'/g, "\'")}', '${appt.appointment_date}')">
+            <i class="fas fa-stethoscope"></i>
           </button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deletePatient(${patient.patient_id})">
-            <i class="fas fa-trash"></i>
+          <button class="btn btn-sm btn-warning me-1" onclick="startLabRequest(${appt.patient_id}, ${appt.appointment_id}, '${appt.patient_name.replace(/'/g, "\'")}', '${appt.appointment_date}')">
+            <i class="fas fa-flask"></i>
           </button>
         </td>
       `;
       patientsTableBody.appendChild(row);
     });
   }
+  // Start consultation
+  window.startConsultation = (patientId, appointmentId, patientName, appointmentDate) => {
+    if (!consultationModal) return;
+    document.getElementById('c_patient_id').value = patientId;
+    document.getElementById('c_appointment_id').value = appointmentId;
+    consultationModal.show();
+  };
 
-  // Add new patient
-  addPatientForm?.addEventListener("submit", async (e) => {
+  consultationForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(addPatientForm);
-
-    const jsonPayload = JSON.stringify({
-      full_name: formData.get("full_name"),
-      email: formData.get("email"),
-      sex: formData.get("sex"),
-      contact_num: formData.get("contact_num"),
-      birthdate: formData.get("birthdate"),
-      address: formData.get("address"),
-      password: formData.get("password")
-    });
-
+    const fd = new FormData(consultationForm);
     const payload = new FormData();
-    payload.append("operation", "add");
-    payload.append("json", jsonPayload);
-
+    payload.append('operation', 'add');
+    payload.append('json', JSON.stringify({
+      patient_id: fd.get('patient_id'),
+      appointment_id: fd.get('appointment_id'),
+      doctor_id: user.id,
+      summary: fd.get('summary'),
+      notes: fd.get('notes') || ''
+    }));
     try {
-      const response = await axios.post(patientApiUrl, payload);
-      if (response.data.success) {
-        Swal.fire("Success", response.data.message, "success");
-        addPatientForm.reset();
-        addPatientModal.hide();
-        loadPatients();
+      const res = await axios.post(consultationsApi, payload);
+      if (res.data.success) {
+        Swal.fire('Saved', 'Consultation added.', 'success');
+        consultationForm.reset();
+        consultationModal.hide();
       } else {
-        Swal.fire("Error", response.data.message, "error");
+        Swal.fire('Error', res.data.message, 'error');
       }
-    } catch (error) {
-      console.error("Error adding patient", error);
-      Swal.fire("Error", "Something went wrong", "error");
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', 'Could not save consultation.', 'error');
     }
   });
 
-  // Edit patient
-  window.editPatient = async (patientId) => {
-    try {
-      const response = await axios.get(`${patientApiUrl}?operation=get&id=${patientId}`);
-      if (response.data.success) {
-        const patient = response.data.data;
-        
-        document.getElementById("edit_patient_id").value = patient.patient_id;
-        document.getElementById("edit_full_name").value = patient.full_name;
-        document.getElementById("edit_email").value = patient.email;
-        document.getElementById("edit_contact_num").value = patient.contact_num || "";
-        document.getElementById("edit_sex").value = patient.sex || "";
-        document.getElementById("edit_birthdate").value = patient.birthdate || "";
-        document.getElementById("edit_address").value = patient.address || "";
-        
-        editPatientModal.show();
-      } else {
-        Swal.fire("Error", response.data.message, "error");
-      }
-    } catch (error) {
-      console.error("Error loading patient details:", error);
-      Swal.fire("Error", "Failed to load patient details", "error");
-    }
+  // Start lab request
+  window.startLabRequest = (patientId, appointmentId) => {
+    if (!labRequestModal) return;
+    document.getElementById('lr_patient_id').value = patientId;
+    document.getElementById('lr_appointment_id').value = appointmentId;
+    labRequestModal.show();
   };
 
-  // Update patient
-  editPatientForm?.addEventListener("submit", async (e) => {
+  labRequestForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const formData = new FormData(editPatientForm);
-
-    const jsonPayload = JSON.stringify({
-      patient_id: formData.get("patient_id"),
-      full_name: formData.get("full_name"),
-      email: formData.get("email"),
-      sex: formData.get("sex"),
-      contact_num: formData.get("contact_num"),
-      birthdate: formData.get("birthdate"),
-      address: formData.get("address")
-    });
-
+    const fd = new FormData(labRequestForm);
     const payload = new FormData();
-    payload.append("operation", "update");
-    payload.append("json", jsonPayload);
-
+    payload.append('operation', 'add');
+    payload.append('json', JSON.stringify({
+      patient_id: fd.get('patient_id'),
+      appointment_id: fd.get('appointment_id'),
+      request_text: fd.get('request_text'),
+      doctor_id: user.id
+    }));
     try {
-      const response = await axios.post(patientApiUrl, payload);
-      if (response.data.success) {
-        Swal.fire("Success", response.data.message, "success");
-        editPatientModal.hide();
-        loadPatients();
+      const res = await axios.post(labRequestsApi, payload);
+      if (res.data.success) {
+        Swal.fire('Sent', 'Lab request sent.', 'success');
+        labRequestForm.reset();
+        labRequestModal.hide();
       } else {
-        Swal.fire("Error", response.data.message, "error");
+        Swal.fire('Error', res.data.message, 'error');
       }
-    } catch (error) {
-      console.error("Error updating patient", error);
-      Swal.fire("Error", "Something went wrong", "error");
+    } catch (e) {
+      console.error(e);
+      Swal.fire('Error', 'Could not send lab request.', 'error');
     }
   });
-
-  // Delete patient
-  window.deletePatient = async (patientId) => {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This action cannot be undone!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it!"
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const payload = new FormData();
-        payload.append("operation", "delete");
-        payload.append("id", patientId);
-
-        const response = await axios.post(patientApiUrl, payload);
-        if (response.data.success) {
-          Swal.fire("Deleted!", response.data.message, "success");
-          loadPatients();
-        } else {
-          Swal.fire("Error", response.data.message, "error");
-        }
-      } catch (error) {
-        console.error("Error deleting patient", error);
-        Swal.fire("Error", "Something went wrong", "error");
-      }
-    }
-  };
 
   // Load patients on page load
   loadPatients();
