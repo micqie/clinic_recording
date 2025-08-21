@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadLabRequests();
     loadPatients();
     loadDoctors();
-    loadAppointments();
+    // Appointments are loaded per patient selection
     populateLabTestTypeSelects();
     prefillFromConsultationIfPresent();
     setupEventListeners();
@@ -26,6 +26,16 @@ function setupEventListeners() {
 
     editLabRequestModal.addEventListener('hidden.bs.modal', function() {
         document.getElementById('editLabRequestForm').reset();
+    });
+
+    // Dynamic: when patient changes, filter appointments for that patient
+    const addPatientSelect = document.getElementById('patientSelect');
+    addPatientSelect?.addEventListener('change', (e) => {
+        loadAppointmentsForSelect('appointmentSelect', e.target.value);
+    });
+    const editPatientSelect = document.getElementById('editPatientSelect');
+    editPatientSelect?.addEventListener('change', (e) => {
+        loadAppointmentsForSelect('editAppointmentSelect', e.target.value);
     });
 }
 
@@ -70,7 +80,6 @@ function displayLabRequests(requests) {
                     </div>
                     <div>
                         <div class="fw-semibold">${request.patient_name}</div>
-                        <small class="text-muted">ID: ${request.patient_id}</small>
                     </div>
                 </div>
             </td>
@@ -142,15 +151,28 @@ async function loadDoctors() {
     }
 }
 
-async function loadAppointments() {
+async function loadAppointmentsForSelect(selectId, patientId, selectedId = '') {
     try {
-        const response = await axios.get('../../api/appointments.php?operation=get_all');
-
+        if (!patientId) {
+            const s = document.getElementById(selectId);
+            if (s) s.innerHTML = '<option value="">Select Appointment (Optional)</option>';
+            return;
+        }
+        const response = await axios.get(`../../api/appointments.php?operation=get_by_patient&patient_id=${patientId}`);
         if (response.data.success) {
-            populateAppointmentSelects(response.data.data);
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            select.innerHTML = '<option value="">Select Appointment (Optional)</option>';
+            (response.data.data || []).forEach(appointment => {
+                const option = document.createElement('option');
+                option.value = appointment.appointment_id;
+                option.textContent = `${appointment.appointment_date}`;
+                if (String(appointment.appointment_id) === String(selectedId)) option.selected = true;
+                select.appendChild(option);
+            });
         }
     } catch (error) {
-        console.error('Error loading appointments:', error);
+        console.error('Error loading appointments for patient:', error);
     }
 }
 
@@ -164,7 +186,7 @@ function populatePatientSelects(patients) {
             patients.forEach(patient => {
                 const option = document.createElement('option');
                 option.value = patient.patient_id;
-                option.textContent = `${patient.full_name} (ID: ${patient.patient_id})`;
+                option.textContent = `${patient.full_name}`;
                 select.appendChild(option);
             });
         }
@@ -188,22 +210,7 @@ function populateDoctorSelects(doctors) {
     });
 }
 
-function populateAppointmentSelects(appointments) {
-    const appointmentSelects = ['appointmentSelect', 'editAppointmentSelect'];
-
-    appointmentSelects.forEach(selectId => {
-        const select = document.getElementById(selectId);
-        if (select) {
-            select.innerHTML = '<option value="">Select Appointment (Optional)</option>';
-            appointments.forEach(appointment => {
-                const option = document.createElement('option');
-                option.value = appointment.appointment_id;
-                option.textContent = `Appointment #${appointment.appointment_id} - ${appointment.appointment_date}`;
-                select.appendChild(option);
-            });
-        }
-    });
-}
+// Appointments now populated per selected patient via loadAppointmentsForSelect
 
 async function populateLabTestTypeSelects() {
     try {
@@ -246,21 +253,22 @@ async function addLabRequest() {
     };
 
     try {
-        const response = await axios.post('../../api/lab_requests.php', {
-            operation: 'add',
-            json: JSON.stringify(labRequestData)
-        });
+        const payload = new URLSearchParams();
+        payload.append('operation', 'add');
+        payload.append('json', JSON.stringify(labRequestData));
+        const response = await axios.post('../../api/lab_requests.php', payload);
 
         if (response.data.success) {
             showAlert('success', 'Lab request added successfully!');
             bootstrap.Modal.getInstance(document.getElementById('addLabRequestModal')).hide();
             loadLabRequests();
         } else {
-            showAlert('error', response.data.message);
+            showAlert('error', response.data.message || 'Failed to add lab request.');
         }
     } catch (error) {
-        console.error('Error adding lab request:', error);
-        showAlert('error', 'Failed to add lab request. Please try again.');
+        console.error('Error adding lab request:', error?.response?.data || error);
+        const msg = error?.response?.data?.message || error?.message || 'Failed to add lab request. Please try again.';
+        showAlert('error', msg);
     }
 }
 
@@ -285,7 +293,8 @@ function populateEditForm(request) {
     document.getElementById('editLabRequestId').value = request.lab_request_id;
     document.getElementById('editPatientSelect').value = request.patient_id;
     document.getElementById('editDoctorSelect').value = request.doctor_id || '';
-    document.getElementById('editAppointmentSelect').value = request.appointment_id || '';
+    // Load appointments for this patient, then select the current appointment
+    loadAppointmentsForSelect('editAppointmentSelect', request.patient_id, request.appointment_id || '');
     document.getElementById('editRequestStatus').value = request.status_id || 14;
     // Try to split test type from text if present
     const editSelect = document.getElementById('editTestTypeSelect');
@@ -310,21 +319,22 @@ async function updateLabRequest() {
     };
 
     try {
-        const response = await axios.post('../../api/lab_requests.php', {
-            operation: 'update',
-            json: JSON.stringify(labRequestData)
-        });
+        const payload = new URLSearchParams();
+        payload.append('operation', 'update');
+        payload.append('json', JSON.stringify(labRequestData));
+        const response = await axios.post('../../api/lab_requests.php', payload);
 
         if (response.data.success) {
             showAlert('success', 'Lab request updated successfully!');
             bootstrap.Modal.getInstance(document.getElementById('editLabRequestModal')).hide();
             loadLabRequests();
         } else {
-            showAlert('error', response.data.message);
+            showAlert('error', response.data.message || 'Failed to update lab request.');
         }
     } catch (error) {
-        console.error('Error updating lab request:', error);
-        showAlert('error', 'Failed to update lab request. Please try again.');
+        console.error('Error updating lab request:', error?.response?.data || error);
+        const msg = error?.response?.data?.message || error?.message || 'Failed to update lab request. Please try again.';
+        showAlert('error', msg);
     }
 }
 
@@ -341,10 +351,10 @@ async function deleteLabRequest(labRequestId) {
 
     if (result.isConfirmed) {
         try {
-            const response = await axios.post('../../api/lab_requests.php', {
-                operation: 'delete',
-                lab_request_id: labRequestId
-            });
+            const payload = new URLSearchParams();
+            payload.append('operation', 'delete');
+            payload.append('lab_request_id', labRequestId);
+            const response = await axios.post('../../api/lab_requests.php', payload);
 
             if (response.data.success) {
                 showAlert('success', 'Lab request deleted successfully!');
@@ -406,8 +416,8 @@ async function prefillFromConsultationIfPresent() {
         modal.show();
         document.getElementById('patientSelect').value = c.patient_id;
         document.getElementById('doctorSelect').value = c.doctor_id || '';
-        document.getElementById('appointmentSelect').value = c.appointment_id || '';
-        const requestText = `From Consultation #${c.consultation_id} on ${new Date(c.created_at).toLocaleString()}\n\nSummary: ${c.summary || ''}\nNotes: ${c.notes || ''}`;
+        await loadAppointmentsForSelect('appointmentSelect', c.patient_id, c.appointment_id || '');
+        const requestText = `From Consultation on ${new Date(c.created_at).toLocaleString()}\n\nSummary: ${c.summary || ''}\nNotes: ${c.notes || ''}`;
         document.getElementById('requestText').value = requestText;
     } catch (e) {
         console.error('Failed to prefill from consultation', e);

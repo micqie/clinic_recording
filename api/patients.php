@@ -78,6 +78,12 @@ class Patient
             return ['success' => false, 'message' => 'Full name, email, and password are required.'];
         }
 
+        // Validate email format strictly
+        $data['email'] = trim($data['email']);
+        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            return ['success' => false, 'message' => 'Invalid email format.'];
+        }
+
         $defaultRoleId = 3; // Patient role
 
         $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
@@ -168,8 +174,13 @@ class Patient
                         $params[':full_name'] = $data['full_name'];
                     }
                     if (!empty($data['email'])) {
+                        // Validate email format if provided
+                        $emailTrimmed = trim($data['email']);
+                        if (!filter_var($emailTrimmed, FILTER_VALIDATE_EMAIL)) {
+                            throw new Exception('Invalid email format.');
+                        }
                         $fields[] = "email = :email";
-                        $params[':email'] = $data['email'];
+                        $params[':email'] = $emailTrimmed;
                     }
 
                     if ($fields) {

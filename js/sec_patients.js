@@ -69,6 +69,11 @@ document.addEventListener("DOMContentLoaded", () => {
   // Add new patient
   addPatientForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
+    // Enforce HTML5 validation for fields (e.g., email) since form uses novalidate
+    if (!addPatientForm.checkValidity()) {
+      addPatientForm.classList.add("was-validated");
+      return;
+    }
     const formData = new FormData(addPatientForm);
 
     const password = formData.get("password");
@@ -81,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const jsonPayload = JSON.stringify({
       full_name: formData.get("full_name"),
-      email: formData.get("email"),
+      email: String(formData.get("email") || '').trim(),
       sex: formData.get("sex"),
       contact_num: formData.get("contact_num"),
       birthdate: formData.get("birthdate"),
@@ -97,6 +102,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await axios.post(patientApiUrl, payload);
       if (response.data.success) {
         Swal.fire("Success", response.data.message, "success");
+        addPatientForm.classList.remove("was-validated");
         addPatientForm.reset();
         addPatientModal.hide();
         loadPatients();
@@ -194,13 +200,18 @@ document.addEventListener("DOMContentLoaded", () => {
   // Submit edited patient
   editPatientForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    // Enforce HTML5 validation for fields (e.g., email) since form uses novalidate
+    if (!editPatientForm.checkValidity()) {
+      editPatientForm.classList.add('was-validated');
+      return;
+    }
 
     const formData = new FormData(editPatientForm);
     const jsonPayload = JSON.stringify({
       patient_id: formData.get('patient_id'),
       user_id: formData.get('user_id'),
       full_name: formData.get('full_name'),
-      email: formData.get('email'),
+      email: String(formData.get('email') || '').trim(),
       sex: formData.get('sex'),
       contact_num: formData.get('contact_num'),
       birthdate: formData.get('birthdate'),
@@ -215,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await axios.post(patientApiUrl, payload);
       if (response.data.success) {
         Swal.fire('Success', response.data.message, 'success');
+        editPatientForm.classList.remove('was-validated');
         editPatientModal.hide();
         loadPatients();
       } else {

@@ -4,6 +4,42 @@ header("Access-Control-Allow-Origin: *");
 
 class LabResults
 {
+    function getById($result_id)
+    {
+        include "connection.php";
+        if (empty($result_id)) {
+            return ['success' => false, 'message' => 'Result ID is required.'];
+        }
+        try {
+            $stmt = $conn->prepare("
+                SELECT lr.*,
+                       lreq.request_text,
+                       ltt.type_name AS lab_test_type_name,
+                       u.name as patient_name,
+                       du.name as doctor_name,
+                       up.name as uploaded_by_name,
+                       st.status_name
+                FROM tbl_lab_results lr
+                JOIN tbl_lab_requests lreq ON lr.lab_request_id = lreq.lab_request_id
+                LEFT JOIN tbl_lab_test_types ltt ON lreq.lab_test_type_id = ltt.lab_test_type_id
+                JOIN tbl_patients p ON lr.patient_id = p.patient_id
+                JOIN tbl_users u ON p.user_id = u.user_id
+                LEFT JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
+                JOIN tbl_users up ON lr.uploaded_by = up.user_id
+                LEFT JOIN tbl_status st ON lr.status_id = st.status_id
+                WHERE lr.result_id = :id
+                LIMIT 1
+            ");
+            $stmt->bindParam(":id", $result_id);
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) return ['success' => true, 'result' => $row];
+            return ['success' => false, 'message' => 'Result not found.'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch lab result: ' . $e->getMessage()];
+        }
+    }
     function getAllLabResults()
     {
         include "connection.php";
@@ -12,12 +48,16 @@ class LabResults
             $stmt = $conn->prepare("
                 SELECT lr.*,
                        lreq.request_text,
+                       lreq.status_id AS lab_request_status_id,
                        p.user_id as patient_user_id,
+                       p.sex as patient_sex,
+                       p.birthdate as patient_birthdate,
                        u.name as patient_name,
                        d.user_id as doctor_user_id,
                        du.name as doctor_name,
                        up.name as uploaded_by_name,
-                       st.status_name
+                       st.status_name,
+                       ltt.type_name AS lab_test_type_name
                 FROM tbl_lab_results lr
                 JOIN tbl_lab_requests lreq ON lr.lab_request_id = lreq.lab_request_id
                 JOIN tbl_patients p ON lr.patient_id = p.patient_id
@@ -26,6 +66,8 @@ class LabResults
                 LEFT JOIN tbl_users du ON d.user_id = du.user_id
                 JOIN tbl_users up ON lr.uploaded_by = up.user_id
                 LEFT JOIN tbl_status st ON lr.status_id = st.status_id
+                LEFT JOIN tbl_lab_test_types ltt ON lreq.lab_test_type_id = ltt.lab_test_type_id
+                WHERE lreq.status_id = 16
                 ORDER BY lr.uploaded_at DESC
             ");
             $stmt->execute();
@@ -112,13 +154,17 @@ class LabResults
             $sql = "INSERT INTO tbl_lab_results (lab_request_id, patient_id, doctor_id, result_file, result_text, uploaded_by, status_id)
                     VALUES (:lab_request_id, :patient_id, :doctor_id, :result_file, :result_text, :uploaded_by, :status_id)";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(":lab_request_id", $data['lab_request_id']);
-            $stmt->bindParam(":patient_id", $data['patient_id']);
-            $stmt->bindParam(":doctor_id", $data['doctor_id'] ?? null);
-            $stmt->bindParam(":result_file", $data['result_file'] ?? null);
-            $stmt->bindParam(":result_text", $data['result_text'] ?? null);
-            $stmt->bindParam(":uploaded_by", $data['uploaded_by']);
-            $stmt->bindParam(":status_id", $data['status_id'] ?? 15); // Default to Ready
+            $stmt->bindValue(":lab_request_id", (int)$data['lab_request_id'], PDO::PARAM_INT);
+            $stmt->bindValue(":patient_id", (int)$data['patient_id'], PDO::PARAM_INT);
+            if (isset($data['doctor_id']) && $data['doctor_id'] !== '' && $data['doctor_id'] !== null) {
+                $stmt->bindValue(":doctor_id", (int)$data['doctor_id'], PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue(":doctor_id", null, PDO::PARAM_NULL);
+            }
+            $stmt->bindValue(":result_file", $data['result_file'] ?? null, $data['result_file'] ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmt->bindValue(":result_text", $data['result_text'] ?? null, $data['result_text'] ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmt->bindValue(":uploaded_by", (int)$data['uploaded_by'], PDO::PARAM_INT);
+            $stmt->bindValue(":status_id", isset($data['status_id']) ? (int)$data['status_id'] : 15, PDO::PARAM_INT);
             $stmt->execute();
 
             // Update lab request status to Ready
@@ -149,10 +195,10 @@ class LabResults
                     status_id = :status_id
                     WHERE result_id = :result_id";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(":result_file", $data['result_file'] ?? null);
-            $stmt->bindParam(":result_text", $data['result_text'] ?? null);
-            $stmt->bindParam(":status_id", $data['status_id'] ?? 15);
-            $stmt->bindParam(":result_id", $data['result_id']);
+            $stmt->bindValue(":result_file", $data['result_file'] ?? null, $data['result_file'] ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmt->bindValue(":result_text", $data['result_text'] ?? null, $data['result_text'] ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmt->bindValue(":status_id", isset($data['status_id']) ? (int)$data['status_id'] : 15, PDO::PARAM_INT);
+            $stmt->bindValue(":result_id", (int)$data['result_id'], PDO::PARAM_INT);
             $stmt->execute();
 
             return ['success' => true, 'message' => 'Lab result updated successfully!'];
@@ -239,6 +285,9 @@ switch ($operation) {
     case "getAll":
         echo json_encode($labResults->getAllLabResults());
         break;
+    case "getById":
+        echo json_encode($labResults->getById($result_id));
+        break;
     case "getByPatient":
         echo json_encode($labResults->getLabResultsByPatient($patient_id));
         break;
@@ -266,4 +315,3 @@ switch ($operation) {
         break;
 }
 ?>
-

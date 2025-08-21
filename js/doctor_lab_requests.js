@@ -73,12 +73,11 @@ document.addEventListener("DOMContentLoaded", () => {
     labRequests.forEach(request => {
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${request.lab_request_id}</td>
         <td>${request.patient_name}</td>
-        <td>${request.appointment_date}</td>
+        <td>${request.appointment_date || ''}</td>
         <td>${request.request_text}</td>
         <td><span class="badge bg-${getStatusBadgeColor(request.status_name || request.status)}">${request.status_name || request.status}</span></td>
-        <td>${new Date(request.created_at).toLocaleDateString()}</td>
+        <td>${request.created_at ? new Date(request.created_at).toLocaleDateString() : ''}</td>
         <td>
           <button class="btn btn-sm btn-outline-success me-1" onclick="updateStatus(${request.lab_request_id}, '${request.status}')">
             <i class="fas fa-edit"></i>
