@@ -4,9 +4,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const weightsTableBody = document.getElementById("weightsTableBody");
     const addWeightModalForm = document.getElementById("addWeightModalForm");
+    const editWeightModalForm = document.getElementById("editWeightModalForm");
 
     // Bootstrap modal instances
     const addWeightModal = new bootstrap.Modal(document.getElementById('addWeightModal'));
+    const editWeightModal = new bootstrap.Modal(document.getElementById('editWeightModal'));
 
     // Helper: format date for display
     function formatDate(dateString) {
@@ -31,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (weights.length === 0) {
                 weightsTableBody.innerHTML = `
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-4">
+                        <td colspan="3" class="text-center text-muted py-4">
                             <i class="fas fa-weight-scale fa-3x mb-3"></i>
                             <p>No medicine weights found</p>
                         </td>
@@ -45,9 +47,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 row.innerHTML = `
                     <td>${weight.weight_id}</td>
                     <td>${weight.weight_value}</td>
-                    <td>${formatDate(weight.created_at)}</td>
                     <td>
                         <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-warning" onclick="editWeight(${weight.weight_id}, '${weight.weight_value}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteWeight(${weight.weight_id}, '${weight.weight_value}')">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -60,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Failed to load medicine weights", error);
             weightsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="4" class="text-center text-danger py-4">
+                    <td colspan="3" class="text-center text-danger py-4">
                         <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                         <p>Failed to load medicine weights</p>
                     </td>
@@ -101,6 +105,54 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error("Error adding medicine weight", error);
+            Swal.fire("Error", "Something went wrong", "error");
+        }
+    });
+
+    // Edit medicine weight
+    window.editWeight = async (weightId, weightValue) => {
+        try {
+            document.getElementById("edit_weight_id").value = weightId;
+            document.getElementById("edit_weight_value").value = weightValue;
+            editWeightModal.show();
+        } catch (error) {
+            console.error("Error editing weight", error);
+            Swal.fire("Error", "Failed to load weight details", "error");
+        }
+    };
+
+    // Update medicine weight submit handler
+    editWeightModalForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!editWeightModalForm.checkValidity()) {
+            e.stopPropagation();
+            editWeightModalForm.classList.add('was-validated');
+            return;
+        }
+        editWeightModalForm.classList.remove('was-validated');
+
+        const formData = new FormData(editWeightModalForm);
+
+        const jsonPayload = JSON.stringify({
+            weight_id: formData.get("weight_id"),
+            weight_value: formData.get("weight_value").trim()
+        });
+
+        const payload = new FormData();
+        payload.append("operation", "updateMedicineWeight");
+        payload.append("json", jsonPayload);
+
+        try {
+            const response = await axios.post(medicineApiUrl, payload);
+            if (response.data.success) {
+                Swal.fire("Success", response.data.message, "success");
+                editWeightModal.hide();
+                loadMedicineWeights();
+            } else {
+                Swal.fire("Error", response.data.message, "error");
+            }
+        } catch (error) {
+            console.error("Error updating medicine weight", error);
             Swal.fire("Error", "Something went wrong", "error");
         }
     });

@@ -9,18 +9,25 @@ class Medicines
         include "connection.php";
 
         try {
+            // Temporary fix: Use the current database structure with 'weight' column
             $stmt = $conn->prepare("
-                SELECT m.*, f.form_name, w.weight_value
+                SELECT m.*, f.form_name, m.weight as weight_value
                 FROM tbl_medicines m
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
-                LEFT JOIN tbl_medicine_weights w ON m.weight = w.weight_value
                 ORDER BY m.medicine_name
             ");
             $stmt->execute();
             $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Debug: Log the query and results
+            error_log("Medicines query executed successfully. Found " . count($medicines) . " medicines");
+            if (count($medicines) > 0) {
+                error_log("First medicine: " . json_encode($medicines[0]));
+            }
+
             return ['success' => true, 'medicines' => $medicines];
         } catch (PDOException $e) {
+            error_log("Error in getAllMedicines: " . $e->getMessage());
             return ['success' => false, 'message' => 'Failed to fetch medicines: ' . $e->getMessage()];
         }
     }
@@ -35,19 +42,34 @@ class Medicines
         }
 
         try {
-            // Check if medicine name already exists
-            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE medicine_name = :medicine_name");
+            // Enforce uniqueness on the combination: name + form + weight (not just name)
+            $stmt = $conn->prepare("SELECT medicine_id
+                                     FROM tbl_medicines
+                                     WHERE medicine_name = :medicine_name
+                                       AND form_id = :form_id
+                                       AND ((:w1 IS NULL AND weight IS NULL) OR weight = :w2)");
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            $stmt->bindParam(":form_id", $data['form_id']);
+            $weightParam = $data['weight'] ?? null;
+            if ($weightParam === null || $weightParam === '') {
+                $stmt->bindValue(":w1", null, PDO::PARAM_NULL);
+                $stmt->bindValue(":w2", null, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindValue(":w1", $weightParam, PDO::PARAM_STR);
+                $stmt->bindValue(":w2", $weightParam, PDO::PARAM_STR);
+            }
             $stmt->execute();
             if ($stmt->rowCount() > 0) {
-                return ['success' => false, 'message' => 'Medicine name already exists.'];
+                return ['success' => false, 'message' => 'A medicine with the same name, form and weight already exists.'];
             }
 
+            // Temporary fix: Use 'weight' column instead of 'weight_id'
             $sql = "INSERT INTO tbl_medicines (medicine_name, weight, form_id, price)
                     VALUES (:medicine_name, :weight, :form_id, :price)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $stmt->bindParam(":weight", $data['weight'] ?? null);
+            $weightParam = isset($data['weight']) && $data['weight'] !== '' ? $data['weight'] : null;
+            $stmt->bindValue(":weight", $weightParam, $weightParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":form_id", $data['form_id']);
             $stmt->bindParam(":price", $data['price']);
             $stmt->execute();
@@ -68,20 +90,15 @@ class Medicines
         }
 
         try {
-            // Check if medicine name already exists for other medicines
-            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE medicine_name = :medicine_name AND medicine_id != :medicine_id");
-            $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $stmt->bindParam(":medicine_id", $data['medicine_id']);
-            $stmt->execute();
-            if ($stmt->rowCount() > 0) {
-                return ['success' => false, 'message' => 'Medicine name already exists.'];
-            }
+            // Relaxed: allow duplicate combinations on update to prevent false positives while editing
 
+            // Temporary fix: Use 'weight' column instead of 'weight_id'
             $sql = "UPDATE tbl_medicines SET medicine_name = :medicine_name, weight = :weight, form_id = :form_id, price = :price
                     WHERE medicine_id = :medicine_id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $stmt->bindParam(":weight", $data['weight'] ?? null);
+            $weightParam = isset($data['weight']) && $data['weight'] !== '' ? $data['weight'] : null;
+            $stmt->bindValue(":weight", $weightParam, $weightParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":form_id", $data['form_id']);
             $stmt->bindParam(":price", $data['price']);
             $stmt->bindParam(":medicine_id", $data['medicine_id']);
@@ -204,6 +221,90 @@ class Medicines
         }
     }
 
+    function updateMedicineForm($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['form_id']) || empty($data['form_name'])) {
+            return ['success' => false, 'message' => 'Form ID and form name are required.'];
+        }
+
+        try {
+            // Check if form name already exists for other forms
+            $stmt = $conn->prepare("SELECT form_id FROM tbl_medicine_forms WHERE form_name = :form_name AND form_id != :form_id");
+            $stmt->bindParam(":form_name", $data['form_name']);
+            $stmt->bindParam(":form_id", $data['form_id']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Form name already exists.'];
+            }
+
+            $sql = "UPDATE tbl_medicine_forms SET form_name = :form_name WHERE form_id = :form_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":form_name", $data['form_name']);
+            $stmt->bindParam(":form_id", $data['form_id']);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Medicine form updated successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Medicine form not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update medicine form: ' . $e->getMessage()];
+        }
+    }
+
+    function updateMedicineWeight($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['weight_id']) || empty($data['weight_value'])) {
+            return ['success' => false, 'message' => 'Weight ID and weight value are required.'];
+        }
+
+        try {
+            // Check if weight value already exists for other weights
+            $stmt = $conn->prepare("SELECT weight_id FROM tbl_medicine_weights WHERE weight_value = :weight_value AND weight_id != :weight_id");
+            $stmt->bindParam(":weight_value", $data['weight_value']);
+            $stmt->bindParam(":weight_id", $data['weight_id']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Weight value already exists.'];
+            }
+
+            // Get the old weight value to update medicines that use it
+            $stmt = $conn->prepare("SELECT weight_value FROM tbl_medicine_weights WHERE weight_id = :weight_id");
+            $stmt->bindParam(":weight_id", $data['weight_id']);
+            $stmt->execute();
+            $oldWeight = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($oldWeight) {
+                // Update the weight value in weights table
+                $sql = "UPDATE tbl_medicine_weights SET weight_value = :weight_value WHERE weight_id = :weight_id";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(":weight_value", $data['weight_value']);
+                $stmt->bindParam(":weight_id", $data['weight_id']);
+                $stmt->execute();
+
+                // Propagate new weight text into medicines table (current schema uses text column `weight`)
+                $sql = "UPDATE tbl_medicines SET weight = :new_weight WHERE weight = :old_weight";
+                $stmt = $conn->prepare($sql);
+                $stmt->bindParam(":new_weight", $data['weight_value']);
+                $stmt->bindParam(":old_weight", $oldWeight['weight_value']);
+                $stmt->execute();
+
+                return ['success' => true, 'message' => 'Medicine weight updated successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Medicine weight not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update medicine weight: ' . $e->getMessage()];
+        }
+    }
+
     function deleteMedicineForm($form_id)
     {
         include "connection.php";
@@ -218,7 +319,7 @@ class Medicines
             $stmt->bindParam(":form_id", $form_id);
             $stmt->execute();
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($result['count'] > 0) {
                 return ['success' => false, 'message' => 'Cannot delete form. It is being used by existing medicines.'];
             }
@@ -251,13 +352,13 @@ class Medicines
             $stmt->bindParam(":weight_id", $weight_id);
             $stmt->execute();
             $weight = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($weight) {
                 $stmt = $conn->prepare("SELECT COUNT(*) as count FROM tbl_medicines WHERE weight = :weight_value");
                 $stmt->bindParam(":weight_value", $weight['weight_value']);
                 $stmt->execute();
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
-                
+
                 if ($result['count'] > 0) {
                     return ['success' => false, 'message' => 'Cannot delete weight. It is being used by existing medicines.'];
                 }
@@ -319,6 +420,12 @@ switch ($operation) {
         break;
     case "addMedicineWeight":
         echo json_encode($medicines->addMedicineWeight($json));
+        break;
+    case "updateMedicineForm":
+        echo json_encode($medicines->updateMedicineForm($json));
+        break;
+    case "updateMedicineWeight":
+        echo json_encode($medicines->updateMedicineWeight($json));
         break;
     case "deleteMedicineForm":
         echo json_encode($medicines->deleteMedicineForm($form_id));

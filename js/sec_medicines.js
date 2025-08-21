@@ -82,11 +82,17 @@
       // Load medicines and populate table
       async function loadMedicines() {
         try {
+          console.log("Loading medicines...");
           const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
+          console.log("Medicines response:", response.data);
+
           const medicines = response.data.medicines || [];
+          console.log("Medicines array:", medicines);
+
           medicineTableBody.innerHTML = "";
 
           if (medicines.length === 0) {
+            console.log("No medicines found, showing empty message");
             medicineTableBody.innerHTML = `
               <tr>
                 <td colspan="7" class="text-center text-muted py-4">
@@ -98,11 +104,13 @@
             return;
           }
 
-          medicines.forEach(med => {
+          console.log("Populating table with", medicines.length, "medicines");
+          medicines.forEach((med, index) => {
+            console.log(`Processing medicine ${index + 1}:`, med);
             const row = document.createElement("tr");
             row.innerHTML = `
               <td>${med.medicine_name}</td>
-              <td>${med.weight || med.weight_value || 'N/A'}</td>
+              <td>${med.weight_value || 'N/A'}</td>
               <td>${med.form_name || 'N/A'}</td>
               <td>₱${parseFloat(med.price).toFixed(2)}</td>
               <td>${formatDate(med.created_at)}</td>
@@ -123,13 +131,16 @@
             `;
             medicineTableBody.appendChild(row);
           });
+          console.log("Table populated successfully");
         } catch (error) {
           console.error("Failed to load medicines", error);
+          console.error("Error details:", error.response?.data);
           medicineTableBody.innerHTML = `
             <tr>
               <td colspan="7" class="text-center text-danger py-4">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                <p>Failed to load medicines</p>
+                <p>Failed to load medicines: ${error.message}</p>
+                <small>Check console for details</small>
               </td>
             </tr>
           `;
@@ -218,7 +229,7 @@
 
           const content = `
             <p><strong>Name:</strong> ${med.medicine_name}</p>
-            <p><strong>Weight:</strong> ${med.weight || med.weight_value || 'N/A'}</p>
+            <p><strong>Weight:</strong> ${med.weight_value || 'N/A'}</p>
             <p><strong>Form:</strong> ${med.form_name || 'N/A'}</p>
             <p><strong>Price:</strong> ₱${parseFloat(med.price).toFixed(2)}</p>
             <p><strong>Created At:</strong> ${formatDate(med.created_at)}</p>
@@ -243,45 +254,37 @@
             Swal.fire("Error", "Medicine not found", "error");
             return;
           }
-          
+
           console.log("Medicine data found:", med);
 
           document.getElementById("edit_medicine_id").value = med.medicine_id;
           document.getElementById("edit_name").value = med.medicine_name;
           document.getElementById("edit_price").value = med.price;
 
-          // Set form dropdown by matching form_name
+          // Set form dropdown by matching form_id
           const formSelect = document.getElementById("edit_form_id");
           if (formSelect) {
-            for (let i = 0; i < formSelect.options.length; i++) {
-              if (formSelect.options[i].text === med.form_name) {
-                formSelect.selectedIndex = i;
-                break;
-              }
+            // Find the form by form_id
+            const form = medicineForms.find(f => f.form_id == med.form_id);
+            if (form) {
+              formSelect.value = form.form_id;
+            } else {
+              formSelect.selectedIndex = 0; // Set to "Select Form"
             }
           }
 
-          // Set weight dropdown by matching weight_value
+          // Set weight dropdown by matching weight value
           const weightSelect = document.getElementById("edit_weight");
           if (weightSelect) {
-            console.log("Medicine weight data:", med.weight, med.weight_value);
+            console.log("Medicine weight data:", med.weight);
             console.log("Weight dropdown options:", Array.from(weightSelect.options).map(opt => ({text: opt.text, value: opt.value})));
-            
-            // Try to match by value first, then by text
-            let found = false;
-            for (let i = 0; i < weightSelect.options.length; i++) {
-              const option = weightSelect.options[i];
-              if (option.value === med.weight || option.value === med.weight_value || 
-                  option.text === med.weight || option.text === med.weight_value) {
-                weightSelect.selectedIndex = i;
-                found = true;
-                console.log("Weight matched at index:", i, "with option:", option.text);
-                break;
-              }
-            }
-            
-            if (!found) {
-              console.log("No weight match found, setting to empty");
+
+            // Try to match by weight value
+            if (med.weight) {
+              weightSelect.value = med.weight;
+              console.log("Weight matched with weight value:", med.weight);
+            } else {
+              console.log("No weight found, setting to empty");
               weightSelect.selectedIndex = 0; // Set to "Select Weight"
             }
           }
@@ -312,7 +315,7 @@
           form_id: formData.get("form_id"),
           price: parseFloat(formData.get("price")),
         });
-        
+
         console.log("Edit form data:", {
           medicine_id: formData.get("medicine_id"),
           medicine_name: formData.get("medicine_name"),
@@ -329,18 +332,20 @@
           console.log("Sending update request with payload:", payload);
           const response = await axios.post(medicineApiUrl, payload);
           console.log("Update response:", response.data);
-          
+
           if (response.data.success) {
             Swal.fire("Success", response.data.message, "success");
             editMedicineModal.hide();
             loadMedicines();
           } else {
-            Swal.fire("Error", response.data.message, "error");
+            const msg = response.data.message || "Unable to update medicine. Make sure name+form+weight is unique.";
+            Swal.fire("Error", msg, "error");
           }
         } catch (error) {
           console.error("Error updating medicine", error);
           console.error("Error response:", error.response?.data);
-          Swal.fire("Error", "Something went wrong: " + (error.response?.data?.message || error.message), "error");
+          const msg = error.response?.data?.message || error.message || "Request failed";
+          Swal.fire("Error", msg, "error");
         }
       });
 
