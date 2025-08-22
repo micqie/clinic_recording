@@ -154,6 +154,7 @@ class LabRequests
                 SELECT lr.*,
                        p.patient_id, u.name AS patient_name,
                        d.doctor_id, du.name AS doctor_name,
+                       lr.lab_test_type_id,
                        ltt.type_name AS lab_test_type_name,
                        st.status_name
                 FROM tbl_lab_requests lr

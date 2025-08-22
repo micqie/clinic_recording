@@ -1,6 +1,14 @@
 document.addEventListener("DOMContentLoaded", () => {
     const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
 
+    // Check if user is logged in
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    if (!user.id) {
+        console.error('User not logged in');
+        Swal.fire('Error', 'Please log in to continue', 'error');
+        return;
+    }
+
     const labResultsTableBody = document.getElementById("labResultsTableBody");
     const addLabResultForm = document.getElementById("addLabResultForm");
     const labRequestSelect = document.getElementById('lab_request_id');
@@ -8,6 +16,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Bootstrap modal instances
     const addLabResultModal = new bootstrap.Modal(document.getElementById('addLabResultModal'));
+
+    // Reset form when modal is closed
+    document.getElementById('addLabResultModal').addEventListener('hidden.bs.modal', function() {
+        addLabResultForm.reset();
+        // labTestTypeSelect.value = ''; // This line is removed
+    });
 
     // Helper: format date for display
     function formatDate(dateString) {
@@ -25,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load lab results and populate table
     async function loadLabResults() {
         try {
-            const res = await axios.get(`${baseApiUrl}/lab_results.php?operation=getAll`);
+            const res = await axios.get(`${baseApiUrl}/lab_results.php?operation=getAllLabResults`);
             if (!res.data.success) throw new Error(res.data.message || 'Failed to load');
             const results = res.data.results || [];
             labResultsTableBody.innerHTML = '';
@@ -83,19 +97,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const formData = new FormData(addLabResultForm);
         const selected = labRequestSelect.selectedOptions[0];
+
+        // Debug logging
+        console.log('Selected lab request:', selected);
+        console.log('User from session:', sessionStorage.getItem('user'));
+
+        // Validate required data
+        if (!selected || !selected.dataset.patientId) {
+            Swal.fire('Error', 'Please select a valid lab request', 'error');
+            return;
+        }
+
         const payloadData = {
             lab_request_id: formData.get('lab_request_id'),
-            patient_id: selected ? (selected.dataset.patientId || null) : null,
-            doctor_id: selected ? (selected.dataset.doctorId || null) : null,
+            patient_id: selected.dataset.patientId,
+            doctor_id: selected.dataset.doctorId || null,
             result_text: formData.get('result'),
-            uploaded_by: (JSON.parse(sessionStorage.getItem('user') || '{}').id) || 0,
+            uploaded_by: user.id,
             status_id: 15
         };
+
+        // Debug logging
+        console.log('Payload data:', payloadData);
+
         const payload = new URLSearchParams();
         payload.append('operation', 'add');
         payload.append('json', JSON.stringify(payloadData));
+
         try {
+            console.log('Sending request to:', `${baseApiUrl}/lab_results.php`);
             const response = await axios.post(`${baseApiUrl}/lab_results.php`, payload);
+            console.log('Response:', response.data);
+
             if (response.data.success) {
                 Swal.fire("Success", response.data.message, "success");
                 addLabResultForm.reset();
@@ -108,6 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error("Error adding lab result", error);
+            console.error("Error response:", error.response?.data);
             Swal.fire("Error", error?.response?.data?.message || 'Something went wrong', "error");
         }
     });
@@ -162,11 +196,25 @@ document.addEventListener("DOMContentLoaded", () => {
     loadLabResults();
     preloadDeliveredRequests();
 
+    // Auto-populate lab test type when lab request is selected
+    labRequestSelect?.addEventListener('change', (e) => {
+        const selectedOption = e.target.selectedOptions[0];
+        // This block is no longer needed as labTestTypeSelect is removed
+        // if (selectedOption && selectedOption.dataset.testTypeId) {
+        //     labTestTypeSelect.value = selectedOption.dataset.testTypeId;
+        // } else {
+        //     labTestTypeSelect.value = '';
+        // }
+    });
+
     async function preloadDeliveredRequests() {
         try {
             labRequestSelect.innerHTML = '<option value="">Select Lab Request</option>';
             const res = await axios.get(`${baseApiUrl}/lab_requests.php?operation=getDelivered`);
             const items = res.data.requests || [];
+
+            console.log('Delivered lab requests:', items);
+
             if (items.length === 0) {
                 const empty = document.createElement('option');
                 empty.value = '';
@@ -182,6 +230,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 opt.textContent = `${r.patient_name} — ${r.lab_test_type_name || 'Request'} — ${new Date(r.created_at).toLocaleDateString()}${doctor}`;
                 opt.dataset.patientId = r.patient_id;
                 opt.dataset.doctorId = r.doctor_id || '';
+                opt.dataset.testTypeId = r.lab_test_type_id || '';
+
+                console.log('Option created:', opt.value, opt.dataset);
+
                 labRequestSelect.appendChild(opt);
             });
         } catch (e) {

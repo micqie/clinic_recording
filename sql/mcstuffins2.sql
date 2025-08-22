@@ -108,6 +108,25 @@ INSERT INTO `tbl_diagnoses` (`diagnosis_id`, `appointment_id`, `doctor_id`, `pat
 
 -- --------------------------------------------------------
 
+-- Lookup table for common diagnosis conditions
+
+CREATE TABLE IF NOT EXISTS `tbl_diagnosis_lookup` (
+  `condition_id` int(11) NOT NULL,
+  `condition_name` varchar(150) NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT INTO `tbl_diagnosis_lookup` (`condition_id`, `condition_name`, `created_at`) VALUES
+(1, 'Cough', NOW()),
+(2, 'Common Cold', NOW()),
+(3, 'Fever', NOW()),
+(4, 'Hypertension', NOW()),
+(5, 'Type 2 Diabetes', NOW()),
+(6, 'Upper Respiratory Tract Infection', NOW()),
+(7, 'Gastroenteritis', NOW());
+
+-- --------------------------------------------------------
+
 --
 -- Table structure for table `tbl_doctors`
 --
@@ -580,6 +599,11 @@ ALTER TABLE `tbl_diagnoses`
   ADD KEY `doctor_id` (`doctor_id`),
   ADD KEY `patient_id` (`patient_id`);
 
+-- Indexes for table `tbl_diagnosis_lookup`
+ALTER TABLE `tbl_diagnosis_lookup`
+  ADD PRIMARY KEY (`condition_id`),
+  ADD UNIQUE KEY `uq_condition_name` (`condition_name`);
+
 --
 -- Indexes for table `tbl_doctors`
 --
@@ -727,6 +751,9 @@ ALTER TABLE `tbl_consultations`
 --
 ALTER TABLE `tbl_diagnoses`
   MODIFY `diagnosis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+-- AUTO_INCREMENT for table `tbl_diagnosis_lookup`
+ALTER TABLE `tbl_diagnosis_lookup`
+  MODIFY `condition_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `tbl_doctors`

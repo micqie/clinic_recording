@@ -1,10 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
+    const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || 'http://localhost/clinic_recording/api';
     const apiUrl = `${baseApiUrl}/lab_test_types.php`;
 
     const tbody = document.getElementById('labTestTypesTableBody');
     const form = document.getElementById('addTypeForm');
+    const editForm = document.getElementById('editTypeForm');
     const addModal = new bootstrap.Modal(document.getElementById('addTypeModal'));
+    const editModal = new bootstrap.Modal(document.getElementById('editTypeModal'));
 
     // No date display per requirement
 
@@ -23,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${t.type_name}</td>
                     <td>${t.description || ''}</td>
                     <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editType(${t.lab_test_type_id}, '${t.type_name.replace(/'/g, "&#39;")}', '${(t.description || '').replace(/'/g, "&#39;")}')"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-sm btn-outline-danger" onclick="deleteType(${t.lab_test_type_id}, '${t.type_name.replace(/'/g, "&#39;")}')"><i class="fas fa-trash"></i></button>
                     </td>
                 `;
@@ -60,6 +63,44 @@ document.addEventListener('DOMContentLoaded', () => {
             Swal.fire('Error', 'Something went wrong', 'error');
         }
     });
+
+    editForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!editForm.checkValidity()) {
+            editForm.classList.add('was-validated');
+            return;
+        }
+        const fd = new FormData(editForm);
+        const payload = new FormData();
+        payload.append('operation', 'update');
+        payload.append('json', JSON.stringify({
+            lab_test_type_id: fd.get('lab_test_type_id'),
+            type_name: fd.get('type_name').trim(),
+            description: (fd.get('description') || '').trim()
+        }));
+        try {
+            const res = await axios.post(apiUrl, payload);
+            if (res.data.success) {
+                Swal.fire('Updated', res.data.message, 'success');
+                editForm.reset();
+                editForm.classList.remove('was-validated');
+                editModal.hide();
+                loadTypes();
+            } else {
+                Swal.fire('Error', res.data.message, 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'Something went wrong', 'error');
+        }
+    });
+
+    window.editType = (id, name, description) => {
+        document.getElementById('editTypeId').value = id;
+        document.getElementById('editTypeName').value = name;
+        document.getElementById('editTypeDescription').value = description;
+        editModal.show();
+    };
 
     window.deleteType = async (id, name) => {
         const confirm = await Swal.fire({

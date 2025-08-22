@@ -315,6 +315,43 @@ function registerPatient($json)
         }
         return ['success' => false, 'message' => 'Invalid email or password.'];
     }
+
+    function changePassword($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['user_id']) || empty($data['current_password']) || empty($data['new_password'])) {
+            return ['success' => false, 'message' => 'User ID, current password, and new password are required.'];
+        }
+
+        try {
+            // Verify current password
+            $stmt = $conn->prepare("SELECT password FROM tbl_users WHERE user_id = :user_id LIMIT 1");
+            $stmt->bindParam(":user_id", $data['user_id']);
+            $stmt->execute();
+
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$user) {
+                return ['success' => false, 'message' => 'User not found.'];
+            }
+
+            if (!password_verify($data['current_password'], $user['password'])) {
+                return ['success' => false, 'message' => 'Current password is incorrect.'];
+            }
+
+            // Hash new password and update
+            $newPasswordHash = password_hash($data['new_password'], PASSWORD_DEFAULT);
+            $updateStmt = $conn->prepare("UPDATE tbl_users SET password = :password WHERE user_id = :user_id");
+            $updateStmt->bindParam(":password", $newPasswordHash);
+            $updateStmt->bindParam(":user_id", $data['user_id']);
+            $updateStmt->execute();
+
+            return ['success' => true, 'message' => 'Password changed successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to change password: ' . $e->getMessage()];
+        }
+    }
 }
 
 // Handle incoming request
@@ -344,6 +381,9 @@ switch ($operation) {
     case "profile":
         $uid = $_GET['user_id'] ?? $_POST['user_id'] ?? '';
         echo json_encode($user->profile($uid));
+        break;
+    case "changePassword":
+        echo json_encode($user->changePassword($json));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

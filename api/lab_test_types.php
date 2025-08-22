@@ -43,6 +43,30 @@ class LabTestTypes
         }
     }
 
+    public function update($json)
+    {
+        $data = json_decode($json ?: '{}', true);
+        if (empty($data['lab_test_type_id']) || empty($data['type_name'])) {
+            return ['success' => false, 'message' => 'lab_test_type_id and type_name are required.'];
+        }
+        try {
+            $stmt = $this->conn->prepare("UPDATE tbl_lab_test_types SET type_name = :name, description = :description WHERE lab_test_type_id = :id");
+            $stmt->bindParam(":name", $data['type_name']);
+            $stmt->bindParam(":description", $data['description']);
+            $stmt->bindParam(":id", $data['lab_test_type_id']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Lab test type updated successfully.'];
+            }
+            return ['success' => false, 'message' => 'Lab test type not found.'];
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                return ['success' => false, 'message' => 'Lab test type name already exists.'];
+            }
+            return ['success' => false, 'message' => 'Failed to update lab test type: ' . $e->getMessage()];
+        }
+    }
+
     public function delete($id)
     {
         if (empty($id)) { return ['success' => false, 'message' => 'lab_test_type_id is required.']; }
@@ -80,6 +104,9 @@ switch ($operation) {
         break;
     case 'add':
         echo json_encode($svc->add($json));
+        break;
+    case 'update':
+        echo json_encode($svc->update($json));
         break;
     case 'delete':
         echo json_encode($svc->delete($id));

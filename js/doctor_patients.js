@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
-  const patientApiUrl = `${baseApiUrl}/patients.php`;
+  const appointmentsApi = `${baseApiUrl}/appointments.php`;
 
   // Check if user is logged in and is a doctor
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
@@ -10,19 +10,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const patientsTableBody = document.getElementById("patientsTableBody");
-  const consultationForm = document.getElementById("consultationForm");
-  const labRequestForm = document.getElementById("labRequestForm");
-  const consultationModal = document.getElementById("consultationModal") ? new bootstrap.Modal(document.getElementById("consultationModal")) : null;
-  const labRequestModal = document.getElementById("labRequestModal") ? new bootstrap.Modal(document.getElementById("labRequestModal")) : null;
-  const consultationsApi = `${baseApiUrl}/consultations.php`;
-  const appointmentsApi = `${baseApiUrl}/appointments.php`;
-  const labRequestsApi = `${baseApiUrl}/lab_requests.php`;
+
+  // Search and filter elements
+  const searchInput = document.getElementById('searchPatient');
+  const statusFilter = document.getElementById('filterStatus');
+  const clearFiltersBtn = document.getElementById('clearFilters');
+
+  // Store all patients for filtering
+  let allPatients = [];
 
   async function loadPatients() {
     try {
       const response = await axios.get(`${appointmentsApi}?operation=get_by_doctor&doctor_id=${user.id}`);
       if (response.data.success) {
-        displayPatients(response.data.data);
+        allPatients = response.data.data || [];
+        displayPatients(allPatients);
       } else {
         Swal.fire("Error", response.data.message, "error");
       }
@@ -32,20 +34,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function displayPatients(appointments) {
+  function displayPatients(patients) {
     patientsTableBody.innerHTML = "";
 
-    appointments.forEach(appt => {
+    if (patients.length === 0) {
+      patientsTableBody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">
+            <i class="fas fa-users fa-3x mb-3"></i>
+            <p>No patients found</p>
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    patients.forEach(appt => {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${appt.patient_name}</td>
         <td>${appt.appointment_date}</td>
         <td>${appt.queue_number ?? '-'}</td>
         <td>
-          <button class="btn btn-sm btn-success me-1" onclick="startConsultation(${appt.patient_id}, ${appt.appointment_id}, '${appt.patient_name.replace(/'/g, "\'")}', '${appt.appointment_date}')">
+          <button class="btn btn-sm btn-success me-1" onclick="navigateToConsultations(${appt.patient_id}, ${appt.appointment_id})" title="Go to Consultations">
             <i class="fas fa-stethoscope"></i>
           </button>
-          <button class="btn btn-sm btn-warning me-1" onclick="startLabRequest(${appt.patient_id}, ${appt.appointment_id}, '${appt.patient_name.replace(/'/g, "\'")}', '${appt.appointment_date}')">
+          <button class="btn btn-sm btn-warning me-1" onclick="navigateToLabRequests(${appt.patient_id}, ${appt.appointment_id})" title="Go to Lab Requests">
             <i class="fas fa-flask"></i>
           </button>
         </td>
@@ -53,74 +67,52 @@ document.addEventListener("DOMContentLoaded", () => {
       patientsTableBody.appendChild(row);
     });
   }
-  // Start consultation
-  window.startConsultation = (patientId, appointmentId, patientName, appointmentDate) => {
-    if (!consultationModal) return;
-    document.getElementById('c_patient_id').value = patientId;
-    document.getElementById('c_appointment_id').value = appointmentId;
-    consultationModal.show();
-  };
 
-  consultationForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(consultationForm);
-    const payload = new FormData();
-    payload.append('operation', 'add');
-    payload.append('json', JSON.stringify({
-      patient_id: fd.get('patient_id'),
-      appointment_id: fd.get('appointment_id'),
-      doctor_id: user.id,
-      summary: fd.get('summary'),
-      notes: fd.get('notes') || ''
-    }));
-    try {
-      const res = await axios.post(consultationsApi, payload);
-      if (res.data.success) {
-        Swal.fire('Saved', 'Consultation added.', 'success');
-        consultationForm.reset();
-        consultationModal.hide();
-      } else {
-        Swal.fire('Error', res.data.message, 'error');
-      }
-    } catch (e) {
-      console.error(e);
-      Swal.fire('Error', 'Could not save consultation.', 'error');
-    }
+  // Search and filter functionality
+  function filterPatients() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const statusFilterValue = statusFilter.value;
+
+    let filtered = allPatients.filter(patient => {
+      const matchesSearch = patient.patient_name.toLowerCase().includes(searchTerm);
+      const matchesStatus = !statusFilterValue || patient.appointment_status === statusFilterValue;
+
+      return matchesSearch && matchesStatus;
+    });
+
+    displayPatients(filtered);
+  }
+
+  // Event listeners for search and filter
+  searchInput?.addEventListener('input', filterPatients);
+  statusFilter?.addEventListener('change', filterPatients);
+  clearFiltersBtn?.addEventListener('click', () => {
+    searchInput.value = '';
+    statusFilter.value = '';
+    displayPatients(allPatients);
   });
 
-  // Start lab request
-  window.startLabRequest = (patientId, appointmentId) => {
-    if (!labRequestModal) return;
-    document.getElementById('lr_patient_id').value = patientId;
-    document.getElementById('lr_appointment_id').value = appointmentId;
-    labRequestModal.show();
+  // Navigate to consultations page with patient context
+  window.navigateToConsultations = (patientId, appointmentId) => {
+    // Store patient context in session storage for the consultations page
+    sessionStorage.setItem('selectedPatientId', patientId);
+    sessionStorage.setItem('selectedAppointmentId', appointmentId);
+    sessionStorage.setItem('fromPatientsPage', 'true');
+
+    // Navigate to consultations page
+    window.location.href = 'doctor_consultations.html';
   };
 
-  labRequestForm?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const fd = new FormData(labRequestForm);
-    const payload = new FormData();
-    payload.append('operation', 'add');
-    payload.append('json', JSON.stringify({
-      patient_id: fd.get('patient_id'),
-      appointment_id: fd.get('appointment_id'),
-      request_text: fd.get('request_text'),
-      doctor_id: user.id
-    }));
-    try {
-      const res = await axios.post(labRequestsApi, payload);
-      if (res.data.success) {
-        Swal.fire('Sent', 'Lab request sent.', 'success');
-        labRequestForm.reset();
-        labRequestModal.hide();
-      } else {
-        Swal.fire('Error', res.data.message, 'error');
-      }
-    } catch (e) {
-      console.error(e);
-      Swal.fire('Error', 'Could not send lab request.', 'error');
-    }
-  });
+  // Navigate to lab requests page with patient context
+  window.navigateToLabRequests = (patientId, appointmentId) => {
+    // Store patient context in session storage for the lab requests page
+    sessionStorage.setItem('selectedPatientId', patientId);
+    sessionStorage.setItem('selectedAppointmentId', appointmentId);
+    sessionStorage.setItem('fromPatientsPage', 'true');
+
+    // Navigate to lab requests page
+    window.location.href = 'doctor_lab_requests.html';
+  };
 
   // Load patients on page load
   loadPatients();

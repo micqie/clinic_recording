@@ -144,9 +144,11 @@ class Diagnoses
             $stmt->bindParam(":doctor_id", $data['doctor_id']);
             $stmt->bindParam(":patient_id", $data['patient_id']);
             $stmt->bindParam(":condition_name", $data['condition_name']);
-            $stmt->bindParam(":date_diagnosed", $data['date_diagnosed'] ?? date('Y-m-d'));
+            $dateDiagnosed = isset($data['date_diagnosed']) && $data['date_diagnosed'] !== '' ? $data['date_diagnosed'] : date('Y-m-d');
+            $stmt->bindValue(":date_diagnosed", $dateDiagnosed);
             $stmt->bindParam(":severity", $data['severity']);
-            $stmt->bindParam(":notes", $data['notes'] ?? null);
+            $notesValue = isset($data['notes']) && $data['notes'] !== '' ? $data['notes'] : null;
+            $stmt->bindValue(":notes", $notesValue, $notesValue === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->execute();
 
             $diagnosis_id = $conn->lastInsertId();
@@ -177,7 +179,8 @@ class Diagnoses
             $stmt->bindParam(":condition_name", $data['condition_name']);
             $stmt->bindParam(":date_diagnosed", $data['date_diagnosed']);
             $stmt->bindParam(":severity", $data['severity']);
-            $stmt->bindParam(":notes", $data['notes'] ?? null);
+            $notesValue = isset($data['notes']) && $data['notes'] !== '' ? $data['notes'] : null;
+            $stmt->bindValue(":notes", $notesValue, $notesValue === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":diagnosis_id", $data['diagnosis_id']);
             $stmt->execute();
 

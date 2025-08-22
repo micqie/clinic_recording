@@ -9,9 +9,9 @@ class Medicines
         include "connection.php";
 
         try {
-            // Temporary fix: Use the current database structure with 'weight' column
+            // ✅ Use `weight` column as weight_value (temporary fix)
             $stmt = $conn->prepare("
-                SELECT m.*, f.form_name, m.weight as weight_value
+                SELECT m.*, f.form_name, m.weight AS weight_value
                 FROM tbl_medicines m
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 ORDER BY m.medicine_name
@@ -19,7 +19,6 @@ class Medicines
             $stmt->execute();
             $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Debug: Log the query and results
             error_log("Medicines query executed successfully. Found " . count($medicines) . " medicines");
             if (count($medicines) > 0) {
                 error_log("First medicine: " . json_encode($medicines[0]));
@@ -42,28 +41,15 @@ class Medicines
         }
 
         try {
-            // Enforce uniqueness on the combination: name + form + weight (not just name)
-            $stmt = $conn->prepare("SELECT medicine_id
-                                     FROM tbl_medicines
-                                     WHERE medicine_name = :medicine_name
-                                       AND form_id = :form_id
-                                       AND ((:w1 IS NULL AND weight IS NULL) OR weight = :w2)");
+            // ✅ Check uniqueness only on medicine_name
+            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE medicine_name = :medicine_name");
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $stmt->bindParam(":form_id", $data['form_id']);
-            $weightParam = $data['weight'] ?? null;
-            if ($weightParam === null || $weightParam === '') {
-                $stmt->bindValue(":w1", null, PDO::PARAM_NULL);
-                $stmt->bindValue(":w2", null, PDO::PARAM_NULL);
-            } else {
-                $stmt->bindValue(":w1", $weightParam, PDO::PARAM_STR);
-                $stmt->bindValue(":w2", $weightParam, PDO::PARAM_STR);
-            }
             $stmt->execute();
+
             if ($stmt->rowCount() > 0) {
-                return ['success' => false, 'message' => 'A medicine with the same name, form and weight already exists.'];
+                return ['success' => true, 'message' => 'Medicine name already exists.'];
             }
 
-            // Temporary fix: Use 'weight' column instead of 'weight_id'
             $sql = "INSERT INTO tbl_medicines (medicine_name, weight, form_id, price)
                     VALUES (:medicine_name, :weight, :form_id, :price)";
             $stmt = $conn->prepare($sql);
@@ -76,6 +62,10 @@ class Medicines
 
             return ['success' => true, 'message' => 'Medicine added successfully!'];
         } catch (PDOException $e) {
+            $isDuplicate = isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062;
+            if ($isDuplicate) {
+                return ['success' => true, 'message' => 'Medicine name already exists.'];
+            }
             return ['success' => false, 'message' => 'Failed to add medicine: ' . $e->getMessage()];
         }
     }
@@ -90,10 +80,11 @@ class Medicines
         }
 
         try {
-            // Relaxed: allow duplicate combinations on update to prevent false positives while editing
-
-            // Temporary fix: Use 'weight' column instead of 'weight_id'
-            $sql = "UPDATE tbl_medicines SET medicine_name = :medicine_name, weight = :weight, form_id = :form_id, price = :price
+            $sql = "UPDATE tbl_medicines
+                    SET medicine_name = :medicine_name,
+                        weight = :weight,
+                        form_id = :form_id,
+                        price = :price
                     WHERE medicine_id = :medicine_id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
@@ -123,11 +114,9 @@ class Medicines
             $stmt->bindParam(":medicine_id", $medicine_id);
             $stmt->execute();
 
-            if ($stmt->rowCount() > 0) {
-                return ['success' => true, 'message' => 'Medicine deleted successfully!'];
-            } else {
-                return ['success' => false, 'message' => 'Medicine not found.'];
-            }
+            return $stmt->rowCount() > 0
+                ? ['success' => true, 'message' => 'Medicine deleted successfully!']
+                : ['success' => false, 'message' => 'Medicine not found.'];
         } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to delete medicine: ' . $e->getMessage()];
         }

@@ -12,6 +12,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const patientId = prof.data?.context?.patient_id;
   if (!patientId) { Swal.fire('Error', 'No patient profile found.', 'error'); return; }
 
+  // Load patient details for profile summary
+  try {
+    const patientResp = await axios.get(`${baseApiUrl}/patients.php?operation=get&id=${user.id}`);
+    if (patientResp.data.success) {
+      const patient = patientResp.data.data;
+
+      // Populate profile summary
+      document.getElementById('dashboardName').textContent = patient.full_name || 'N/A';
+      document.getElementById('dashboardEmail').textContent = patient.email || 'N/A';
+      document.getElementById('dashboardContact').textContent = patient.contact_num || 'N/A';
+      document.getElementById('dashboardMemberSince').textContent = patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'N/A';
+    }
+  } catch (error) {
+    console.error('Error loading patient details:', error);
+  }
+
   const apptsResp = await axios.get(`${apptApi}?operation=get_by_patient&patient_id=${patientId}`);
   const appts = apptsResp.data.data || [];
 
@@ -42,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lr = await axios.get(`${labApi}?operation=get_by_patient&patient_id=${patientId}`);
     const rows = lr.data.data || [];
     lrTbody.innerHTML = '';
-    
+
     if (rows.length === 0) {
       lrTbody.innerHTML = `
         <tr>
@@ -57,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
       return;
     }
-    
+
     rows.forEach(r => {
       const tr = document.createElement('tr');
       const statusClass = r.status_name.toLowerCase().replace(/\s/g, '');
@@ -86,12 +102,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     lrTbody.addEventListener('click', (e) => {
       const target = e.target.closest('button');
       if (!target) return;
-      
+
       const id = target.getAttribute('data-print') || target.getAttribute('data-download') || target.getAttribute('data-image');
       if (id) {
         const row = rows.find(x => String(x.lab_request_id) === String(id));
         if (!row) return;
-        
+
         if (target.getAttribute('data-download')) {
           downloadLabRequest(row);
         } else if (target.getAttribute('data-image')) {
@@ -120,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     const currentDate = new Date().toLocaleDateString();
     const currentTime = new Date().toLocaleTimeString();
-    
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -144,7 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <p class="text-muted mb-0">Professional Medical Services</p>
           <p class="text-muted mb-0">Lab Request Form</p>
         </div>
-        
+
         <div class="row">
           <div class="col-md-6">
             <h5 class="text-primary">Request Information</h5>
@@ -165,14 +181,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             </table>
           </div>
         </div>
-        
+
         <div class="request-details">
           <h5 class="text-primary mb-3">Laboratory Request Details</h5>
           <div class="border-start border-primary border-4 ps-3">
             ${labRequest.request_text.replace(/\n/g, '<br>')}
           </div>
         </div>
-        
+
         <div class="row mt-4">
           <div class="col-md-6">
             <div class="border p-3 text-center">
@@ -189,12 +205,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         </div>
-        
+
         <div class="footer text-center">
           <p class="text-muted mb-1">This is an official document from MCSTUFFIN's Clinic</p>
           <p class="text-muted mb-0">For inquiries, please contact our clinic</p>
         </div>
-        
+
         <div class="text-center mt-4 no-print">
           <button class="btn btn-primary me-2" onclick="window.print()">
             <i class="fas fa-print me-2"></i>Print
@@ -204,7 +220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     printWindow.focus();
   }
@@ -219,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      
+
       // Set document properties
       doc.setProperties({
         title: `Lab Request #${labRequest.lab_request_id}`,
@@ -232,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       doc.setFontSize(24);
       doc.setTextColor(13, 110, 253); // Primary blue color
       doc.text('MCSTUFFIN\'s CLINIC', 105, 20, { align: 'center' });
-      
+
       doc.setFontSize(14);
       doc.setTextColor(108, 117, 125); // Gray color
       doc.text('Professional Medical Services', 105, 30, { align: 'center' });
@@ -242,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       doc.setFontSize(16);
       doc.setTextColor(13, 110, 253);
       doc.text('Request Information:', 20, 60);
-      
+
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
       doc.text(`Request #: LR-${labRequest.lab_request_id.toString().padStart(4, '0')}`, 20, 75);
@@ -254,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       doc.setFontSize(16);
       doc.setTextColor(13, 110, 253);
       doc.text('Patient Information:', 20, 130);
-      
+
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
       doc.text(`Patient Name: ${labRequest.patient_name}`, 20, 145);
@@ -268,10 +284,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       doc.setFontSize(16);
       doc.setTextColor(13, 110, 253);
       doc.text('Laboratory Request Details:', 20, 200);
-      
+
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
-      
+
       // Split text into lines for PDF
       const maxWidth = 170; // Maximum width for text
       const lines = doc.splitTextToSize(labRequest.request_text, maxWidth);
@@ -282,7 +298,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       doc.setTextColor(13, 110, 253);
       doc.text('Doctor\'s Signature:', 20, 250);
       doc.text('Date & Time:', 120, 250);
-      
+
       doc.setFontSize(10);
       doc.setTextColor(108, 117, 125);
       doc.text(`Dr. ${labRequest.doctor_name}`, 20, 270);
@@ -297,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Save the PDF
       const filename = `Lab_Request_${labRequest.lab_request_id}_${labRequest.patient_name.replace(/\s+/g, '_')}.pdf`;
       doc.save(filename);
-      
+
       Swal.fire('Success', 'PDF downloaded successfully!', 'success');
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -317,14 +333,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     tempDiv.style.fontFamily = 'Arial, sans-serif';
     tempDiv.style.color = 'black';
     tempDiv.style.border = '1px solid #ccc';
-    
+
     tempDiv.innerHTML = `
       <div style="text-align: center; border-bottom: 3px solid #0d6efd; padding-bottom: 20px; margin-bottom: 30px;">
         <h2 style="color: #0d6efd; margin-bottom: 10px;">MCSTUFFIN's CLINIC</h2>
         <p style="color: #6c757d; margin: 5px 0;">Professional Medical Services</p>
         <p style="color: #6c757d; margin: 5px 0;">Lab Request Form</p>
       </div>
-      
+
       <div style="display: flex; margin-bottom: 30px;">
         <div style="flex: 1;">
           <h5 style="color: #0d6efd;">Request Information</h5>
@@ -345,14 +361,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           </table>
         </div>
       </div>
-      
+
       <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <h5 style="color: #0d6efd; margin-bottom: 15px;">Laboratory Request Details</h5>
         <div style="border-left: 4px solid #0d6efd; padding-left: 15px;">
           ${labRequest.request_text.replace(/\n/g, '<br>')}
         </div>
       </div>
-      
+
       <div style="display: flex; margin-top: 40px;">
         <div style="flex: 1; border: 1px solid #000; padding: 15px; text-align: center; margin-right: 10px;">
           <p style="margin-bottom: 5px;"><strong>Doctor's Signature</strong></p>
@@ -365,15 +381,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           <small style="color: #6c757d;">${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</small>
         </div>
       </div>
-      
+
       <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #dee2e6;">
         <p style="color: #6c757d; margin: 5px 0;">This is an official document from MCSTUFFIN's Clinic</p>
         <p style="color: #6c757d; margin: 5px 0;">For inquiries, please contact our clinic</p>
       </div>
     `;
-    
+
     document.body.appendChild(tempDiv);
-    
+
     // Wait a bit for the DOM to be ready
     setTimeout(() => {
       // Use html2canvas to convert the div to an image
@@ -399,7 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                
+
                 Swal.fire('Success', 'Image saved successfully!', 'success');
               } else {
                 throw new Error('Failed to create blob from canvas');
@@ -409,7 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error creating blob:', error);
             Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
           }
-          
+
           // Clean up
           document.body.removeChild(tempDiv);
         }).catch(error => {
@@ -435,40 +451,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ctx = canvas.getContext('2d');
       canvas.width = 800;
       canvas.height = 1200;
-      
+
       // Set background
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
+
       // Set text styles
       ctx.fillStyle = '#0d6efd';
       ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('MCSTUFFIN\'s CLINIC', canvas.width/2, 50);
-      
+
       ctx.fillStyle = '#6c757d';
       ctx.font = '16px Arial';
       ctx.fillText('Professional Medical Services', canvas.width/2, 80);
       ctx.fillText('Lab Request Form', canvas.width/2, 100);
-      
+
       // Request Information
       ctx.fillStyle = '#0d6efd';
       ctx.font = 'bold 18px Arial';
       ctx.textAlign = 'left';
       ctx.fillText('Request Information:', 50, 150);
-      
+
       ctx.fillStyle = '#000000';
       ctx.font = '14px Arial';
       ctx.fillText(`Request #: LR-${labRequest.lab_request_id.toString().padStart(4, '0')}`, 50, 180);
       ctx.fillText(`Date Created: ${new Date(labRequest.created_at).toLocaleDateString()}`, 50, 200);
       ctx.fillText(`Time: ${new Date(labRequest.created_at).toLocaleTimeString()}`, 50, 220);
       ctx.fillText(`Status: ${labRequest.status_name}`, 50, 240);
-      
+
       // Patient Information
       ctx.fillStyle = '#0d6efd';
       ctx.font = 'bold 18px Arial';
       ctx.fillText('Patient Information:', 50, 290);
-      
+
       ctx.fillStyle = '#000000';
       ctx.font = '14px Arial';
       ctx.fillText(`Patient Name: ${labRequest.patient_name}`, 50, 320);
@@ -477,15 +493,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (labRequest.appointment_date) {
         ctx.fillText(`Appointment: ${labRequest.appointment_date} (Q#${labRequest.queue_number})`, 50, 380);
       }
-      
+
       // Lab Request Details
       ctx.fillStyle = '#0d6efd';
       ctx.font = 'bold 18px Arial';
       ctx.fillText('Laboratory Request Details:', 50, 430);
-      
+
       ctx.fillStyle = '#000000';
       ctx.font = '14px Arial';
-      
+
       // Split text into lines for proper display
       const words = labRequest.request_text.split(' ');
       let line = '';
@@ -502,14 +518,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       ctx.fillText(line, 50, y);
-      
+
       // Footer
       ctx.fillStyle = '#6c757d';
       ctx.font = '12px Arial';
       ctx.textAlign = 'center';
       ctx.fillText('This is an official document from MCSTUFFIN\'s Clinic', canvas.width/2, 1100);
       ctx.fillText('For inquiries, please contact our clinic', canvas.width/2, 1120);
-      
+
       // Convert canvas to blob and download
       canvas.toBlob((blob) => {
         if (blob) {
@@ -521,18 +537,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-          
+
           Swal.fire('Success', 'Image saved successfully!', 'success');
         } else {
           Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
         }
       }, 'image/png', 0.95);
-      
+
     } catch (error) {
       console.error('Canvas generation error:', error);
       Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
     }
   }
 });
-
-

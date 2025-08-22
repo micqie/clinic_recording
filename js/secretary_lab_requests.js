@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', function() {
     populateLabTestTypeSelects();
     prefillFromConsultationIfPresent();
     setupEventListeners();
+
+    // Initialize doctor dropdowns with default state
+    initializeDoctorDropdowns();
 });
 
 function setupEventListeners() {
@@ -22,20 +25,41 @@ function setupEventListeners() {
 
     addLabRequestModal.addEventListener('hidden.bs.modal', function() {
         document.getElementById('addLabRequestForm').reset();
+        // Reset doctor field when modal is closed
+        document.getElementById('doctorSelect').innerHTML = '<option value="">Select Doctor (Optional)</option>';
     });
 
     editLabRequestModal.addEventListener('hidden.bs.modal', function() {
         document.getElementById('editLabRequestForm').reset();
+        // Reset doctor field when modal is closed
+        document.getElementById('editDoctorSelect').innerHTML = '<option value="">Select Doctor (Optional)</option>';
     });
 
-    // Dynamic: when patient changes, filter appointments for that patient
+    // Dynamic: when patient changes, auto-populate doctor and filter appointments for that patient
     const addPatientSelect = document.getElementById('patientSelect');
     addPatientSelect?.addEventListener('change', (e) => {
-        loadAppointmentsForSelect('appointmentSelect', e.target.value);
+        const patientId = e.target.value;
+        if (patientId) {
+            autoPopulateDoctor('doctorSelect', patientId);
+            loadAppointmentsForSelect('appointmentSelect', patientId);
+        } else {
+            // Reset doctor field when no patient is selected
+            document.getElementById('doctorSelect').innerHTML = '<option value="">Select Doctor (Optional)</option>';
+            document.getElementById('appointmentSelect').innerHTML = '<option value="">Select Appointment (Optional)</option>';
+        }
     });
+
     const editPatientSelect = document.getElementById('editPatientSelect');
     editPatientSelect?.addEventListener('change', (e) => {
-        loadAppointmentsForSelect('editAppointmentSelect', e.target.value);
+        const patientId = e.target.value;
+        if (patientId) {
+            autoPopulateDoctor('editDoctorSelect', patientId);
+            loadAppointmentsForSelect('editAppointmentSelect', patientId);
+        } else {
+            // Reset doctor field when no patient is selected
+            document.getElementById('editDoctorSelect').innerHTML = '<option value="">Select Doctor (Optional)</option>';
+            document.getElementById('editAppointmentSelect').innerHTML = '<option value="">Select Appointment (Optional)</option>';
+        }
     });
 }
 
@@ -129,7 +153,8 @@ function formatDate(dateString) {
 
 async function loadPatients() {
     try {
-        const response = await axios.get('../../api/patients.php?operation=get_all');
+        // Use the new API to get only patients with appointments
+        const response = await axios.get('../../api/patients.php?operation=get_with_appointments');
 
         if (response.data.success) {
             populatePatientSelects(response.data.data);
@@ -141,11 +166,11 @@ async function loadPatients() {
 
 async function loadDoctors() {
     try {
+        // Don't populate doctor dropdowns here - they will be populated dynamically
+        // based on the selected patient's assigned doctor
         const response = await axios.get('../../api/doctors.php?operation=getAll');
-
-        if (response.data.success) {
-            populateDoctorSelects(response.data.doctors);
-        }
+        // Store doctors data for reference if needed, but don't populate dropdowns
+        window.availableDoctors = response.data.doctors || [];
     } catch (error) {
         console.error('Error loading doctors:', error);
     }
@@ -187,27 +212,47 @@ function populatePatientSelects(patients) {
                 const option = document.createElement('option');
                 option.value = patient.patient_id;
                 option.textContent = `${patient.full_name}`;
+                // Store doctor info as data attributes for auto-population
+                option.setAttribute('data-doctor-id', patient.doctor_id || '');
+                option.setAttribute('data-doctor-name', patient.doctor_name || '');
+                option.setAttribute('data-specialization', patient.specialization_name || '');
                 select.appendChild(option);
             });
         }
     });
 }
 
-function populateDoctorSelects(doctors) {
-    const doctorSelects = ['doctorSelect', 'editDoctorSelect'];
+// New function to auto-populate doctor field when patient is selected
+function autoPopulateDoctor(doctorSelectId, patientId) {
+    const patientSelect = document.getElementById(doctorSelectId === 'doctorSelect' ? 'patientSelect' : 'editPatientSelect');
+    const doctorSelect = document.getElementById(doctorSelectId);
 
-    doctorSelects.forEach(selectId => {
-        const select = document.getElementById(selectId);
-        if (select) {
-            select.innerHTML = '<option value="">Select Doctor (Optional)</option>';
-            doctors.forEach(doctor => {
-                const option = document.createElement('option');
-                option.value = doctor.doctor_id;
-                option.textContent = `${doctor.name} - ${doctor.specialization || 'General'}`;
-                select.appendChild(option);
-            });
+    if (!patientSelect || !doctorSelect) return;
+
+    const selectedOption = patientSelect.querySelector(`option[value="${patientId}"]`);
+    if (selectedOption && selectedOption.getAttribute('data-doctor-id')) {
+        const doctorId = selectedOption.getAttribute('data-doctor-id');
+        const doctorName = selectedOption.getAttribute('data-doctor-name');
+        const specialization = selectedOption.getAttribute('data-specialization');
+
+        if (doctorId && doctorName) {
+            // Clear existing options and add only the assigned doctor
+            doctorSelect.innerHTML = '<option value="">Select Doctor (Optional)</option>';
+            const newOption = document.createElement('option');
+            newOption.value = doctorId;
+            newOption.textContent = `${doctorName} - ${specialization || 'General'}`;
+            doctorSelect.appendChild(newOption);
+            doctorSelect.value = doctorId;
+        } else {
+            // If no doctor assigned, show only the default option
+            doctorSelect.innerHTML = '<option value="">No Doctor Assigned</option>';
+            doctorSelect.value = '';
         }
-    });
+    } else {
+        // Reset to default state
+        doctorSelect.innerHTML = '<option value="">Select Doctor (Optional)</option>';
+        doctorSelect.value = '';
+    }
 }
 
 // Appointments now populated per selected patient via loadAppointmentsForSelect
@@ -292,7 +337,18 @@ async function editLabRequest(labRequestId) {
 function populateEditForm(request) {
     document.getElementById('editLabRequestId').value = request.lab_request_id;
     document.getElementById('editPatientSelect').value = request.patient_id;
-    document.getElementById('editDoctorSelect').value = request.doctor_id || '';
+
+    // Auto-populate doctor based on patient selection
+    if (request.patient_id) {
+        autoPopulateDoctor('editDoctorSelect', request.patient_id);
+        // If there's already a doctor assigned, select it
+        if (request.doctor_id) {
+            setTimeout(() => {
+                document.getElementById('editDoctorSelect').value = request.doctor_id;
+            }, 100);
+        }
+    }
+
     // Load appointments for this patient, then select the current appointment
     loadAppointmentsForSelect('editAppointmentSelect', request.patient_id, request.appointment_id || '');
     document.getElementById('editRequestStatus').value = request.status_id || 14;
@@ -415,11 +471,33 @@ async function prefillFromConsultationIfPresent() {
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
         document.getElementById('patientSelect').value = c.patient_id;
-        document.getElementById('doctorSelect').value = c.doctor_id || '';
+
+        // Auto-populate doctor based on patient selection
+        if (c.patient_id) {
+            autoPopulateDoctor('doctorSelect', c.patient_id);
+            // If there's already a doctor assigned, select it
+            if (c.doctor_id) {
+                setTimeout(() => {
+                    document.getElementById('doctorSelect').value = c.doctor_id;
+                }, 100);
+            }
+        }
+
         await loadAppointmentsForSelect('appointmentSelect', c.patient_id, c.appointment_id || '');
         const requestText = `From Consultation on ${new Date(c.created_at).toLocaleString()}\n\nSummary: ${c.summary || ''}\nNotes: ${c.notes || ''}`;
         document.getElementById('requestText').value = requestText;
     } catch (e) {
         console.error('Failed to prefill from consultation', e);
     }
+}
+
+// Initialize doctor dropdowns with default state
+function initializeDoctorDropdowns() {
+    const doctorSelects = ['doctorSelect', 'editDoctorSelect'];
+    doctorSelects.forEach(selectId => {
+        const select = document.getElementById(selectId);
+        if (select) {
+            select.innerHTML = '<option value="">Select Doctor (Optional)</option>';
+        }
+    });
 }
