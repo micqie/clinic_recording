@@ -47,7 +47,7 @@ class Medicines
             $stmt->execute();
 
             if ($stmt->rowCount() > 0) {
-                return ['success' => true, 'message' => 'Medicine name already exists.'];
+                return ['success' => false, 'message' => 'Medicine name already exists.'];
             }
 
             $sql = "INSERT INTO tbl_medicines (medicine_name, weight, form_id, price)
@@ -64,7 +64,7 @@ class Medicines
         } catch (PDOException $e) {
             $isDuplicate = isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062;
             if ($isDuplicate) {
-                return ['success' => true, 'message' => 'Medicine name already exists.'];
+                return ['success' => false, 'message' => 'Medicine name already exists.'];
             }
             return ['success' => false, 'message' => 'Failed to add medicine: ' . $e->getMessage()];
         }

@@ -113,8 +113,6 @@
               <td>${med.weight_value || 'N/A'}</td>
               <td>${med.form_name || 'N/A'}</td>
               <td>₱${parseFloat(med.price).toFixed(2)}</td>
-              <td>${formatDate(med.created_at)}</td>
-              <td>${formatDate(med.updated_at)}</td>
               <td>
                 <div class="btn-group" role="group">
                   <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewMedicine(${med.medicine_id})">
