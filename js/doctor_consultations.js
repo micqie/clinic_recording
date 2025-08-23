@@ -87,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 res.data.data.forEach(c => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${c.consultation_id}</td>
                         <td>${c.patient_name}</td>
                         <td>${c.appointment_date}</td>
                         <td>${c.summary}</td>

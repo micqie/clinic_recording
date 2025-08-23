@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 21, 2025 at 01:59 PM
+-- Generation Time: Aug 23, 2025 at 09:22 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `mcstuffins2`
+-- Database: `mc_db`
 --
 
 -- --------------------------------------------------------
@@ -46,7 +46,7 @@ INSERT INTO `tbl_appointments` (`appointment_id`, `patient_id`, `doctor_id`, `se
 (15, 9, 1, 1, '2025-08-20', 3, 7),
 (16, 13, 1, 1, '2025-08-26', 4, 7),
 (17, 10, 2, 1, '2025-08-25', 1, 6),
-(18, 3, 3, 2, '2025-08-27', 1, 6),
+(18, 3, 3, 2, '2025-08-27', 2, 7),
 (19, 9, 2, NULL, '2025-08-16', 1, 7),
 (20, 9, 3, NULL, '2025-08-08', 1, 7),
 (21, 9, 2, NULL, '2025-08-21', 1, 7),
@@ -77,7 +77,8 @@ CREATE TABLE `tbl_consultations` (
 
 INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id`, `patient_id`, `summary`, `notes`, `created_at`, `updated_at`) VALUES
 (1, 12, 1, 9, 'Upper Respiratory Tract Infection', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
-(3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed.', '2025-08-20 11:15:00', '2025-08-20 11:15:00');
+(3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed.', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
+(4, 23, 1, 9, 'asdasdasd', 'asdasdasd', '2025-08-23 15:14:44', '2025-08-23 15:14:44');
 
 -- --------------------------------------------------------
 
@@ -104,26 +105,34 @@ CREATE TABLE `tbl_diagnoses` (
 
 INSERT INTO `tbl_diagnoses` (`diagnosis_id`, `appointment_id`, `doctor_id`, `patient_id`, `condition_name`, `date_diagnosed`, `severity`, `notes`, `created_at`, `updated_at`) VALUES
 (1, 12, 1, 9, 'Upper Respiratory Tract Infection', '2025-08-15', 'Mild', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
-(3, 15, 1, 9, 'Type 2 Diabetes', '2025-08-20', 'Moderate', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed.', '2025-08-20 11:15:00', '2025-08-20 11:15:00');
+(3, 15, 1, 9, 'Type 2 Diabetes', '2025-08-20', 'Moderate', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed.', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
+(4, 16, 1, 13, 'Fever', '2025-08-22', 'Mild', 'sfsdf', '2025-08-22 17:26:32', '2025-08-22 17:26:32');
 
 -- --------------------------------------------------------
 
--- Lookup table for common diagnosis conditions
+--
+-- Table structure for table `tbl_diagnosis_lookup`
+--
 
-CREATE TABLE IF NOT EXISTS `tbl_diagnosis_lookup` (
+CREATE TABLE `tbl_diagnosis_lookup` (
   `condition_id` int(11) NOT NULL,
   `condition_name` varchar(150) NOT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `tbl_diagnosis_lookup`
+--
+
 INSERT INTO `tbl_diagnosis_lookup` (`condition_id`, `condition_name`, `created_at`) VALUES
-(1, 'Cough', NOW()),
-(2, 'Common Cold', NOW()),
-(3, 'Fever', NOW()),
-(4, 'Hypertension', NOW()),
-(5, 'Type 2 Diabetes', NOW()),
-(6, 'Upper Respiratory Tract Infection', NOW()),
-(7, 'Gastroenteritis', NOW());
+(1, 'Cough', '2025-08-22 09:13:31'),
+(2, 'Common Cold', '2025-08-22 09:13:31'),
+(3, 'Fever', '2025-08-22 09:13:31'),
+(4, 'Hypertension', '2025-08-22 09:13:31'),
+(5, 'Type 2 Diabetes', '2025-08-22 09:13:31'),
+(6, 'Upper Respiratory Tract Infection', '2025-08-22 09:13:31'),
+(7, 'Gastroenteritis', '2025-08-22 09:13:31'),
+(8, 'AGAY', '2025-08-22 20:29:32');
 
 -- --------------------------------------------------------
 
@@ -149,9 +158,7 @@ INSERT INTO `tbl_doctors` (`doctor_id`, `user_id`, `license_number`, `specializa
 (1, 1, '12345', 1, 5, '2025-08-09 02:19:33', '2025-08-17 12:40:39'),
 (2, 26, '67890', 2, 8, '2025-08-17 04:01:53', '2025-08-17 04:01:53'),
 (3, 39, '11111', 3, 12, '2025-08-17 11:04:26', '2025-08-17 11:04:26'),
-(4, 40, '22222', 4, 6, '2025-08-17 11:05:27', '2025-08-17 11:05:27'),
-(5, 41, '33333', 5, 10, '2025-08-17 12:34:50', '2025-08-17 12:34:50'),
-(6, 42, '44444', 6, 15, '2025-08-17 12:44:39', '2025-08-17 12:44:39'),
+(4, 40, '22222', NULL, 6, '2025-08-17 11:05:27', '2025-08-17 11:05:27'),
 (7, 43, '55555', 7, 7, '2025-08-18 09:49:50', '2025-08-18 09:49:50');
 
 -- --------------------------------------------------------
@@ -261,7 +268,11 @@ INSERT INTO `tbl_medicines` (`medicine_id`, `medicine_name`, `weight`, `form_id`
 (3, 'Amoxicillin', '500mg', 3, 120.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
 (5, 'Biogesic', '500mg', 1, 12.00, '2025-08-10 17:43:53', '2025-08-10 17:43:53'),
 (8, 'Aspirin', '100mg', 1, 13.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39'),
-(9, 'Omeprazole', '20mg', 3, 25.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39');
+(9, 'Omeprazole', '20mg', 3, 25.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39'),
+(10, 'asdasd', '250mg', 4, 12.00, '2025-08-22 17:14:05', '2025-08-22 17:14:05'),
+(14, 'asdasdasdasdasd', '10000mg', 3, 21.00, '2025-08-23 12:40:08', '2025-08-23 12:40:08'),
+(15, 'Biogesic 2', '100mg', 3, 12.00, '2025-08-23 12:42:47', '2025-08-23 12:42:47'),
+(16, 'Biogesic 2', '100mg', 3, 12.00, '2025-08-23 12:42:47', '2025-08-23 12:42:47');
 
 -- --------------------------------------------------------
 
@@ -336,7 +347,7 @@ INSERT INTO `tbl_patients` (`patient_id`, `user_id`, `sex`, `contact_num`, `birt
 (3, 10, 'Male', '213219090909090', '2025-08-19', '213123', '2025-08-09 03:37:56', '2025-08-11 17:45:59'),
 (4, 15, 'Female', '3223', '2025-08-15', 'qweqeasdasdas', '2025-08-09 10:00:37', '2025-08-09 10:24:46'),
 (6, 18, 'Male', '123123123', '2025-08-21', 'asdasdasdasd', '2025-08-09 10:31:52', '2025-08-11 22:27:07'),
-(9, 21, 'Female', '0921093012903123', '2025-08-21', 'wqeqweq', '2025-08-11 20:53:30', '2025-08-11 22:18:50'),
+(9, 21, 'Male', '0921093012903123', '2025-08-21', 'wqeqweq', '2025-08-11 20:53:30', '2025-08-23 07:11:26'),
 (10, 22, 'Female', '123123123', '2025-09-04', 'bulua', '2025-08-11 22:28:51', '2025-08-11 22:28:51'),
 (12, 23, 'Male', '09187654321', '1985-12-03', 'Sample Address 2', '2025-08-16 00:53:24', '2025-08-16 00:53:24'),
 (13, 24, 'Female', '09998887777', '1992-08-20', 'Sample Address 3', '2025-08-16 19:29:08', '2025-08-16 19:29:08'),
@@ -404,6 +415,35 @@ INSERT INTO `tbl_prescriptions` (`prescription_id`, `diagnosis_id`, `appointment
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tbl_payment_methods`
+--
+
+CREATE TABLE `tbl_payment_methods` (
+  `method_id` int(11) NOT NULL,
+  `method_name` varchar(100) NOT NULL,
+  `description` text DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_payment_methods`
+--
+
+INSERT INTO `tbl_payment_methods` (`method_id`, `method_name`, `description`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'Cash', 'Physical cash payment at the clinic', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(2, 'Credit Card', 'Credit card payment (Visa, Mastercard, etc.)', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(3, 'Debit Card', 'Debit card payment from bank account', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(4, 'Bank Transfer', 'Direct bank transfer or online banking', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(5, 'Mobile Payment', 'Mobile wallet payments (GCash, PayMaya, etc.)', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(6, 'Insurance', 'Payment through health insurance provider', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(7, 'Check', 'Personal or company check payment', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00'),
+(8, 'Online Payment', 'Online payment gateway (PayPal, Stripe, etc.)', 1, '2025-08-23 09:22:00', '2025-08-23 09:22:00');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tbl_roles`
 --
 
@@ -464,7 +504,6 @@ INSERT INTO `tbl_specializations` (`specialization_id`, `name`, `description`) V
 (1, 'General Practitioner (GP)', 'Basic and broad healthcare for all age groups.'),
 (2, 'Family Medicine', 'Long-term care for individuals and families of all ages.'),
 (3, 'Internal Medicine', 'Adult diseases and internal organs.'),
-(4, 'General Medicine', 'Non-specialized outpatient care for adults.'),
 (5, 'Pediatrics', 'Healthcare for infants, children, and adolescents.'),
 (6, 'Obstetrics & Gynecology (OB-GYN)', 'Women\'s reproductive health and pregnancy.'),
 (7, 'Otolaryngology (ENT)', 'Ear, nose, throat, and related head/neck conditions.');
@@ -554,7 +593,7 @@ INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `cre
 (18, 'Norelyn', 'norelyn@gmail.com', '$2y$10$9fgMutwHEJuCobqxEsfrHO01xggOwClk2bswm.6NAc8fgKvolAtbW', 3, '2025-08-09 10:31:52'),
 (19, 'Norelyn', 'asdasdSdasdasd@gmail.com', '$2y$10$oyotCJlUMnWnkCOsEuCON.eB2VNBKZQaqIljOaOPko2dG0eKWPUlq', 3, '2025-08-09 10:31:52'),
 (20, '', '', '$2y$10$pzsofR1PztfUbYBFLEquwO/fYExlcFrRue.i1OkerSVPYiAZLyAPC', 3, '2025-08-09 10:31:52'),
-(21, 'jannah', 'jannah@gmail.com', '$2y$10$54SA/1mTO5ZJ2U.Y.hOimOHgVzWbP/2dZChcawFwrlYiwWUfx9x/G', 3, '2025-08-11 20:53:30'),
+(21, 'Jannah Macarambon', 'jannah@gmail.com', '$2y$10$IJtGgJbdPPt.xSxmCT0W8ugiC6JjDzb762OYJS7uBgaRn1PkveBEG', 3, '2025-08-11 20:53:30'),
 (22, 'shandi', 'shandi@gmail.com', '$2y$10$yDuVvcDuwtfRq5iZzz.8JOE6GwOSTZURsNtlv/EiPDEIgqdUkkD7y', 3, '2025-08-11 22:28:51'),
 (23, 'Sean ', 'sean@gmail.com', '$2y$10$DsLyM1L3/k2iMduqW2ZegOA5gbcbLv1xBngj/2HndmK4QlAU4Gvy6', 3, '2025-08-16 00:53:24'),
 (24, 'Mckenzie', 'mckenzie@gmail.com', '$2y$10$OFSl/JnOcUsxmNg.q60CoOjEGd2iRNIb0jofBJfEzCjTKa71vFVsa', 3, '2025-08-16 19:29:08'),
@@ -563,8 +602,6 @@ INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `cre
 (27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, '2025-08-17 01:38:02'),
 (39, 'HENRY KING', 'henry222@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, '2025-08-17 03:04:26'),
 (40, 'henry', 'henry@gmail.com', '$2y$10$ZHyfN2NZXzqUhjNOXflXxOee1gw36h/OHV/kg4UvTFzy.O0QKKE3q', 2, '2025-08-17 03:05:27'),
-(41, 'HAHAYS', 'ha@gmail.com', '$2y$10$iPVS6yxHU0sqwDUswjPSJuo6N79f1aZoK1VBB1yv3N37clusOPj3K', 2, '2025-08-17 04:34:50'),
-(42, 'HAHAYS', 'haasdasd@gmail.com', '$2y$10$qeu1hGzOyohcrcUORfJhJOjgXf1LcD1gIo4yl818J2XSyHevGycYK', 2, '2025-08-17 04:44:39'),
 (43, 'HAHAYS', 'shan@gmail.com', '$2y$10$zYZCG.SEZCqegNvP7yuwm.mVREmHg0UnI91URuwNt8Rum5moyd/ei', 2, '2025-08-18 01:49:50');
 
 --
@@ -599,7 +636,9 @@ ALTER TABLE `tbl_diagnoses`
   ADD KEY `doctor_id` (`doctor_id`),
   ADD KEY `patient_id` (`patient_id`);
 
+--
 -- Indexes for table `tbl_diagnosis_lookup`
+--
 ALTER TABLE `tbl_diagnosis_lookup`
   ADD PRIMARY KEY (`condition_id`),
   ADD UNIQUE KEY `uq_condition_name` (`condition_name`);
@@ -690,6 +729,13 @@ ALTER TABLE `tbl_prescriptions`
   ADD KEY `medicine_id` (`medicine_id`);
 
 --
+-- Indexes for table `tbl_payment_methods`
+--
+ALTER TABLE `tbl_payment_methods`
+  ADD PRIMARY KEY (`method_id`),
+  ADD UNIQUE KEY `uq_method_name` (`method_name`);
+
+--
 -- Indexes for table `tbl_roles`
 --
 ALTER TABLE `tbl_roles`
@@ -744,16 +790,19 @@ ALTER TABLE `tbl_appointments`
 -- AUTO_INCREMENT for table `tbl_consultations`
 --
 ALTER TABLE `tbl_consultations`
-  MODIFY `consultation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `consultation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `tbl_diagnoses`
 --
 ALTER TABLE `tbl_diagnoses`
-  MODIFY `diagnosis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `diagnosis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
 -- AUTO_INCREMENT for table `tbl_diagnosis_lookup`
+--
 ALTER TABLE `tbl_diagnosis_lookup`
-  MODIFY `condition_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `condition_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tbl_doctors`
@@ -816,6 +865,12 @@ ALTER TABLE `tbl_prescriptions`
   MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT for table `tbl_payment_methods`
+--
+ALTER TABLE `tbl_payment_methods`
+  MODIFY `method_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
 -- AUTO_INCREMENT for table `tbl_roles`
 --
 ALTER TABLE `tbl_roles`
@@ -831,7 +886,7 @@ ALTER TABLE `tbl_secretaries`
 -- AUTO_INCREMENT for table `tbl_specializations`
 --
 ALTER TABLE `tbl_specializations`
-  MODIFY `specialization_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `specialization_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tbl_status`

@@ -10,9 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // Store current patient data
+    let currentPatientData = null;
+
     // DOM elements
     const editProfileBtn = document.getElementById('editProfileBtn');
     const changePasswordBtn = document.getElementById('changePasswordBtn');
+    const refreshProfileBtn = document.getElementById('refreshProfileBtn');
     const editProfileModal = new bootstrap.Modal(document.getElementById('editProfileModal'));
     const changePasswordModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
     const editProfileForm = document.getElementById('editProfileForm');
@@ -45,22 +49,34 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load patient profile
     async function loadPatientProfile() {
         try {
+            console.log('Loading patient profile for user ID:', user.id);
+            // First get the patient record using user_id
             const response = await axios.get(`${baseApiUrl}/patients.php?operation=get&id=${user.id}`);
+            console.log('API response:', response.data);
 
-            if (response.data.success) {
+            if (response.data.success && response.data.data) {
                 const patient = response.data.data;
+                currentPatientData = patient; // Store the patient data
+                console.log('Patient data loaded:', patient);
                 displayProfile(patient);
             } else {
-                throw new Error(response.data.message || 'Failed to load profile');
+                console.error('API returned success but no data:', response.data);
+                throw new Error(response.data.message || 'No patient data found');
             }
         } catch (error) {
             console.error('Error loading profile:', error);
-            Swal.fire('Error', 'Failed to load profile information', 'error');
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+                console.error('Response data:', error.response.data);
+            }
+            Swal.fire('Error', 'Failed to load profile information. Please try refreshing the page.', 'error');
         }
     }
 
     // Display profile information
     function displayProfile(patient) {
+        console.log('Displaying profile for patient:', patient);
+
         // Calculate age
         const birthDate = new Date(patient.birthdate);
         const today = new Date();
@@ -87,6 +103,16 @@ document.addEventListener('DOMContentLoaded', () => {
         editFormElements.gender.value = patient.sex || '';
         editFormElements.birthdate.value = patient.birthdate || '';
         editFormElements.address.value = patient.address || '';
+
+        console.log('Profile display updated with values:', {
+            fullName: profileElements.fullName.textContent,
+            email: profileElements.email.textContent,
+            contact: profileElements.contact.textContent,
+            gender: profileElements.gender.textContent,
+            birthdate: profileElements.birthdate.textContent,
+            age: profileElements.age.textContent,
+            address: profileElements.address.textContent
+        });
     }
 
     // Edit profile button click
@@ -100,6 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
         changePasswordModal.show();
     });
 
+    // Refresh profile button click
+    refreshProfileBtn?.addEventListener('click', () => {
+        loadPatientProfile();
+    });
+
     // Edit profile form submission
     editProfileForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -110,12 +141,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (!currentPatientData) {
+            Swal.fire('Error', 'Patient data not loaded. Please refresh the page.', 'error');
+            return;
+        }
+
         try {
             const formData = new FormData(editProfileForm);
             const payload = new URLSearchParams();
             payload.append('operation', 'update');
             payload.append('json', JSON.stringify({
-                patient_id: user.id,
+                patient_id: currentPatientData.patient_id,
                 user_id: user.id,
                 full_name: formData.get('full_name'),
                 email: formData.get('email'),
@@ -125,20 +161,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 address: formData.get('address')
             }));
 
+            console.log('Sending update payload:', payload.toString());
             const response = await axios.post(`${baseApiUrl}/patients.php`, payload);
+            console.log('Update response:', response.data);
 
             if (response.data.success) {
                 Swal.fire('Success', 'Profile updated successfully!', 'success');
                 editProfileModal.hide();
-
-                // Reload profile data
-                await loadPatientProfile();
 
                 // Update session storage with new user info
                 const updatedUser = { ...user };
                 updatedUser.name = formData.get('full_name');
                 updatedUser.email = formData.get('email');
                 sessionStorage.setItem('user', JSON.stringify(updatedUser));
+
+                // Reload profile data from database to ensure we have the latest
+                await loadPatientProfile();
+
+                console.log('Profile updated and reloaded from database');
             } else {
                 Swal.fire('Error', response.data.message || 'Failed to update profile', 'error');
             }
@@ -211,4 +251,3 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial load
     loadPatientProfile();
 });
-

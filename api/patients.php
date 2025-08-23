@@ -55,9 +55,10 @@ class Patient
             $query .= "ORDER BY p.created_at DESC LIMIT 1";
             $stmt = $conn->prepare($query);
         } else {
-            $query .= "AND p.patient_id = :patient_id LIMIT 1";
+            // Try to find by patient_id first, then by user_id
+            $query .= "AND (p.patient_id = :id OR u.user_id = :id) LIMIT 1";
             $stmt = $conn->prepare($query);
-            $stmt->bindParam(":patient_id", $id);
+            $stmt->bindParam(":id", $id);
         }
 
         $stmt->execute();

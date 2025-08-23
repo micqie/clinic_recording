@@ -8,6 +8,28 @@ document.addEventListener("DOMContentLoaded", () => {
   const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
   const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
   const paymentForm = document.getElementById('paymentForm');
+  const paymentMethodSelect = document.getElementById('payment_method');
+
+  // Load payment methods from lookup table
+  async function loadPaymentMethods() {
+    try {
+      const response = await axios.get(`${baseApiUrl}/payment_methods.php?operation=get_all`);
+      if (response.data.success) {
+        const methods = response.data.data || [];
+        paymentMethodSelect.innerHTML = '<option value="">Select Method</option>';
+        methods.forEach(method => {
+          if (method.is_active == 1) {
+            const option = document.createElement('option');
+            option.value = method.method_name;
+            option.textContent = method.method_name;
+            paymentMethodSelect.appendChild(option);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load payment methods:', error);
+    }
+  }
 
   function statusClass(name) {
     const key = (name || '').toLowerCase();
@@ -211,4 +233,5 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   loadPayments();
+  loadPaymentMethods(); // Call loadPaymentMethods here
 });

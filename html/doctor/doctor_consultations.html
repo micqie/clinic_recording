@@ -96,9 +96,19 @@
                 <div class="invalid-feedback">Please select an appointment.</div>
               </div>
               <div class="col-12">
-                <label class="form-label">Summary</label>
-                <input type="text" class="form-control" name="summary" placeholder="Brief summary" required />
-                <div class="invalid-feedback">Summary is required.</div>
+                <label class="form-label">Diagnosis</label>
+                <select class="form-select" name="summary" required>
+                  <option value="">Select diagnosis</option>
+                  <option value="Cough">Cough</option>
+                  <option value="Common Cold">Common Cold</option>
+                  <option value="Fever">Fever</option>
+                  <option value="Hypertension">Hypertension</option>
+                  <option value="Type 2 Diabetes">Type 2 Diabetes</option>
+                  <option value="Upper Respiratory Tract Infection">Upper Respiratory Tract Infection</option>
+                  <option value="Gastroenteritis">Gastroenteritis</option>
+                  <option value="AGAY">AGAY</option>
+                </select>
+                <div class="invalid-feedback">Please select a diagnosis.</div>
               </div>
               <div class="col-12">
                 <label class="form-label">Notes</label>
@@ -121,7 +131,6 @@
               <table class="custom-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
                     <th>Patient</th>
                     <th>Appointment Date</th>
                     <th>Summary</th>
