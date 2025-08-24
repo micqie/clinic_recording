@@ -119,23 +119,19 @@
           </div>
           <div class="card-body">
             <form id="consultationForm" class="needs-validation" novalidate>
-              <!-- Patient & Appointment Selection -->
+              <!-- Current Patient Info Display -->
               <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                  <label class="form-label">Patient</label>
-                  <select class="form-select" id="patient_id" name="patient_id" required>
-                    <option value="">Select patient</option>
-                  </select>
-                  <div class="invalid-feedback">Please select a patient.</div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Appointment</label>
-                  <select class="form-select" id="appointment_id" name="appointment_id" required>
-                    <option value="">Select appointment</option>
-                  </select>
-                  <div class="invalid-feedback">Please select an appointment.</div>
+                <div class="col-12">
+                  <div id="currentPatientDisplay" class="alert alert-info">
+                    <i class="fas fa-user-md me-2"></i>
+                    <strong>Loading current patient...</strong>
+                  </div>
                 </div>
               </div>
+
+              <!-- Hidden fields for patient and appointment data -->
+              <input type="hidden" id="patient_id" name="patient_id" required>
+              <input type="hidden" id="appointment_id" name="appointment_id" required>
 
               <!-- Diagnosis Section -->
               <div class="row g-3 mb-4">

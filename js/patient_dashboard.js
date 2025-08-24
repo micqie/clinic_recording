@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const payApi = `${baseApiUrl}/payments.php`;
   const userApi = `${baseApiUrl}/user.php`;
   const labApi = `${baseApiUrl}/lab_requests.php`;
-  const queueApi = `${baseApiUrl}/queue_management.php`;
+  const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   if (!user?.id) { window.location.href = '/clinic_recording/index.html'; return; }
@@ -44,6 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load queue status for today
   await loadQueueStatus();
+
+  // Auto-refresh queue status every 30 seconds
+  setInterval(loadQueueStatus, 30000);
 
   // Recent
   const recent = [...appts].sort((a,b) => (b.appointment_date > a.appointment_date ? 1 : -1)).slice(0,5);
@@ -558,63 +561,104 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadQueueStatus() {
     try {
       const today = new Date().toISOString().slice(0, 10);
-      const res = await axios.get(`${queueApi}?operation=get_patient_queue_info&patient_id=${patientId}&date=${today}`);
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      // Get enhanced queue status
+      const res = await axios.get(`${enhancedQueueApi}?operation=get_enhanced_queue_status&date=${today}`);
 
       if (res.data.success) {
         const data = res.data;
         const queueCard = document.getElementById('queueStatusCard');
 
-        // Show the queue card
-        queueCard.style.display = 'block';
+        // Find patient's appointment in today's queue
+        const patientAppointment = data.all_appointments.find(apt => apt.patient_id == patientId);
 
-        // Update queue information
-        document.getElementById('patientQueueNumber').textContent = data.patient_appointment.queue_number || '-';
-        document.getElementById('currentQueueNumber').textContent = data.current_consultation ? data.current_consultation.queue_number : '-';
-        document.getElementById('estimatedWaitTime').textContent = data.estimated_wait_time || '-';
+        if (patientAppointment) {
+          // Show the queue card
+          queueCard.style.display = 'block';
 
-        // Update status info
-        const statusInfo = document.getElementById('queueStatusInfo');
-        if (data.patient_appointment.appointment_status === 'In Consultation') {
-          statusInfo.innerHTML = `
-            <div class="alert alert-success mb-0">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-user-md fa-2x me-3 text-success"></i>
-                <div>
-                  <h6 class="mb-1">Your Turn Now!</h6>
-                  <p class="mb-0">You are currently in consultation with <strong>Dr. ${data.patient_appointment.doctor_name}</strong></p>
+          // Update queue information
+          document.getElementById('patientQueueNumber').textContent = patientAppointment.queue_number || '-';
+          document.getElementById('currentQueueNumber').textContent = data.current_consultation ? data.current_consultation.queue_number : '-';
+
+          // Calculate estimated wait time
+          let estimatedWait = '-';
+          if (data.current_consultation && patientAppointment.queue_number > data.current_consultation.queue_number) {
+            const patientsAhead = patientAppointment.queue_number - data.current_consultation.queue_number;
+            const estimatedMinutes = patientsAhead * 15; // Assume 15 minutes per patient
+            estimatedWait = `${estimatedMinutes} minutes`;
+          } else if (patientAppointment.appointment_status === 'In Consultation') {
+            estimatedWait = 'Now';
+          }
+
+          document.getElementById('estimatedWaitTime').textContent = estimatedWait;
+
+          // Update status info with current date
+          const statusInfo = document.getElementById('queueStatusInfo');
+          if (patientAppointment.appointment_status === 'In Consultation') {
+            statusInfo.innerHTML = `
+              <div class="alert alert-success mb-0">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-user-md fa-2x me-3 text-success"></i>
+                  <div>
+                    <h6 class="mb-1">Your Turn Now!</h6>
+                    <p class="mb-0">You are currently in consultation with <strong>Dr. ${patientAppointment.doctor_name || 'Doctor'}</strong></p>
+                    <small class="text-muted">Date: ${currentDate}</small>
+                  </div>
                 </div>
               </div>
-            </div>
-          `;
-        } else if (data.current_consultation && data.patient_appointment.queue_number > data.current_consultation.queue_number) {
-          statusInfo.innerHTML = `
-            <div class="alert alert-info mb-0">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-clock fa-2x me-3 text-info"></i>
-                <div>
-                  <h6 class="mb-1">Please Wait</h6>
-                  <p class="mb-0">Currently serving queue #${data.current_consultation.queue_number}. Your estimated wait time: <strong>${data.estimated_wait_time}</strong></p>
-                  <small class="text-muted">Please stay in the waiting area and listen for your number to be called.</small>
+            `;
+          } else if (data.current_consultation && patientAppointment.queue_number > data.current_consultation.queue_number) {
+            statusInfo.innerHTML = `
+              <div class="alert alert-info mb-0">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-clock fa-2x me-3 text-info"></i>
+                  <div>
+                    <h6 class="mb-1">Please Wait</h6>
+                    <p class="mb-0">Currently serving queue #${data.current_consultation.queue_number}. Your estimated wait time: <strong>${estimatedWait}</strong></p>
+                    <small class="text-muted">Date: ${currentDate} | Please stay in the waiting area and listen for your number to be called.</small>
+                  </div>
                 </div>
               </div>
-            </div>
-          `;
+            `;
+          } else if (patientAppointment.appointment_status === 'Completed') {
+            statusInfo.innerHTML = `
+              <div class="alert alert-secondary mb-0">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-check-circle fa-2x me-3 text-secondary"></i>
+                  <div>
+                    <h6 class="mb-1">Consultation Completed</h6>
+                    <p class="mb-0">Your consultation with <strong>Dr. ${patientAppointment.doctor_name || 'Doctor'}</strong> has been completed.</p>
+                    <small class="text-muted">Date: ${currentDate}</small>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            statusInfo.innerHTML = `
+              <div class="alert alert-info mb-0">
+                <div class="d-flex align-items-center">
+                  <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                  <div>
+                    <h6 class="mb-1">Queue Information</h6>
+                    <p class="mb-0">You have an appointment today with <strong>Dr. ${patientAppointment.doctor_name || 'Doctor'}</strong> (${patientAppointment.specialization_name || 'General'})</p>
+                    <small class="text-muted">Date: ${currentDate} | Queue number: ${patientAppointment.queue_number}</small>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
         } else {
-          statusInfo.innerHTML = `
-            <div class="alert alert-info mb-0">
-              <div class="d-flex align-items-center">
-                <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
-                <div>
-                  <h6 class="mb-1">Queue Information</h6>
-                  <p class="mb-0">You have an appointment today with <strong>Dr. ${data.patient_appointment.doctor_name}</strong> (${data.patient_appointment.specialization_name || 'General'})</p>
-                  <small class="text-muted">Queue number: ${data.patient_appointment.queue_number}</small>
-                </div>
-              </div>
-            </div>
-          `;
+          // Hide queue card if no appointment today
+          document.getElementById('queueStatusCard').style.display = 'none';
         }
       } else {
-        // Hide queue card if no appointment today
+        // Hide queue card if no queue data
         document.getElementById('queueStatusCard').style.display = 'none';
       }
     } catch (error) {

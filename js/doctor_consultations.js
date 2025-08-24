@@ -11,8 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Form elements
     const form = document.getElementById('consultationForm');
-    const patientSelect = document.getElementById('patient_id');
-    const appointmentSelect = document.getElementById('appointment_id');
+    const patientIdInput = document.getElementById('patient_id');
+    const appointmentIdInput = document.getElementById('appointment_id');
+    const currentPatientDisplay = document.getElementById('currentPatientDisplay');
     const addPrescriptionBtn = document.getElementById('addPrescriptionBtn');
     const addLabRequestBtn = document.getElementById('addLabRequestBtn');
     const prescriptionsContainer = document.getElementById('prescriptionsContainer');
@@ -51,30 +52,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Load patients assigned to this doctor
-    async function loadPatients() {
-        try {
-            const docId = await getDoctorId();
-            if (!docId) {
-                console.error('No doctor_id found');
-                return;
-            }
+    // Display current patient information
+    function displayCurrentPatient(currentConsultation) {
+        if (!currentConsultation) {
+            currentPatientDisplay.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>No patient currently in consultation</strong>
+                    <br>
+                    <small class="text-muted">Please wait for the secretary to start a consultation or click "Refresh Queue" to check for updates.</small>
+                </div>
+            `;
+            return false;
+        }
 
-            const res = await axios.get(`${appointmentsApi}?operation=get_by_doctor&doctor_id=${docId}`);
-            if (res.data.success) {
-                const seen = new Set();
-                patientSelect.innerHTML = '<option value="">Select patient</option>';
-                res.data.data.forEach(a => {
-                    if (!seen.has(a.patient_id)) {
-                        seen.add(a.patient_id);
-                        const opt = document.createElement('option');
-                        opt.value = a.patient_id;
-                        opt.textContent = `${a.patient_name} - ${a.appointment_date} (Queue #${a.queue_number || 'N/A'})`;
-                        patientSelect.appendChild(opt);
-                    }
-                });
-            }
-        } catch (e) { console.error(e); }
+        // Set the hidden input values
+        patientIdInput.value = currentConsultation.patient_id;
+        appointmentIdInput.value = currentConsultation.appointment_id;
+
+        // Display patient information
+        currentPatientDisplay.innerHTML = `
+            <div class="alert alert-success">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-user-md fa-2x me-3 text-success"></i>
+                    <div>
+                        <h6 class="mb-1">Currently Consulting</h6>
+                        <p class="mb-1"><strong>${currentConsultation.patient_name}</strong></p>
+                        <p class="mb-0"><small class="text-muted">Queue #${currentConsultation.queue_number} | Appointment Date: ${currentConsultation.appointment_date || 'Today'}</small></p>
+                    </div>
+                </div>
+            </div>
+        `;
+        return true;
     }
 
     // Load current queue status for the doctor
@@ -117,10 +126,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                             </div>
-                        `;
+                                                `;
 
-                        // Auto-populate the form with current patient
-                        await autoPopulateCurrentPatient(data.current_consultation);
+                        // Display current patient in the form
+                        displayCurrentPatient(data.current_consultation);
+
                     } else if (data.next_in_queue) {
                         currentPatientInfo.innerHTML = `
                             <div class="alert alert-warning mb-0">
@@ -134,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                         `;
-                    } else {
+                                        } else {
                         currentPatientInfo.innerHTML = `
                             <div class="alert alert-info mb-0">
                                 <div class="d-flex align-items-center">
@@ -142,14 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div>
                                         <h6 class="mb-1">Queue Status</h6>
                                         <p class="mb-0">All consultations completed for today</p>
-                                        <small class="text-muted">You can manually select a patient from the dropdown above</small>
                                     </div>
                                 </div>
                             </div>
                         `;
 
-                        // Load patients for manual selection
-                        await loadPatients();
+                        // Display no patient in form
+                        displayCurrentPatient(null);
                     }
                 }
             }
@@ -166,75 +175,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Auto-populate form with current patient in consultation
-    async function autoPopulateCurrentPatient(currentConsultation) {
-        try {
-            // First load all patients to populate the dropdown
-            await loadPatients();
 
-            // Find and select the current patient
-            const patientOption = Array.from(patientSelect.options).find(option =>
-                option.textContent.includes(currentConsultation.patient_name)
-            );
 
-            if (patientOption) {
-                patientSelect.value = patientOption.value;
 
-                // Load appointments for this patient
-                await loadAppointments(patientOption.value);
-
-                // Find and select the current appointment
-                const appointmentOption = Array.from(appointmentSelect.options).find(option =>
-                    option.textContent.includes(`Queue #${currentConsultation.queue_number}`)
-                );
-
-                if (appointmentOption) {
-                    appointmentSelect.value = appointmentOption.value;
-
-                    // Trigger change event to load any dependent data
-                    appointmentSelect.dispatchEvent(new Event('change'));
-
-                    // Add visual indicator to the form
-                    const formCard = document.querySelector('.card');
-                    if (formCard) {
-                        formCard.classList.add('border-success');
-                        setTimeout(() => {
-                            formCard.classList.remove('border-success');
-                        }, 3000);
-                    }
-
-                    // Show success message
-                    Swal.fire({
-                        title: 'Patient Loaded',
-                        text: `Automatically loaded ${currentConsultation.patient_name} (Queue #${currentConsultation.queue_number})`,
-                        icon: 'success',
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('Failed to auto-populate current patient:', error);
-        }
-    }
-
-    // Load appointments for selected patient
-    async function loadAppointments(patientId) {
-        try {
-            const res = await axios.get(`${appointmentsApi}?operation=get_by_patient&patient_id=${patientId}`);
-            if (res.data.success) {
-                appointmentSelect.innerHTML = '<option value="">Select appointment</option>';
-                res.data.data
-                    .filter(a => a.appointment_status === 'Confirmed' || a.appointment_status === 'In Consultation')
-                    .forEach(a => {
-                        const opt = document.createElement('option');
-                        opt.value = a.appointment_id;
-                        opt.textContent = `${a.appointment_date} - Queue #${a.queue_number || 'N/A'}`;
-                        appointmentSelect.appendChild(opt);
-                    });
-            }
-        } catch (e) { console.error(e); }
-    }
 
     // Add prescription field
     function addPrescriptionField() {
@@ -583,21 +526,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Event listeners
-    patientSelect.addEventListener('change', (e) => {
-        const pid = e.target.value;
-        if (pid) loadAppointments(pid);
-        else appointmentSelect.innerHTML = '<option value="">Select appointment</option>';
-    });
-
     addPrescriptionBtn.addEventListener('click', addPrescriptionField);
     addLabRequestBtn.addEventListener('click', addLabRequestField);
-    refreshQueueBtn?.addEventListener('click', loadQueueStatus);
+    refreshQueueBtn?.addEventListener('click', loadCurrentQueueStatus);
 
     // Form submission
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!form.checkValidity()) {
             form.classList.add('was-validated');
+            return;
+        }
+
+        // Check if there's a current patient
+        if (!patientIdInput.value || !appointmentIdInput.value) {
+            Swal.fire('Error', 'No patient currently in consultation. Please wait for the secretary to start a consultation.', 'error');
             return;
         }
 
@@ -678,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 prescriptionCounter = 0;
                 labRequestCounter = 0;
                 loadMyConsultations();
-                loadQueueStatus();
+                loadCurrentQueueStatus();
             } else {
                 Swal.fire('Error', res.data.message || 'Failed to save consultation.', 'error');
             }
@@ -695,10 +638,9 @@ document.addEventListener('DOMContentLoaded', () => {
         nextAppointmentDate.min = today;
     }
 
-    // Initial load - load queue status first to auto-populate current patient
+    // Initial load - load queue status first to display current patient
     async function initialize() {
         await loadCurrentQueueStatus();
-        await loadPatients();
         await loadMyConsultations();
     }
 
@@ -708,8 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (refreshQueueBtn) {
         refreshQueueBtn.addEventListener('click', async () => {
             await loadCurrentQueueStatus();
-            // Also refresh the patient list in case there are new patients
-            await loadPatients();
         });
     }
 });

@@ -107,6 +107,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateMainQueueStatus(patientAppointment, currentConsultation, nextInQueue, appointments) {
+        const currentDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
         if (!patientAppointment) {
             // Patient has no appointment for this date
             queueStatusContainer.innerHTML = `
@@ -116,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
                             <h4 class="text-muted">No Appointment Today</h4>
                             <p class="text-muted">You don't have any appointments scheduled for ${queueDate.value}</p>
+                            <small class="text-muted">Date: ${currentDate}</small>
                         </div>
                     </div>
                 </div>
@@ -136,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h2 class="mb-3">Consultation Completed</h2>
                             <div class="queue-number">#${patientQueueNumber}</div>
                             <p class="mb-0">Your consultation has been completed. Thank you for visiting!</p>
+                            <small class="text-muted">Date: ${currentDate}</small>
                         </div>
                     </div>
                 </div>
@@ -150,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h2 class="mb-3">Currently in Consultation</h2>
                             <div class="queue-number">#${patientQueueNumber}</div>
                             <p class="mb-0">You are currently being consulted by the doctor.</p>
+                            <small class="text-muted">Date: ${currentDate}</small>
                         </div>
                     </div>
                 </div>
@@ -185,7 +195,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             <div class="queue-info">
                                 <p class="mb-1"><strong>Current Queue:</strong> #${currentQueueNumber || 'None'}</p>
-                                <p class="mb-0"><strong>Your Position:</strong> ${patientsAhead > 0 ? patientsAhead : 'Next'}</p>
+                                <p class="mb-1"><strong>Your Position:</strong> ${patientsAhead > 0 ? patientsAhead : 'Next'}</p>
+                                <p class="mb-0"><strong>Date:</strong> ${currentDate}</p>
                             </div>
                         </div>
                     </div>
@@ -200,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="fas fa-hourglass-half fa-3x text-muted mb-3"></i>
                             <h4 class="text-muted">Appointment Status: ${patientStatus}</h4>
                             <p class="text-muted">Your appointment is currently ${patientStatus.toLowerCase()}</p>
+                            <small class="text-muted">Date: ${currentDate}</small>
                         </div>
                     </div>
                 </div>
