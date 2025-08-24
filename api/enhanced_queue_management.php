@@ -556,11 +556,31 @@ $operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
 $json = $_POST['json'] ?? $_GET['json'] ?? '';
 
 // Debug logging
+error_log("=== Enhanced Queue Management API Debug ===");
 error_log("Enhanced Queue Management API called");
 error_log("Operation received: " . $operation);
 error_log("JSON received: " . $json);
 error_log("POST data: " . print_r($_POST, true));
 error_log("GET data: " . print_r($_GET, true));
+error_log("Request method: " . $_SERVER['REQUEST_METHOD']);
+error_log("Raw input: " . file_get_contents('php://input'));
+error_log("Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'not set'));
+error_log("All server variables: " . print_r($_SERVER, true));
+
+// Check if operation is empty
+if (empty($operation)) {
+    error_log("ERROR: No operation specified");
+    echo json_encode([
+        "success" => false,
+        "message" => "No operation specified. Please provide an operation parameter.",
+        "debug" => [
+            "post_data" => $_POST,
+            "get_data" => $_GET,
+            "method" => $_SERVER['REQUEST_METHOD']
+        ]
+    ]);
+    exit;
+}
 
 $svc = new EnhancedQueueManagement();
 

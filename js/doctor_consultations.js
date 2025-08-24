@@ -69,7 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         seen.add(a.patient_id);
                         const opt = document.createElement('option');
                         opt.value = a.patient_id;
-                        opt.textContent = a.patient_name;
                         opt.textContent = `${a.patient_name} - ${a.appointment_date} (Queue #${a.queue_number || 'N/A'})`;
                         patientSelect.appendChild(opt);
                     }
@@ -119,6 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                         `;
+
+                        // Auto-populate the form with current patient
+                        await autoPopulateCurrentPatient(data.current_consultation);
                     } else if (data.next_in_queue) {
                         currentPatientInfo.innerHTML = `
                             <div class="alert alert-warning mb-0">
@@ -140,10 +142,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div>
                                         <h6 class="mb-1">Queue Status</h6>
                                         <p class="mb-0">All consultations completed for today</p>
+                                        <small class="text-muted">You can manually select a patient from the dropdown above</small>
                                     </div>
                                 </div>
                             </div>
                         `;
+
+                        // Load patients for manual selection
+                        await loadPatients();
                     }
                 }
             }
@@ -157,6 +163,58 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }
+        }
+    }
+
+    // Auto-populate form with current patient in consultation
+    async function autoPopulateCurrentPatient(currentConsultation) {
+        try {
+            // First load all patients to populate the dropdown
+            await loadPatients();
+
+            // Find and select the current patient
+            const patientOption = Array.from(patientSelect.options).find(option =>
+                option.textContent.includes(currentConsultation.patient_name)
+            );
+
+            if (patientOption) {
+                patientSelect.value = patientOption.value;
+
+                // Load appointments for this patient
+                await loadAppointments(patientOption.value);
+
+                // Find and select the current appointment
+                const appointmentOption = Array.from(appointmentSelect.options).find(option =>
+                    option.textContent.includes(`Queue #${currentConsultation.queue_number}`)
+                );
+
+                if (appointmentOption) {
+                    appointmentSelect.value = appointmentOption.value;
+
+                    // Trigger change event to load any dependent data
+                    appointmentSelect.dispatchEvent(new Event('change'));
+
+                    // Add visual indicator to the form
+                    const formCard = document.querySelector('.card');
+                    if (formCard) {
+                        formCard.classList.add('border-success');
+                        setTimeout(() => {
+                            formCard.classList.remove('border-success');
+                        }, 3000);
+                    }
+
+                    // Show success message
+                    Swal.fire({
+                        title: 'Patient Loaded',
+                        text: `Automatically loaded ${currentConsultation.patient_name} (Queue #${currentConsultation.queue_number})`,
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to auto-populate current patient:', error);
         }
     }
 
@@ -637,13 +695,21 @@ document.addEventListener('DOMContentLoaded', () => {
         nextAppointmentDate.min = today;
     }
 
-    // Initial load
-    loadPatients();
-    loadMyConsultations();
-    loadCurrentQueueStatus();
+    // Initial load - load queue status first to auto-populate current patient
+    async function initialize() {
+        await loadCurrentQueueStatus();
+        await loadPatients();
+        await loadMyConsultations();
+    }
+
+    initialize();
 
     // Set up refresh for queue status
     if (refreshQueueBtn) {
-        refreshQueueBtn.addEventListener('click', loadCurrentQueueStatus);
+        refreshQueueBtn.addEventListener('click', async () => {
+            await loadCurrentQueueStatus();
+            // Also refresh the patient list in case there are new patients
+            await loadPatients();
+        });
     }
 });

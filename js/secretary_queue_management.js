@@ -174,11 +174,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="action-buttons mt-3">
                             ${!isCompleted ? `
                                 ${!isCurrent ? `
-                                    <button class="btn btn-sm btn-primary me-2" onclick="startConsultation(${appointment.appointment_id})">
+                                    <button class="btn btn-sm btn-primary me-2" onclick="window.startConsultation(${appointment.appointment_id})">
                                         <i class="fas fa-play me-1"></i>Start
                                     </button>
                                 ` : `
-                                    <button class="btn btn-sm btn-success me-2" onclick="completeConsultation(${appointment.appointment_id})">
+                                    <button class="btn btn-sm btn-success me-2" onclick="window.completeConsultation(${appointment.appointment_id})">
                                         <i class="fas fa-check me-1"></i>Complete
                                     </button>
                                 `}
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h6 class="mb-1">${patient.patient_name}</h6>
                             <small class="text-muted">Queue #${patient.queue_number} - Dr. ${patient.doctor_name || 'Unassigned'}</small>
                         </div>
-                        <button class="btn btn-sm btn-primary" onclick="startConsultation(${patient.appointment_id})">
+                        <button class="btn btn-sm btn-primary" onclick="window.startConsultation(${patient.appointment_id})">
                             <i class="fas fa-play me-1"></i>Start
                         </button>
                     </div>
@@ -241,8 +241,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Global functions
+    // Global functions - make sure they're accessible
     window.startConsultation = async function(appointmentId) {
+        console.log('startConsultation called with appointment ID:', appointmentId);
+        console.log('Function is accessible:', typeof window.startConsultation);
+
         try {
             const result = await Swal.fire({
                 title: 'Start Consultation?',
@@ -269,7 +272,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 console.log('Request data:', requestData);
 
-                const res = await axios.post(enhancedQueueApi, requestData);
+                // Use URLSearchParams for simpler POST data
+                const params = new URLSearchParams();
+                params.append('operation', 'set_current_consultation');
+                params.append('json', JSON.stringify({
+                    appointment_id: appointmentId,
+                    secretary_id: user.id
+                }));
+
+                console.log('URLSearchParams entries:');
+                for (let [key, value] of params.entries()) {
+                    console.log(key, value);
+                }
+
+                const res = await axios.post(enhancedQueueApi, params, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
+                });
 
                 console.log('API Response:', res.data);
 
@@ -299,6 +319,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.completeConsultation = async function(appointmentId) {
+        console.log('completeConsultation called with appointment ID:', appointmentId);
+        console.log('Function is accessible:', typeof window.completeConsultation);
+
         try {
             const result = await Swal.fire({
                 title: 'Complete Consultation?',
@@ -311,12 +334,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (result.isConfirmed) {
-                const res = await axios.post(enhancedQueueApi, {
-                    operation: 'complete_and_next',
-                    json: JSON.stringify({
-                        secretary_id: user.id,
-                        date: queueDate.value || new Date().toISOString().slice(0, 10)
-                    })
+                const params = new URLSearchParams();
+                params.append('operation', 'complete_and_next');
+                params.append('json', JSON.stringify({
+                    secretary_id: user.id,
+                    date: queueDate.value || new Date().toISOString().slice(0, 10)
+                }));
+
+                const res = await axios.post(enhancedQueueApi, params, {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    }
                 });
 
                 if (res.data.success) {
