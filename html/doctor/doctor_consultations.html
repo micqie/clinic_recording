@@ -73,50 +73,144 @@
       <div class="content-container mt-5 p-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h1 class="fw-bold text-secondary">Consultations</h1>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary" id="refreshQueueBtn">
+              <i class="fas fa-sync-alt me-2"></i>Refresh Queue
+            </button>
+          </div>
+        </div>
+
+        <!-- Current Queue Status Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-info text-white">
+            <strong><i class="fas fa-clock me-2"></i>Current Queue Status</strong>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="text-center p-3">
+                  <div class="h4 text-primary mb-2" id="currentQueueNumber">-</div>
+                  <div class="text-muted">Current Queue</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-center p-3">
+                  <div class="h4 text-success mb-2" id="nextQueueNumber">-</div>
+                  <div class="text-muted">Next in Queue</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="text-center p-3">
+                  <div class="h4 text-info mb-2" id="completedCount">-</div>
+                  <div class="text-muted">Completed Today</div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-3" id="currentPatientInfo">
+              <!-- Current patient info will be displayed here -->
+            </div>
+          </div>
         </div>
 
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-header bg-primary text-white">
-            <strong>New Consultation</strong>
+            <strong><i class="fas fa-stethoscope me-2"></i>Integrated Consultation</strong>
+            <small class="ms-2">Diagnosis, Prescriptions & Lab Requests</small>
           </div>
           <div class="card-body">
-            <form id="consultationForm" class="row g-3 needs-validation" novalidate>
-              <div class="col-md-6">
-                <label class="form-label">Patient</label>
-                <select class="form-select" id="patient_id" name="patient_id" required>
-                  <option value="">Select patient</option>
-                </select>
-                <div class="invalid-feedback">Please select a patient.</div>
+            <form id="consultationForm" class="needs-validation" novalidate>
+              <!-- Patient & Appointment Selection -->
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <label class="form-label">Patient</label>
+                  <select class="form-select" id="patient_id" name="patient_id" required>
+                    <option value="">Select patient</option>
+                  </select>
+                  <div class="invalid-feedback">Please select a patient.</div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Appointment</label>
+                  <select class="form-select" id="appointment_id" name="appointment_id" required>
+                    <option value="">Select appointment</option>
+                  </select>
+                  <div class="invalid-feedback">Please select an appointment.</div>
+                </div>
               </div>
-              <div class="col-md-6">
-                <label class="form-label">Appointment</label>
-                <select class="form-select" id="appointment_id" name="appointment_id" required>
-                  <option value="">Select appointment</option>
-                </select>
-                <div class="invalid-feedback">Please select an appointment.</div>
+
+              <!-- Diagnosis Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <label class="form-label">Diagnosis</label>
+                  <select class="form-select" name="diagnosis" required>
+                    <option value="">Select diagnosis</option>
+                    <option value="Cough">Cough</option>
+                    <option value="Common Cold">Common Cold</option>
+                    <option value="Fever">Fever</option>
+                    <option value="Hypertension">Hypertension</option>
+                    <option value="Type 2 Diabetes">Type 2 Diabetes</option>
+                    <option value="Upper Respiratory Tract Infection">Upper Respiratory Tract Infection</option>
+                    <option value="Gastroenteritis">Gastroenteritis</option>
+                    <option value="AGAY">AGAY</option>
+                  </select>
+                  <div class="invalid-feedback">Please select a diagnosis.</div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Consultation Notes</label>
+                  <textarea class="form-control" name="consultation_notes" rows="4" placeholder="Detailed consultation notes, symptoms, findings, etc."></textarea>
+                </div>
               </div>
-              <div class="col-12">
-                <label class="form-label">Diagnosis</label>
-                <select class="form-select" name="summary" required>
-                  <option value="">Select diagnosis</option>
-                  <option value="Cough">Cough</option>
-                  <option value="Common Cold">Common Cold</option>
-                  <option value="Fever">Fever</option>
-                  <option value="Hypertension">Hypertension</option>
-                  <option value="Type 2 Diabetes">Type 2 Diabetes</option>
-                  <option value="Upper Respiratory Tract Infection">Upper Respiratory Tract Infection</option>
-                  <option value="Gastroenteritis">Gastroenteritis</option>
-                  <option value="AGAY">AGAY</option>
-                </select>
-                <div class="invalid-feedback">Please select a diagnosis.</div>
+
+              <!-- Prescriptions Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-primary mb-3">
+                    <i class="fas fa-pills me-2"></i>Prescriptions (Optional)
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="addPrescriptionBtn">
+                      <i class="fas fa-plus me-1"></i>Add Medicine
+                    </button>
+                  </h6>
+                  <div id="prescriptionsContainer">
+                    <!-- Prescription items will be added here -->
+                  </div>
+                </div>
               </div>
-              <div class="col-12">
-                <label class="form-label">Notes</label>
-                <textarea class="form-control" name="notes" rows="4" placeholder="Detailed notes (optional)"></textarea>
+
+              <!-- Lab Requests Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-primary mb-3">
+                    <i class="fas fa-flask me-2"></i>Lab Requests (Optional)
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="addLabRequestBtn">
+                      <i class="fas fa-plus me-1"></i>Add Lab Test
+                    </button>
+                  </h6>
+                  <div id="labRequestsContainer">
+                    <!-- Lab request items will be added here -->
+                  </div>
+                </div>
               </div>
-              <div class="col-12 d-flex gap-2">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Consultation</button>
-                <button type="reset" class="btn btn-secondary">Clear</button>
+
+              <!-- Follow-up Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <label class="form-label">Next Appointment Date (Optional)</label>
+                  <input type="date" class="form-control" name="next_appointment_date" min="">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Follow-up Notes</label>
+                  <input type="text" class="form-control" name="next_appointment_notes" placeholder="Reason for follow-up">
+                </div>
+              </div>
+
+              <!-- Submit Buttons -->
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-2"></i>Complete Consultation
+                </button>
+                <button type="reset" class="btn btn-secondary">Clear Form</button>
+                <button type="button" class="btn btn-outline-info" id="saveDraftBtn">
+                  <i class="fas fa-save me-2"></i>Save Draft
+                </button>
               </div>
             </form>
           </div>
@@ -133,8 +227,10 @@
                   <tr>
                     <th>Patient</th>
                     <th>Appointment Date</th>
-                    <th>Summary</th>
-                    <th>Created</th>
+                    <th>Diagnosis</th>
+                    <th>Status</th>
+                    <th>Next Appointment</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="consultationsTableBody"></tbody>

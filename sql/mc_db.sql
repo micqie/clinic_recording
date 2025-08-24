@@ -65,8 +65,11 @@ CREATE TABLE `tbl_consultations` (
   `appointment_id` int(11) NOT NULL,
   `doctor_id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
-  `summary` text NOT NULL,
-  `notes` text DEFAULT NULL,
+  `diagnosis` varchar(255) NOT NULL,
+  `consultation_notes` text DEFAULT NULL,
+  `next_appointment_date` date DEFAULT NULL,
+  `next_appointment_notes` text DEFAULT NULL,
+  `consultation_status` enum('Active','Completed','Follow-up Required') DEFAULT 'Active',
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -75,10 +78,10 @@ CREATE TABLE `tbl_consultations` (
 -- Dumping data for table `tbl_consultations`
 --
 
-INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id`, `patient_id`, `summary`, `notes`, `created_at`, `updated_at`) VALUES
-(1, 12, 1, 9, 'Upper Respiratory Tract Infection', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
-(3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed.', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
-(4, 23, 1, 9, 'asdasdasd', 'asdasdasd', '2025-08-23 15:14:44', '2025-08-23 15:14:44');
+INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id`, `patient_id`, `diagnosis`, `consultation_notes`, `next_appointment_date`, `next_appointment_notes`, `consultation_status`, `created_at`, `updated_at`) VALUES
+(1, 12, 1, 9, 'Upper Respiratory Tract Infection', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-25', 'Follow-up to check if symptoms improved', 'Completed', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
+(3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed. Patient needs regular monitoring.', '2025-08-30', 'Blood sugar check and medication adjustment', 'Follow-up Required', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
+(4, 23, 1, 9, 'Common Cold', 'Mild symptoms, rest and fluids recommended', NULL, NULL, 'Completed', '2025-08-23 15:14:44', '2025-08-23 15:14:44');
 
 -- --------------------------------------------------------
 
@@ -169,6 +172,7 @@ INSERT INTO `tbl_doctors` (`doctor_id`, `user_id`, `license_number`, `specializa
 
 CREATE TABLE `tbl_lab_requests` (
   `lab_request_id` int(11) NOT NULL,
+  `consultation_id` int(11) DEFAULT NULL,
   `doctor_id` int(11) DEFAULT NULL,
   `secretary_id` int(11) DEFAULT NULL,
   `patient_id` int(11) NOT NULL,
@@ -389,7 +393,8 @@ INSERT INTO `tbl_payments` (`payment_id`, `appointment_id`, `patient_id`, `amoun
 
 CREATE TABLE `tbl_prescriptions` (
   `prescription_id` int(11) NOT NULL,
-  `diagnosis_id` int(11) NOT NULL,
+  `consultation_id` int(11) DEFAULT NULL,
+  `diagnosis_id` int(11) DEFAULT NULL,
   `appointment_id` int(11) NOT NULL,
   `doctor_id` int(11) NOT NULL,
   `patient_id` int(11) NOT NULL,
@@ -530,6 +535,7 @@ INSERT INTO `tbl_status` (`status_id`, `status_type_id`, `status_name`) VALUES
 (8, 1, 'Cancelled'),
 (9, 1, 'Completed'),
 (10, 1, 'No Show'),
+(17, 1, 'In Consultation'),
 (11, 2, 'Unpaid'),
 (12, 2, 'Paid'),
 (13, 2, 'Refunded'),

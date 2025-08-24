@@ -1,6 +1,8 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
+  const baseApiUrl = sessionStorage.getItem("baseApiUrl") || "http://localhost/clinic_recording/api";
   const apptApi = `${baseApiUrl}/appointments.php`;
+  const queueApi = `${baseApiUrl}/queue_management.php`;
+  const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
 
   const tbody = document.getElementById("appointmentsTableBody");
   const overviewBody = document.getElementById("doctorOverviewBody");
@@ -12,6 +14,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
   const approveForm = document.getElementById('approveForm');
+
+  // Queue management elements
+  const refreshQueueBtn = document.getElementById('refreshQueueBtn');
+  const currentQueueNumber = document.getElementById('currentQueueNumber');
+  const nextQueueNumber = document.getElementById('nextQueueNumber');
+  const completedCount = document.getElementById('completedCount');
+  const pendingCount = document.getElementById('pendingCount');
+  const queueStatusInfo = document.getElementById('queueStatusInfo');
+  const queueModal = new bootstrap.Modal(document.getElementById('queueModal'));
+  const queueDate = document.getElementById('queueDate');
+  const queueDoctor = document.getElementById('queueDoctor');
+  const queueTableBody = document.getElementById('queueTableBody');
 
   function statusClass(name) {
     const key = (name || '').toLowerCase();
@@ -26,13 +40,43 @@ document.addEventListener("DOMContentLoaded", () => {
   async function loadDoctors() {
     const resp = await axios.get(`${apptApi}?operation=list_doctors`);
     const select = document.getElementById('approve_doctor_id');
+    const queueSelect = document.getElementById('queueDoctor');
+
     select.innerHTML = '<option value="">Select doctor</option>';
+    queueSelect.innerHTML = '<option value="">All Doctors</option>';
+
     (resp.data.data || []).forEach(d => {
       const opt = document.createElement('option');
       opt.value = d.doctor_id;
       opt.textContent = d.doctor_name;
       select.appendChild(opt);
+
+      const queueOpt = document.createElement('option');
+      queueOpt.value = d.doctor_id;
+      queueOpt.textContent = d.doctor_name;
+      queueSelect.appendChild(queueOpt);
     });
+  }
+
+  // Load available doctors for a specific date
+  async function loadAvailableDoctors(date) {
+    try {
+      const resp = await axios.get(`${apptApi}?operation=get_available_doctors&date=${date}`);
+      const select = document.getElementById('approve_doctor_id');
+
+      select.innerHTML = '<option value="">Select doctor</option>';
+
+      (resp.data.data || []).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.doctor_id;
+        opt.textContent = `${d.doctor_name}${d.specialization_name ? ` (${d.specialization_name})` : ''}`;
+        select.appendChild(opt);
+      });
+    } catch (error) {
+      console.error('Failed to load available doctors:', error);
+      // Fallback to all doctors if API fails
+      loadDoctors();
+    }
   }
 
   async function loadAppointments() {
@@ -300,4 +344,219 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   confirmedSearch?.addEventListener('input', loadConfirmed);
+
+  // Queue Management Functions
+  async function loadQueueStatus() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await axios.get(`${enhancedQueueApi}?operation=get_enhanced_queue_status&date=${today}`);
+
+      if (res.data.success) {
+        const data = res.data;
+
+        // Update queue numbers
+        currentQueueNumber.textContent = data.current_consultation ? data.current_consultation.queue_number : '-';
+        nextQueueNumber.textContent = data.next_in_queue ? data.next_in_queue.queue_number : '-';
+
+        // Count appointments by status
+        completedCount.textContent = data.completed_count;
+        pendingCount.textContent = data.confirmed_count;
+
+        // Display queue status info
+        if (data.current_consultation) {
+          queueStatusInfo.innerHTML = `
+            <div class="alert alert-primary mb-0">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-user-md fa-2x me-3 text-primary"></i>
+                <div>
+                  <h6 class="mb-1">Currently in Consultation</h6>
+                  <p class="mb-0"><strong>${data.current_consultation.patient_name}</strong> with <strong>Dr. ${data.current_consultation.doctor_name}</strong> - Queue #${data.current_consultation.queue_number}</p>
+                </div>
+                <div class="ms-auto">
+                  <button class="btn btn-success btn-sm" onclick="completeConsultation(${data.current_consultation.appointment_id})">
+                    <i class="fas fa-check me-2"></i>Complete
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (data.next_in_queue) {
+          queueStatusInfo.innerHTML = `
+            <div class="alert alert-warning mb-0">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-clock fa-2x me-3 text-warning"></i>
+                <div>
+                  <h6 class="mb-1">Next Patient Ready</h6>
+                  <p class="mb-0"><strong>${data.next_in_queue.patient_name}</strong> - Queue #${data.next_in_queue.queue_number}</p>
+                </div>
+                <div class="ms-auto">
+                  <button class="btn btn-primary btn-sm" onclick="startConsultation(${data.next_in_queue.appointment_id})">
+                    <i class="fas fa-play me-2"></i>Start Consultation
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          queueStatusInfo.innerHTML = `
+            <div class="alert alert-info mb-0">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                <div>
+                  <h6 class="mb-1">Queue Status</h6>
+                  <p class="mb-0">All consultations completed for today</p>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load queue status:', error);
+      queueStatusInfo.innerHTML = `
+        <div class="alert alert-danger mb-0">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          Failed to load queue status
+        </div>
+      `;
+    }
+  }
+
+  async function loadQueueTable() {
+    try {
+      const date = queueDate.value || new Date().toISOString().slice(0, 10);
+      const doctorId = queueDoctor.value || '';
+
+      let url = `${queueApi}?operation=get_current_queue_status&date=${date}`;
+      if (doctorId) {
+        url = `${queueApi}?operation=get_doctor_queue_status&doctor_id=${doctorId}&date=${date}`;
+      }
+
+      const res = await axios.get(url);
+      if (res.data.success) {
+        const appointments = res.data.all_appointments || [];
+
+        queueTableBody.innerHTML = '';
+        if (appointments.length === 0) {
+          queueTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No appointments found</td></tr>';
+          return;
+        }
+
+        appointments.forEach(apt => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="queue-chip">${apt.queue_number}</span></td>
+            <td>${apt.patient_name}</td>
+            <td>${apt.doctor_name || '-'}</td>
+            <td><span class="status-badge ${statusClass(apt.appointment_status)}">${apt.appointment_status}</span></td>
+            <td>
+              ${apt.appointment_status === 'Confirmed' ?
+                `<button class="btn btn-sm btn-primary me-1" onclick="startConsultation(${apt.appointment_id})">
+                  <i class="fas fa-play me-1"></i>Start
+                </button>` : ''
+              }
+              ${apt.appointment_status === 'In Consultation' ?
+                `<button class="btn btn-sm btn-success" onclick="completeConsultation(${apt.appointment_id})">
+                  <i class="fas fa-check me-1"></i>Complete
+                </button>` : ''
+              }
+            </td>
+          `;
+          queueTableBody.appendChild(tr);
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load queue table:', error);
+      queueTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load queue data</td></tr>';
+    }
+  }
+
+  // Global functions for queue management (accessible from onclick)
+  window.startConsultation = async function(appointmentId) {
+    try {
+      // Get current user (secretary) ID
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+      const secretaryId = user.id;
+
+      const res = await axios.post(enhancedQueueApi, {
+        operation: 'set_current_consultation',
+        json: JSON.stringify({
+          appointment_id: appointmentId,
+          secretary_id: secretaryId
+        })
+      });
+
+      if (res.data.success) {
+        Swal.fire('Success', 'Consultation started!', 'success');
+        loadQueueStatus();
+        loadQueueTable();
+      } else {
+        Swal.fire('Error', res.data.message || 'Failed to start consultation', 'error');
+      }
+    } catch (e) {
+      console.error('Failed to start consultation:', e);
+      Swal.fire('Error', 'Something went wrong', 'error');
+    }
+  };
+
+  window.completeConsultation = async function(appointmentId) {
+    try {
+      const res = await axios.post(queueApi, {
+        operation: 'complete_consultation',
+        json: JSON.stringify({ appointment_id: appointmentId })
+      });
+
+      if (res.data.success) {
+        Swal.fire('Success', 'Consultation completed!', 'success');
+        loadQueueStatus();
+        loadQueueTable();
+      } else {
+        Swal.fire('Error', res.data.message || 'Failed to complete consultation', 'error');
+      }
+    } catch (e) {
+      console.error('Failed to complete consultation:', e);
+      Swal.fire('Error', 'Something went wrong', 'error');
+    }
+  };
+
+  // New function for complete and next
+  window.completeAndNext = async function() {
+    try {
+      // Get current user (secretary) ID
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+      const secretaryId = user.id;
+      const today = new Date().toISOString().slice(0, 10);
+
+      const res = await axios.post(enhancedQueueApi, {
+        operation: 'complete_and_next',
+        json: JSON.stringify({
+          secretary_id: secretaryId,
+          date: today
+        })
+      });
+
+      if (res.data.success) {
+        Swal.fire('Success', res.data.message, 'success');
+        loadQueueStatus();
+        loadQueueTable();
+      } else {
+        Swal.fire('Error', res.data.message || 'Failed to complete and move to next', 'error');
+      }
+    } catch (e) {
+      console.error('Failed to complete and next:', e);
+      Swal.fire('Error', 'Something went wrong', 'error');
+    }
+  };
+
+  // Event listeners for queue management
+  refreshQueueBtn?.addEventListener('click', loadQueueStatus);
+  queueDate?.addEventListener('change', loadQueueTable);
+  queueDoctor?.addEventListener('change', loadQueueTable);
+  queueModal?.addEventListener('show.bs.modal', () => {
+    queueDate.value = new Date().toISOString().slice(0, 10);
+    loadQueueTable();
+  });
+
+  // Load queue status on page load
+  loadQueueStatus();
 });

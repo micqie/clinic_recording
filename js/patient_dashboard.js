@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const payApi = `${baseApiUrl}/payments.php`;
   const userApi = `${baseApiUrl}/user.php`;
   const labApi = `${baseApiUrl}/lab_requests.php`;
+  const queueApi = `${baseApiUrl}/queue_management.php`;
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   if (!user?.id) { window.location.href = '/clinic_recording/index.html'; return; }
@@ -39,7 +40,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const payResp = await axios.get(`${payApi}?operation=get_by_patient&patient_id=${patientId}`);
   const unpaid = (payResp.data.data || []).filter(p => p.payment_status === 'Unpaid').length;
-  document.getElementById('stat_unpaid').textContent = unpaid;
+      document.getElementById('stat_unpaid').textContent = unpaid;
+
+  // Load queue status for today
+  await loadQueueStatus();
 
   // Recent
   const recent = [...appts].sort((a,b) => (b.appointment_date > a.appointment_date ? 1 : -1)).slice(0,5);
@@ -547,6 +551,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Canvas generation error:', error);
       Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
+    }
+  }
+
+  // Load queue status for the patient
+  async function loadQueueStatus() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const res = await axios.get(`${queueApi}?operation=get_patient_queue_info&patient_id=${patientId}&date=${today}`);
+
+      if (res.data.success) {
+        const data = res.data;
+        const queueCard = document.getElementById('queueStatusCard');
+
+        // Show the queue card
+        queueCard.style.display = 'block';
+
+        // Update queue information
+        document.getElementById('patientQueueNumber').textContent = data.patient_appointment.queue_number || '-';
+        document.getElementById('currentQueueNumber').textContent = data.current_consultation ? data.current_consultation.queue_number : '-';
+        document.getElementById('estimatedWaitTime').textContent = data.estimated_wait_time || '-';
+
+        // Update status info
+        const statusInfo = document.getElementById('queueStatusInfo');
+        if (data.patient_appointment.appointment_status === 'In Consultation') {
+          statusInfo.innerHTML = `
+            <div class="alert alert-success mb-0">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-user-md fa-2x me-3 text-success"></i>
+                <div>
+                  <h6 class="mb-1">Your Turn Now!</h6>
+                  <p class="mb-0">You are currently in consultation with <strong>Dr. ${data.patient_appointment.doctor_name}</strong></p>
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (data.current_consultation && data.patient_appointment.queue_number > data.current_consultation.queue_number) {
+          statusInfo.innerHTML = `
+            <div class="alert alert-info mb-0">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-clock fa-2x me-3 text-info"></i>
+                <div>
+                  <h6 class="mb-1">Please Wait</h6>
+                  <p class="mb-0">Currently serving queue #${data.current_consultation.queue_number}. Your estimated wait time: <strong>${data.estimated_wait_time}</strong></p>
+                  <small class="text-muted">Please stay in the waiting area and listen for your number to be called.</small>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          statusInfo.innerHTML = `
+            <div class="alert alert-info mb-0">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                <div>
+                  <h6 class="mb-1">Queue Information</h6>
+                  <p class="mb-0">You have an appointment today with <strong>Dr. ${data.patient_appointment.doctor_name}</strong> (${data.patient_appointment.specialization_name || 'General'})</p>
+                  <small class="text-muted">Queue number: ${data.patient_appointment.queue_number}</small>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        // Hide queue card if no appointment today
+        document.getElementById('queueStatusCard').style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error loading queue status:', error);
+      // Hide queue card on error
+      document.getElementById('queueStatusCard').style.display = 'none';
     }
   }
 });

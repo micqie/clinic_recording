@@ -352,6 +352,50 @@ function registerPatient($json)
             return ['success' => false, 'message' => 'Failed to change password: ' . $e->getMessage()];
         }
     }
+
+    function get_patient_appointment($patientId, $date)
+    {
+        include "connection.php";
+
+        if (empty($patientId) || empty($date)) {
+            return ['success' => false, 'message' => 'Patient ID and date are required.'];
+        }
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT
+                    a.appointment_id,
+                    a.queue_number,
+                    a.appointment_date,
+                    s.status_name AS appointment_status,
+                    d.doctor_id,
+                    du.name AS doctor_name,
+                    sp.name AS specialization_name
+                FROM tbl_appointments a
+                JOIN tbl_status s ON a.status_id = s.status_id
+                LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
+                LEFT JOIN tbl_specializations sp ON d.specialization_id = sp.specialization_id
+                WHERE a.patient_id = :patient_id
+                AND a.appointment_date = :date
+                AND s.status_name IN ('Confirmed', 'In Consultation', 'Completed')
+                ORDER BY a.queue_number ASC
+                LIMIT 1
+            ");
+            $stmt->bindParam(":patient_id", $patientId);
+            $stmt->bindParam(":date", $date);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result) {
+                return ['success' => true, 'appointment' => $result];
+            } else {
+                return ['success' => false, 'message' => 'No appointment found for this date'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to get appointment: ' . $e->getMessage()];
+        }
+    }
 }
 
 // Handle incoming request
@@ -381,6 +425,11 @@ switch ($operation) {
     case "profile":
         $uid = $_GET['user_id'] ?? $_POST['user_id'] ?? '';
         echo json_encode($user->profile($uid));
+        break;
+    case "get_patient_appointment":
+        $patientId = $_GET['patient_id'] ?? $_POST['patient_id'] ?? '';
+        $date = $_GET['date'] ?? $_POST['date'] ?? '';
+        echo json_encode($user->get_patient_appointment($patientId, $date));
         break;
     case "changePassword":
         echo json_encode($user->changePassword($json));

@@ -58,6 +58,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Disable fully booked dates dynamically when changed
   requestDate?.addEventListener('change', async () => {
     if (!requestDate.value) return;
+
+    // Check if date is in the past
+    const selectedDate = new Date(requestDate.value);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+      Swal.fire('Error', 'Cannot book appointments for past dates. Please select a future date.', 'error');
+      requestDate.value = '';
+      return;
+    }
+
     const ok = await checkDateCapacity(requestDate.value);
     if (!ok) {
       Swal.fire('Info', 'Date is fully booked (15/15). Please choose another date.', 'info');
@@ -67,5 +79,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   refreshList();
 });
-
-

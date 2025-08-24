@@ -83,6 +83,12 @@ class Appointments
         }
         $date = $data['appointment_date'];
 
+        // Validate date - cannot book for past dates
+        $today = date('Y-m-d');
+        if ($date < $today) {
+            echo json_encode(["success" => false, "message" => "Cannot book appointments for past dates."]); return;
+        }
+
         // Enforce max 15 per day (excluding Cancelled)
         $cancelledId = $this->getAppointmentStatusId('Cancelled');
         $stmt = $this->conn->prepare("SELECT COUNT(*) FROM tbl_appointments WHERE appointment_date = :d " . ($cancelledId ? "AND status_id <> :cancelled" : ""));
@@ -121,6 +127,20 @@ class Appointments
         $stmt->execute();
         $date = $stmt->fetchColumn();
         if (!$date) { echo json_encode(["success" => false, "message" => "Appointment not found."]); return; }
+
+        // Check if doctor is available on this date
+        $stmt = $this->conn->prepare("
+            SELECT COUNT(*) FROM tbl_doctor_availability
+            WHERE doctor_id = :doctor_id AND date = :date AND is_available = 0
+        ");
+        $stmt->bindParam(":doctor_id", $data['doctor_id']);
+        $stmt->bindParam(":date", $date);
+        $stmt->execute();
+        $isUnavailable = intval($stmt->fetchColumn()) > 0;
+
+        if ($isUnavailable) {
+            echo json_encode(["success" => false, "message" => "Doctor is not available on this date."]); return;
+        }
 
         // Compute next queue number (exclude Cancelled)
         $cancelledId = $this->getAppointmentStatusId('Cancelled');
@@ -214,6 +234,57 @@ class Appointments
     public function list_doctors()
     {
         $stmt = $this->conn->prepare("SELECT d.doctor_id, u.name AS doctor_name FROM tbl_doctors d JOIN tbl_users u ON d.user_id = u.user_id ORDER BY u.name ASC");
+        $stmt->execute();
+        echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    }
+
+    // Get available doctors for a specific date
+    public function get_available_doctors($date)
+    {
+        $stmt = $this->conn->prepare("
+            SELECT
+                d.doctor_id,
+                u.name AS doctor_name,
+                s.name AS specialization_name
+            FROM tbl_doctors d
+            JOIN tbl_users u ON d.user_id = u.user_id
+            LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
+            WHERE d.doctor_id NOT IN (
+                SELECT doctor_id
+                FROM tbl_doctor_availability
+                WHERE date = :date AND is_available = 0
+            )
+            ORDER BY u.name ASC
+        ");
+        $stmt->bindParam(":date", $date);
+        $stmt->execute();
+        echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    }
+
+    // Get confirmed appointments for a specific date
+    public function get_confirmed_appointments($date)
+    {
+        $stmt = $this->conn->prepare("
+            SELECT
+                a.appointment_id,
+                a.queue_number,
+                p.patient_id,
+                u.name AS patient_name,
+                d.doctor_id,
+                du.name AS doctor_name,
+                sp.name AS specialization_name
+            FROM tbl_appointments a
+            JOIN tbl_patients p ON a.patient_id = p.patient_id
+            JOIN tbl_users u ON p.user_id = u.user_id
+            LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+            LEFT JOIN tbl_users du ON d.user_id = du.user_id
+            LEFT JOIN tbl_specializations sp ON d.specialization_id = sp.specialization_id
+            JOIN tbl_status s ON a.status_id = s.status_id
+            WHERE a.appointment_date = :date
+            AND s.status_name = 'Confirmed'
+            ORDER BY a.queue_number ASC
+        ");
+        $stmt->bindParam(":date", $date);
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     }
@@ -356,6 +427,14 @@ switch ($operation) {
         break;
     case 'list_doctors':
         $svc->list_doctors();
+        break;
+    case 'get_available_doctors':
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $svc->get_available_doctors($date);
+        break;
+    case 'get_confirmed_appointments':
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $svc->get_confirmed_appointments($date);
         break;
     case 'get_doctor_day_overview':
         $date = $_GET['date'] ?? '';
