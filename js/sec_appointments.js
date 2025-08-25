@@ -12,7 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const filterDate = document.getElementById("filterDate");
   const filterBtn = document.getElementById("filterBtn");
 
-  const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
+  const approveModalEl = document.getElementById('approveModal');
+  const approveModal = approveModalEl ? new bootstrap.Modal(approveModalEl) : null;
   const approveForm = document.getElementById('approveForm');
 
   // Queue management elements
@@ -22,7 +23,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const completedCount = document.getElementById('completedCount');
   const pendingCount = document.getElementById('pendingCount');
   const queueStatusInfo = document.getElementById('queueStatusInfo');
-  const queueModal = new bootstrap.Modal(document.getElementById('queueModal'));
+  const queueModalEl = document.getElementById('queueModal');
+  const queueModal = queueModalEl ? new bootstrap.Modal(queueModalEl) : null;
   const queueDate = document.getElementById('queueDate');
   const queueDoctor = document.getElementById('queueDoctor');
   const queueTableBody = document.getElementById('queueTableBody');
@@ -274,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
     payload.append('json', json);
     const resp = await axios.post(apptApi, payload);
     if (resp.data.success) {
-      approveModal.hide();
+      approveModal?.hide();
       await loadAll();
       Swal.fire('Approved', 'Appointment approved', 'success');
     } else {
@@ -310,7 +312,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function loadAll() {
-    await Promise.all([loadPending(), loadAppointments(), loadConfirmed()]);
+    const tasks = [];
+    if (pendingBody) tasks.push(loadPending());
+    if (overviewBody || tbody) tasks.push(loadAppointments());
+    if (confirmedBody) tasks.push(loadConfirmed());
+    await Promise.all(tasks);
   }
 
   loadAll();
@@ -552,11 +558,13 @@ document.addEventListener("DOMContentLoaded", () => {
   refreshQueueBtn?.addEventListener('click', loadQueueStatus);
   queueDate?.addEventListener('change', loadQueueTable);
   queueDoctor?.addEventListener('change', loadQueueTable);
-  queueModal?.addEventListener('show.bs.modal', () => {
+  queueModalEl?.addEventListener('show.bs.modal', () => {
     queueDate.value = new Date().toISOString().slice(0, 10);
     loadQueueTable();
   });
 
   // Load queue status on page load
-  loadQueueStatus();
+  if (queueStatusInfo) {
+    loadQueueStatus();
+  }
 });
