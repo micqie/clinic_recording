@@ -101,8 +101,8 @@ class Doctors
             }
             $role_id = $role['role_id'];
 
-            // Insert into users
-            $stmt = $conn->prepare("INSERT INTO tbl_users (name, email, password, role_id) VALUES (:name, :email, :password, :role_id)");
+            // Insert into users (force password change on first login)
+            $stmt = $conn->prepare("INSERT INTO tbl_users (name, email, password, role_id, must_change_password) VALUES (:name, :email, :password, :role_id, 1)");
             $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
             $stmt->bindParam(":name", $data['name']);
             $stmt->bindParam(":email", $data['email']);

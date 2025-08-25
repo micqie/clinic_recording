@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 24, 2025 at 08:12 AM
+-- Generation Time: Aug 25, 2025 at 09:00 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -179,8 +179,7 @@ INSERT INTO `tbl_doctors` (`doctor_id`, `user_id`, `license_number`, `specializa
 (1, 1, '12345', 1, 5, '2025-08-09 02:19:33', '2025-08-17 12:40:39'),
 (2, 26, '67890', 2, 8, '2025-08-17 04:01:53', '2025-08-17 04:01:53'),
 (3, 39, '11111', 3, 12, '2025-08-17 11:04:26', '2025-08-17 11:04:26'),
-(4, 40, '22222', NULL, 6, '2025-08-17 11:05:27', '2025-08-17 11:05:27'),
-(7, 43, '55555', 7, 7, '2025-08-18 09:49:50', '2025-08-18 09:49:50');
+(8, 44, 'aadsdqwe123123', 5, 2, '2025-08-25 14:59:12', '2025-08-25 14:59:12');
 
 -- --------------------------------------------------------
 
@@ -610,6 +609,7 @@ CREATE TABLE `tbl_users` (
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
   `role_id` int(11) NOT NULL,
+  `must_change_password` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -617,33 +617,32 @@ CREATE TABLE `tbl_users` (
 -- Dumping data for table `tbl_users`
 --
 
-INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `created_at`) VALUES
-(1, 'micah', 'micah@gmail.com', '$2y$10$8FWI3m/9qrJpvUxAdHPZEO7wP9xx5HC.GEl/Ft3FkPGloUzzqBMQ.', 2, '2025-08-08 18:19:33'),
-(2, 'John', 'john@gmail.com', '$2y$10$Zc4MZ7gMJ9sfwgpO4Kp66O/L5TcnaUceSv5fFiyrfpSPePR5rtaDO', 3, '2025-08-08 18:23:47'),
-(3, 'roberth', 'rob@gmail.com', '$2y$10$QPuk6MjWCBjbpWHCdI354OT3B/jottSnHN2r0P73qq3y54DEUH5UG', 3, '2025-08-08 18:24:39'),
-(4, 'yumi', 'yumi@gmail.com', '$2y$10$Zqlmv82NuXUFKCYgVJbnDeA4MLjUNb8zkSVmwKCJ6jNM9OrEYEulO', 3, '2025-08-08 18:27:06'),
-(5, 'secretary', 'secretary@gmail.com', '$2y$10$fzr/ZTmgUc/IfpzPcwXh3.uL.JggbyjTVTy9t5BNCi71IpE6.Z89a', 1, '2025-08-08 18:28:42'),
-(6, 'nor', 'nor@gmail.com', '$2y$10$O2kWQGzF5ivICBBZ6N1Bie2QX.hsczgOAXjlZiOu714Of8H6MtO.K', 3, '2025-08-08 18:29:03'),
-(7, '1234', '123@gmail.com', '$2y$10$SKWHlInXt9DtUAvaEGYqt.4lSiV.hto8rF93Bf84kgAlSGo6AZaAW', 3, '2025-08-08 18:31:46'),
-(8, 'huhu', 'huhu@gmail.com', '$2y$10$3qSuvL.MVFED5YeqKmht7etUepcKPtPAMaRc.8af2JYn8DMZ4emha', 3, '2025-08-08 18:33:12'),
-(9, 'haha', 'haha@gmail.com', '$2y$10$NvlynSBdXCwiaaF2YbE1p.XS0iLhsBiWGpebr7CXxiAOOJJ/oALVa', 3, '2025-08-08 18:34:23'),
-(10, 'asd', 'asd@gmail.com', '$2y$10$X1ko3vb/3ERZFuV0tO817OYLtEk4/DKUWPwd90w26YsqEtLMKt.iS', 3, '2025-08-09 03:37:56'),
-(11, 'miya ', 'miya@gmail.com', '$2y$10$K9N/NsZ6U3/YDt6e0AtYteKv7GloY95ykAvKPUBzkM3RYHKFnVsT.', 1, '2025-08-09 03:38:12'),
-(15, 'asdd', 'inzie@gmail.com', '', 3, '2025-08-09 10:00:37'),
-(16, 'asdasdasd', 'asdasdsasdasdasd@gmail.com', '', 3, '2025-08-09 10:07:09'),
-(18, 'Norelyn', 'norelyn@gmail.com', '$2y$10$9fgMutwHEJuCobqxEsfrHO01xggOwClk2bswm.6NAc8fgKvolAtbW', 3, '2025-08-09 10:31:52'),
-(19, 'Norelyn', 'asdasdSdasdasd@gmail.com', '$2y$10$oyotCJlUMnWnkCOsEuCON.eB2VNBKZQaqIljOaOPko2dG0eKWPUlq', 3, '2025-08-09 10:31:52'),
-(20, '', '', '$2y$10$pzsofR1PztfUbYBFLEquwO/fYExlcFrRue.i1OkerSVPYiAZLyAPC', 3, '2025-08-09 10:31:52'),
-(21, 'Jannah Macarambon', 'jannah@gmail.com', '$2y$10$IJtGgJbdPPt.xSxmCT0W8ugiC6JjDzb762OYJS7uBgaRn1PkveBEG', 3, '2025-08-11 20:53:30'),
-(22, 'shandi', 'shandi@gmail.com', '$2y$10$yDuVvcDuwtfRq5iZzz.8JOE6GwOSTZURsNtlv/EiPDEIgqdUkkD7y', 3, '2025-08-11 22:28:51'),
-(23, 'Sean ', 'sean@gmail.com', '$2y$10$DsLyM1L3/k2iMduqW2ZegOA5gbcbLv1xBngj/2HndmK4QlAU4Gvy6', 3, '2025-08-16 00:53:24'),
-(24, 'Mckenzie', 'mckenzie@gmail.com', '$2y$10$OFSl/JnOcUsxmNg.q60CoOjEGd2iRNIb0jofBJfEzCjTKa71vFVsa', 3, '2025-08-16 19:29:08'),
-(25, 'Laurice', 'laurice@gmail.com', '$2y$10$aQMsjAzelO6rpPbZuiJbU.2PRLnxHMjpk5MP57ia0ze2us8h/6RZm', 3, '2025-08-16 20:00:10'),
-(26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, '2025-08-16 20:01:53'),
-(27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, '2025-08-17 01:38:02'),
-(39, 'HENRY KING', 'henry222@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, '2025-08-17 03:04:26'),
-(40, 'henry', 'henry@gmail.com', '$2y$10$ZHyfN2NZXzqUhjNOXflXxOee1gw36h/OHV/kg4UvTFzy.O0QKKE3q', 2, '2025-08-17 03:05:27'),
-(43, 'HAHAYS', 'shan@gmail.com', '$2y$10$zYZCG.SEZCqegNvP7yuwm.mVREmHg0UnI91URuwNt8Rum5moyd/ei', 2, '2025-08-18 01:49:50');
+INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `must_change_password`, `created_at`) VALUES
+(1, 'micah', 'micah@gmail.com', '$2y$10$8FWI3m/9qrJpvUxAdHPZEO7wP9xx5HC.GEl/Ft3FkPGloUzzqBMQ.', 2, 0, '2025-08-08 18:19:33'),
+(2, 'John', 'john@gmail.com', '$2y$10$Zc4MZ7gMJ9sfwgpO4Kp66O/L5TcnaUceSv5fFiyrfpSPePR5rtaDO', 3, 0, '2025-08-08 18:23:47'),
+(3, 'roberth', 'rob@gmail.com', '$2y$10$QPuk6MjWCBjbpWHCdI354OT3B/jottSnHN2r0P73qq3y54DEUH5UG', 3, 0, '2025-08-08 18:24:39'),
+(4, 'yumi', 'yumi@gmail.com', '$2y$10$Zqlmv82NuXUFKCYgVJbnDeA4MLjUNb8zkSVmwKCJ6jNM9OrEYEulO', 3, 0, '2025-08-08 18:27:06'),
+(5, 'secretary', 'secretary@gmail.com', '$2y$10$fzr/ZTmgUc/IfpzPcwXh3.uL.JggbyjTVTy9t5BNCi71IpE6.Z89a', 1, 0, '2025-08-08 18:28:42'),
+(6, 'nor', 'nor@gmail.com', '$2y$10$O2kWQGzF5ivICBBZ6N1Bie2QX.hsczgOAXjlZiOu714Of8H6MtO.K', 3, 0, '2025-08-08 18:29:03'),
+(7, '1234', '123@gmail.com', '$2y$10$SKWHlInXt9DtUAvaEGYqt.4lSiV.hto8rF93Bf84kgAlSGo6AZaAW', 3, 0, '2025-08-08 18:31:46'),
+(8, 'huhu', 'huhu@gmail.com', '$2y$10$3qSuvL.MVFED5YeqKmht7etUepcKPtPAMaRc.8af2JYn8DMZ4emha', 3, 0, '2025-08-08 18:33:12'),
+(9, 'haha', 'haha@gmail.com', '$2y$10$NvlynSBdXCwiaaF2YbE1p.XS0iLhsBiWGpebr7CXxiAOOJJ/oALVa', 3, 0, '2025-08-08 18:34:23'),
+(10, 'asd', 'asd@gmail.com', '$2y$10$X1ko3vb/3ERZFuV0tO817OYLtEk4/DKUWPwd90w26YsqEtLMKt.iS', 3, 0, '2025-08-09 03:37:56'),
+(11, 'miya ', 'miya@gmail.com', '$2y$10$K9N/NsZ6U3/YDt6e0AtYteKv7GloY95ykAvKPUBzkM3RYHKFnVsT.', 1, 0, '2025-08-09 03:38:12'),
+(15, 'asdd', 'inzie@gmail.com', '', 3, 0, '2025-08-09 10:00:37'),
+(16, 'asdasdasd', 'asdasdsasdasdasd@gmail.com', '', 3, 0, '2025-08-09 10:07:09'),
+(18, 'Norelyn', 'norelyn@gmail.com', '$2y$10$9fgMutwHEJuCobqxEsfrHO01xggOwClk2bswm.6NAc8fgKvolAtbW', 3, 0, '2025-08-09 10:31:52'),
+(19, 'Norelyn', 'asdasdSdasdasd@gmail.com', '$2y$10$oyotCJlUMnWnkCOsEuCON.eB2VNBKZQaqIljOaOPko2dG0eKWPUlq', 3, 0, '2025-08-09 10:31:52'),
+(20, '', '', '$2y$10$pzsofR1PztfUbYBFLEquwO/fYExlcFrRue.i1OkerSVPYiAZLyAPC', 3, 0, '2025-08-09 10:31:52'),
+(21, 'Jannah Macarambon', 'jannah@gmail.com', '$2y$10$IJtGgJbdPPt.xSxmCT0W8ugiC6JjDzb762OYJS7uBgaRn1PkveBEG', 3, 0, '2025-08-11 20:53:30'),
+(22, 'shandi', 'shandi@gmail.com', '$2y$10$yDuVvcDuwtfRq5iZzz.8JOE6GwOSTZURsNtlv/EiPDEIgqdUkkD7y', 3, 0, '2025-08-11 22:28:51'),
+(23, 'Sean ', 'sean@gmail.com', '$2y$10$DsLyM1L3/k2iMduqW2ZegOA5gbcbLv1xBngj/2HndmK4QlAU4Gvy6', 3, 0, '2025-08-16 00:53:24'),
+(24, 'Mckenzie', 'mckenzie@gmail.com', '$2y$10$OFSl/JnOcUsxmNg.q60CoOjEGd2iRNIb0jofBJfEzCjTKa71vFVsa', 3, 0, '2025-08-16 19:29:08'),
+(25, 'Laurice', 'laurice@gmail.com', '$2y$10$aQMsjAzelO6rpPbZuiJbU.2PRLnxHMjpk5MP57ia0ze2us8h/6RZm', 3, 0, '2025-08-16 20:00:10'),
+(26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, 0, '2025-08-16 20:01:53'),
+(27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, 0, '2025-08-17 01:38:02'),
+(39, 'HENRY KING', 'henry@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, 0, '2025-08-17 03:04:26'),
+(44, 'ethel', 'ethel@gmail.com', '$2y$10$wMF82UcEGXeu.nnn0CNw7ePi2jr/Kk264pY2HG/GMZtHKO5hHtg2W', 2, 0, '2025-08-25 06:59:12');
 
 --
 -- Indexes for dumped tables
@@ -874,7 +873,7 @@ ALTER TABLE `tbl_diagnosis_lookup`
 -- AUTO_INCREMENT for table `tbl_doctors`
 --
 ALTER TABLE `tbl_doctors`
-  MODIFY `doctor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `doctor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tbl_doctor_availability`
@@ -976,7 +975,7 @@ ALTER TABLE `tbl_status_type`
 -- AUTO_INCREMENT for table `tbl_users`
 --
 ALTER TABLE `tbl_users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
 
 --
 -- Constraints for dumped tables

@@ -43,10 +43,10 @@ class User
         return ['success' => false, 'message' => 'Email is already registered.'];
     }
 
-    // 6. Insert into tbl_users
+    // 6. Insert into tbl_users (force password change on first login)
     $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-    $sql = "INSERT INTO tbl_users (name, email, password, role_id)
-            VALUES (:name, :email, :password, :role_id)";
+    $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
+            VALUES (:name, :email, :password, :role_id, 1)";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(":name", $data['name']);
     $stmt->bindParam(":email", $data['email']);
@@ -122,10 +122,10 @@ function registerDoctor($json)
     try {
         $conn->beginTransaction();
 
-        // 6. Insert into tbl_users
+        // 6. Insert into tbl_users (force password change on first login)
         $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-        $sql = "INSERT INTO tbl_users (name, email, password, role_id)
-                VALUES (:name, :email, :password, :role_id)";
+        $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
+                VALUES (:name, :email, :password, :role_id, 1)";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(":name", $data['name']);
         $stmt->bindParam(":email", $data['email']);
@@ -209,10 +209,10 @@ function registerPatient($json)
         return ['success' => false, 'message' => 'Email is already registered.'];
     }
 
-    // 5. Insert into tbl_users
+    // 5. Insert into tbl_users (force password change on first login)
     $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-    $sql = "INSERT INTO tbl_users (name, email, password, role_id)
-            VALUES (:name, :email, :password, :role_id)";
+    $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
+            VALUES (:name, :email, :password, :role_id, 1)";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(":name", $data['name']);
     $stmt->bindParam(":email", $data['email']);
@@ -291,7 +291,7 @@ function registerPatient($json)
 
         // Join with tbl_roles to get role_name
         $stmt = $conn->prepare("
-            SELECT u.user_id, u.name, u.email, u.password, r.role_name
+            SELECT u.user_id, u.name, u.email, u.password, u.must_change_password, r.role_name
             FROM tbl_users u
             JOIN tbl_roles r ON u.role_id = r.role_id
             WHERE u.email = :email
@@ -309,7 +309,8 @@ function registerPatient($json)
                     'id' => $user['user_id'],
                     'name' => $user['name'],
                     'email' => $user['email'],
-                    'role' => $user['role_name']
+                    'role' => $user['role_name'],
+                    'must_change_password' => (int)($user['must_change_password'] ?? 0)
                 ]
             ];
         }
@@ -342,7 +343,7 @@ function registerPatient($json)
 
             // Hash new password and update
             $newPasswordHash = password_hash($data['new_password'], PASSWORD_DEFAULT);
-            $updateStmt = $conn->prepare("UPDATE tbl_users SET password = :password WHERE user_id = :user_id");
+            $updateStmt = $conn->prepare("UPDATE tbl_users SET password = :password, must_change_password = 0 WHERE user_id = :user_id");
             $updateStmt->bindParam(":password", $newPasswordHash);
             $updateStmt->bindParam(":user_id", $data['user_id']);
             $updateStmt->execute();

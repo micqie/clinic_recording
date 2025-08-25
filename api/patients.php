@@ -94,8 +94,8 @@ class Patient
         try {
             // Insert into users
             $stmtUser = $conn->prepare("
-                INSERT INTO tbl_users (name, email, password, role_id)
-                VALUES (:name, :email, :password, :role_id)
+                INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
+                VALUES (:name, :email, :password, :role_id, 1)
             ");
             $stmtUser->bindParam(':name', $data['full_name']);
             $stmtUser->bindParam(':email', $data['email']);

@@ -121,22 +121,26 @@ document.addEventListener("DOMContentLoaded", () => {
           timer: 1500
         });
 
-        // Redirect based on role
+        // Redirect based on must_change_password or role
         setTimeout(() => {
-          const roleRoutes = {
-            doctor: "html/doctor/doctor_appointments.html",
-            secretary: "html/secretary/secretary_dashboard.html",
-            patient: "html/patient/patient_dashboard.html"
-          };
-
-          if (roleRoutes[user.role]) {
-            window.location.href = roleRoutes[user.role];
+          if (user.must_change_password === 1) {
+            window.location.href = "html/change_password.html";
           } else {
-            Swal.fire({
-              icon: "error",
-              title: "Unknown Role",
-              text: `User role "${user.role}" is not recognized.`
-            });
+            const roleRoutes = {
+              doctor: "html/doctor/doctor_appointments.html",
+              secretary: "html/secretary/secretary_dashboard.html",
+              patient: "html/patient/patient_dashboard.html"
+            };
+
+            if (roleRoutes[user.role]) {
+              window.location.href = roleRoutes[user.role];
+            } else {
+              Swal.fire({
+                icon: "error",
+                title: "Unknown Role",
+                text: `User role "${user.role}" is not recognized.`
+              });
+            }
           }
         }, 1500);
       } else {

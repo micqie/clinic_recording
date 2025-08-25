@@ -200,6 +200,15 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    // Enforce: if must_change_password flag is present, redirect to change password
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || '{}');
+      if (u && u.must_change_password === 1) {
+        window.location.href = '../change_password.html';
+      }
+    } catch (e) {}
+  </script>
   <script src="../../js/doctor_dashboard.js" defer></script>
 </body>
 
