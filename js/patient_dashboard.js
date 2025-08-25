@@ -1,670 +1,270 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
-  const apptApi = `${baseApiUrl}/appointments.php`;
-  const payApi = `${baseApiUrl}/payments.php`;
-  const userApi = `${baseApiUrl}/user.php`;
-  const labApi = `${baseApiUrl}/lab_requests.php`;
-  const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
+document.addEventListener('DOMContentLoaded', () => {
+    const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
+    const prescriptionReceiptApi = `${baseApiUrl}/prescription_receipt.php`;
+    const integratedConsultationApi = `${baseApiUrl}/integrated_consultation.php`;
+    const appointmentsApi = `${baseApiUrl}/appointments.php`;
+    const userApi = `${baseApiUrl}/user.php`;
 
-  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-  if (!user?.id) { window.location.href = '/clinic_recording/index.html'; return; }
-
-  const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
-  const patientId = prof.data?.context?.patient_id;
-  if (!patientId) { Swal.fire('Error', 'No patient profile found.', 'error'); return; }
-
-  // Load patient details for profile summary
-  try {
-    const patientResp = await axios.get(`${baseApiUrl}/patients.php?operation=get&id=${user.id}`);
-    if (patientResp.data.success) {
-      const patient = patientResp.data.data;
-
-      // Populate profile summary
-      document.getElementById('dashboardName').textContent = patient.full_name || 'N/A';
-      document.getElementById('dashboardEmail').textContent = patient.email || 'N/A';
-      document.getElementById('dashboardContact').textContent = patient.contact_num || 'N/A';
-      document.getElementById('dashboardMemberSince').textContent = patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'N/A';
-    }
-  } catch (error) {
-    console.error('Error loading patient details:', error);
-  }
-
-  const apptsResp = await axios.get(`${apptApi}?operation=get_by_patient&patient_id=${patientId}`);
-  const appts = apptsResp.data.data || [];
-
-  // Stats
-  document.getElementById('stat_total').textContent = appts.length;
-  document.getElementById('stat_completed').textContent = appts.filter(a => a.appointment_status === 'Completed').length;
-  const today = new Date().toISOString().slice(0,10);
-  document.getElementById('stat_upcoming').textContent = appts.filter(a => a.appointment_date >= today && (a.appointment_status === 'Pending' || a.appointment_status === 'Confirmed')).length;
-
-  const payResp = await axios.get(`${payApi}?operation=get_by_patient&patient_id=${patientId}`);
-  const unpaid = (payResp.data.data || []).filter(p => p.payment_status === 'Unpaid').length;
-      document.getElementById('stat_unpaid').textContent = unpaid;
-
-  // Load queue status for today
-  await loadQueueStatus();
-
-  // Auto-refresh queue status every 30 seconds
-  setInterval(loadQueueStatus, 30000);
-
-  // Recent
-  const recent = [...appts].sort((a,b) => (b.appointment_date > a.appointment_date ? 1 : -1)).slice(0,5);
-  const ul = document.getElementById('recent_list');
-  ul.innerHTML = '';
-  recent.forEach(r => {
-    const li = document.createElement('li');
-    li.className = 'list-group-item d-flex justify-content-between align-items-center';
-    li.innerHTML = `<span>${r.appointment_date} - ${r.appointment_status}</span><span>${r.doctor_name || '-'}</span>`;
-    ul.appendChild(li);
-  });
-
-  // Lab requests table
-  const lrTbody = document.getElementById('patientLabRequestsTbody');
-  try {
-    const lr = await axios.get(`${labApi}?operation=get_by_patient&patient_id=${patientId}`);
-    const rows = lr.data.data || [];
-    lrTbody.innerHTML = '';
-
-    if (rows.length === 0) {
-      lrTbody.innerHTML = `
-        <tr>
-          <td colspan="5" class="text-center text-muted py-4">
-            <div class="py-3">
-              <i class="fas fa-flask fa-2x text-muted mb-2"></i>
-              <p class="text-muted mb-0">No lab requests found</p>
-              <small class="text-muted">Your doctor will create lab requests when needed.</small>
-            </div>
-          </td>
-        </tr>
-      `;
-      return;
+    // Check if user is logged in and is a patient
+    const user = JSON.parse(sessionStorage.getItem("user") || "{}");
+    if (!user.id || user.role !== 'patient') {
+        window.location.href = '../../index.html';
+        return;
     }
 
-    rows.forEach(r => {
-      const tr = document.createElement('tr');
-      const statusClass = r.status_name.toLowerCase().replace(/\s/g, '');
-      tr.innerHTML = `
-        <td>${new Date(r.created_at).toLocaleDateString()}</td>
-        <td><strong>${r.doctor_name}</strong><br><small class="text-muted">License: ${r.license_number}</small></td>
-        <td><span class="status-badge status--${statusClass}">${r.status_name}</span></td>
-        <td class="text-truncate" style="max-width: 200px;" title="${r.request_text}">${r.request_text}</td>
-        <td class="text-nowrap">
-          <div class="btn-group" role="group">
-            <button class="btn btn-sm btn-outline-primary" data-print="${r.lab_request_id}" title="Print">
-              <i class="fas fa-print"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-success" data-download="${r.lab_request_id}" title="Download PDF">
-              <i class="fas fa-file-pdf"></i>
-            </button>
-            <button class="btn btn-sm btn-outline-info" data-image="${r.lab_request_id}" title="Save as Image">
-              <i class="fas fa-image"></i>
-            </button>
-          </div>
-        </td>
-      `;
-      lrTbody.appendChild(tr);
-    });
+    let patientId = null;
 
-    lrTbody.addEventListener('click', (e) => {
-      const target = e.target.closest('button');
-      if (!target) return;
-
-      const id = target.getAttribute('data-print') || target.getAttribute('data-download') || target.getAttribute('data-image');
-      if (id) {
-        const row = rows.find(x => String(x.lab_request_id) === String(id));
-        if (!row) return;
-
-        if (target.getAttribute('data-download')) {
-          downloadLabRequest(row);
-        } else if (target.getAttribute('data-image')) {
-          saveAsImage(row);
-        } else {
-          printLabRequest(row);
+    // Get patient_id from user profile
+    async function getPatientId() {
+        if (patientId) return patientId;
+        try {
+            const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
+            patientId = prof.data?.context?.patient_id || null;
+            return patientId;
+        } catch (e) {
+            console.error('Failed to get patient profile:', e);
+            return null;
         }
-      }
-    });
-  } catch (e) {
-    console.error('Failed to load lab requests', e);
-    lrTbody.innerHTML = `
-      <tr>
-        <td colspan="5" class="text-center text-muted py-4">
-          <div class="py-3">
-            <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
-            <p class="text-muted mb-0">Failed to load lab requests</p>
-            <small class="text-muted">Please try refreshing the page.</small>
-          </div>
-        </td>
-      </tr>
-    `;
-  }
-
-  function printLabRequest(labRequest) {
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    const currentDate = new Date().toLocaleDateString();
-    const currentTime = new Date().toLocaleTimeString();
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Lab Request #${labRequest.lab_request_id} - MCSTUFFIN's Clinic</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-          @media print {
-            .no-print { display: none !important; }
-            body { margin: 0; padding: 20px; }
-          }
-          .clinic-header { border-bottom: 3px solid #0d6efd; padding-bottom: 20px; margin-bottom: 30px; }
-          .request-details { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .status-badge { background-color: #0d6efd; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; }
-          .footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid #dee2e6; }
-        </style>
-      </head>
-      <body class="p-4">
-        <div class="clinic-header text-center">
-          <h2 class="text-primary mb-1">MCSTUFFIN's CLINIC</h2>
-          <p class="text-muted mb-0">Professional Medical Services</p>
-          <p class="text-muted mb-0">Lab Request Form</p>
-        </div>
-
-        <div class="row">
-          <div class="col-md-6">
-            <h5 class="text-primary">Request Information</h5>
-            <table class="table table-borderless">
-              <tr><td><strong>Request #:</strong></td><td>LR-${labRequest.lab_request_id.toString().padStart(4, '0')}</td></tr>
-              <tr><td><strong>Date Created:</strong></td><td>${new Date(labRequest.created_at).toLocaleDateString()}</td></tr>
-              <tr><td><strong>Time:</strong></td><td>${new Date(labRequest.created_at).toLocaleTimeString()}</td></tr>
-              <tr><td><strong>Status:</strong></td><td><span class="status-badge">${labRequest.status_name}</span></td></tr>
-            </table>
-          </div>
-          <div class="col-md-6">
-            <h5 class="text-primary">Patient Information</h5>
-            <table class="table table-borderless">
-              <tr><td><strong>Patient Name:</strong></td><td>${labRequest.patient_name}</td></tr>
-              <tr><td><strong>Doctor:</strong></td><td>Dr. ${labRequest.doctor_name}</td></tr>
-              <tr><td><strong>License:</strong></td><td>${labRequest.license_number}</td></tr>
-              ${labRequest.appointment_date ? `<tr><td><strong>Appointment:</strong></td><td>${labRequest.appointment_date} (Q#${labRequest.queue_number})</td></tr>` : ''}
-            </table>
-          </div>
-        </div>
-
-        <div class="request-details">
-          <h5 class="text-primary mb-3">Laboratory Request Details</h5>
-          <div class="border-start border-primary border-4 ps-3">
-            ${labRequest.request_text.replace(/\n/g, '<br>')}
-          </div>
-        </div>
-
-        <div class="row mt-4">
-          <div class="col-md-6">
-            <div class="border p-3 text-center">
-              <p class="mb-1"><strong>Doctor's Signature</strong></p>
-              <div style="height: 60px; border-bottom: 1px solid #000;"></div>
-              <small class="text-muted">Dr. ${labRequest.doctor_name}</small>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="border p-3 text-center">
-              <p class="mb-1"><strong>Date & Time</strong></p>
-              <div style="height: 60px; border-bottom: 1px solid #000;"></div>
-              <small class="text-muted">${currentDate} at ${currentTime}</small>
-            </div>
-          </div>
-        </div>
-
-        <div class="footer text-center">
-          <p class="text-muted mb-1">This is an official document from MCSTUFFIN's Clinic</p>
-          <p class="text-muted mb-0">For inquiries, please contact our clinic</p>
-        </div>
-
-        <div class="text-center mt-4 no-print">
-          <button class="btn btn-primary me-2" onclick="window.print()">
-            <i class="fas fa-print me-2"></i>Print
-          </button>
-          <button class="btn btn-secondary" onclick="window.close()">Close</button>
-        </div>
-      </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-  }
-
-  function downloadLabRequest(labRequest) {
-    // Check if jsPDF is available
-    if (typeof jsPDF === 'undefined') {
-      Swal.fire('Error', 'PDF generation library not loaded. Please refresh the page.', 'error');
-      return;
     }
 
-    try {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+    // Load dashboard statistics
+    async function loadDashboardStats() {
+        try {
+            const patId = await getPatientId();
+            if (!patId) return;
 
-      // Set document properties
-      doc.setProperties({
-        title: `Lab Request #${labRequest.lab_request_id}`,
-        subject: 'Laboratory Request Form',
-        author: 'MCSTUFFIN\'s Clinic',
-        creator: 'MCSTUFFIN\'s Clinic System'
-      });
+            // Load appointments count
+            const appointmentsRes = await axios.get(`${appointmentsApi}?operation=get_by_patient&patient_id=${patId}`);
+            if (appointmentsRes.data.success) {
+                const appointments = appointmentsRes.data.data || [];
+                document.getElementById('totalAppointments').textContent = appointments.length;
 
-      // Add clinic header
-      doc.setFontSize(24);
-      doc.setTextColor(13, 110, 253); // Primary blue color
-      doc.text('MCSTUFFIN\'s CLINIC', 105, 20, { align: 'center' });
+                // Load recent appointments
+                loadRecentAppointments(appointments.slice(0, 5));
+            }
 
-      doc.setFontSize(14);
-      doc.setTextColor(108, 117, 125); // Gray color
-      doc.text('Professional Medical Services', 105, 30, { align: 'center' });
-      doc.text('Lab Request Form', 105, 40, { align: 'center' });
+            // Load prescription receipts for cost calculation
+            const receiptsRes = await axios.get(`${prescriptionReceiptApi}?operation=get_patient_receipts&patient_id=${patId}`);
+            if (receiptsRes.data.success) {
+                const receipts = receiptsRes.data.receipts || [];
+                document.getElementById('totalPrescriptions').textContent = receipts.length;
 
-      // Request Information section
-      doc.setFontSize(16);
-      doc.setTextColor(13, 110, 253);
-      doc.text('Request Information:', 20, 60);
+                // Calculate total cost
+                const totalCost = receipts.reduce((sum, receipt) => sum + (receipt.estimated_total || 0), 0);
+                document.getElementById('totalCost').textContent = `₱${totalCost.toFixed(2)}`;
 
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Request #: LR-${labRequest.lab_request_id.toString().padStart(4, '0')}`, 20, 75);
-      doc.text(`Date Created: ${new Date(labRequest.created_at).toLocaleDateString()}`, 20, 85);
-      doc.text(`Time: ${new Date(labRequest.created_at).toLocaleTimeString()}`, 20, 95);
-      doc.text(`Status: ${labRequest.status_name}`, 20, 105);
+                // Load recent receipts
+                loadRecentReceipts(receipts.slice(0, 3));
+            }
 
-      // Patient Information section
-      doc.setFontSize(16);
-      doc.setTextColor(13, 110, 253);
-      doc.text('Patient Information:', 20, 130);
+            // Load lab tests count (placeholder for now)
+            document.getElementById('totalLabTests').textContent = '0';
 
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Patient Name: ${labRequest.patient_name}`, 20, 145);
-      doc.text(`Doctor: Dr. ${labRequest.doctor_name}`, 20, 155);
-      doc.text(`License: ${labRequest.license_number}`, 20, 165);
-      if (labRequest.appointment_date) {
-        doc.text(`Appointment: ${labRequest.appointment_date} (Q#${labRequest.queue_number})`, 20, 175);
-      }
-
-      // Lab Request Details section
-      doc.setFontSize(16);
-      doc.setTextColor(13, 110, 253);
-      doc.text('Laboratory Request Details:', 20, 200);
-
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-
-      // Split text into lines for PDF
-      const maxWidth = 170; // Maximum width for text
-      const lines = doc.splitTextToSize(labRequest.request_text, maxWidth);
-      doc.text(lines, 20, 215);
-
-      // Signature sections
-      doc.setFontSize(14);
-      doc.setTextColor(13, 110, 253);
-      doc.text('Doctor\'s Signature:', 20, 250);
-      doc.text('Date & Time:', 120, 250);
-
-      doc.setFontSize(10);
-      doc.setTextColor(108, 117, 125);
-      doc.text(`Dr. ${labRequest.doctor_name}`, 20, 270);
-      doc.text(`${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 120, 270);
-
-      // Footer
-      doc.setFontSize(10);
-      doc.setTextColor(108, 117, 125);
-      doc.text('This is an official document from MCSTUFFIN\'s Clinic', 105, 280, { align: 'center' });
-      doc.text('For inquiries, please contact our clinic', 105, 285, { align: 'center' });
-
-      // Save the PDF
-      const filename = `Lab_Request_${labRequest.lab_request_id}_${labRequest.patient_name.replace(/\s+/g, '_')}.pdf`;
-      doc.save(filename);
-
-      Swal.fire('Success', 'PDF downloaded successfully!', 'success');
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      Swal.fire('Error', 'Failed to generate PDF. Please try again.', 'error');
+        } catch (e) {
+            console.error('Failed to load dashboard stats:', e);
+        }
     }
-  }
 
-  function saveAsImage(labRequest) {
-    // Create a temporary div with the lab request content
-    const tempDiv = document.createElement('div');
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '-9999px';
-    tempDiv.style.width = '800px';
-    tempDiv.style.backgroundColor = 'white';
-    tempDiv.style.padding = '40px';
-    tempDiv.style.fontFamily = 'Arial, sans-serif';
-    tempDiv.style.color = 'black';
-    tempDiv.style.border = '1px solid #ccc';
+    // Load recent appointments
+    function loadRecentAppointments(appointments) {
+        const recentAppointmentsBody = document.getElementById('recentAppointmentsBody');
+        if (!recentAppointmentsBody) return;
 
-    tempDiv.innerHTML = `
-      <div style="text-align: center; border-bottom: 3px solid #0d6efd; padding-bottom: 20px; margin-bottom: 30px;">
-        <h2 style="color: #0d6efd; margin-bottom: 10px;">MCSTUFFIN's CLINIC</h2>
-        <p style="color: #6c757d; margin: 5px 0;">Professional Medical Services</p>
-        <p style="color: #6c757d; margin: 5px 0;">Lab Request Form</p>
-      </div>
+        recentAppointmentsBody.innerHTML = '';
 
-      <div style="display: flex; margin-bottom: 30px;">
-        <div style="flex: 1;">
-          <h5 style="color: #0d6efd;">Request Information</h5>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 5px 0;"><strong>Request #:</strong></td><td style="padding: 5px 0;">LR-${labRequest.lab_request_id.toString().padStart(4, '0')}</td></tr>
-            <tr><td style="padding: 5px 0;"><strong>Date Created:</strong></td><td style="padding: 5px 0;">${new Date(labRequest.created_at).toLocaleDateString()}</td></tr>
-            <tr><td style="padding: 5px 0;"><strong>Time:</strong></td><td style="padding: 5px 0;">${new Date(labRequest.created_at).toLocaleTimeString()}</td></tr>
-            <tr><td style="padding: 5px 0;"><strong>Status:</strong></td><td style="padding: 5px 0;"><span style="background-color: #0d6efd; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold;">${labRequest.status_name}</span></td></tr>
-          </table>
-        </div>
-        <div style="flex: 1; margin-left: 20px;">
-          <h5 style="color: #0d6efd;">Patient Information</h5>
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 5px 0;"><strong>Patient Name:</strong></td><td style="padding: 5px 0;">${labRequest.patient_name}</td></tr>
-            <tr><td style="padding: 5px 0;"><strong>Doctor:</strong></td><td style="padding: 5px 0;">Dr. ${labRequest.doctor_name}</td></tr>
-            <tr><td style="padding: 5px 0;"><strong>License:</strong></td><td style="padding: 5px 0;">${labRequest.license_number}</td></tr>
-            ${labRequest.appointment_date ? `<tr><td style="padding: 5px 0;"><strong>Appointment:</strong></td><td style="padding: 5px 0;">${labRequest.appointment_date} (Q#${labRequest.queue_number})</td></tr>` : ''}
-          </table>
-        </div>
-      </div>
+        if (appointments.length === 0) {
+            recentAppointmentsBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No recent appointments</td></tr>';
+            return;
+        }
 
-      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-        <h5 style="color: #0d6efd; margin-bottom: 15px;">Laboratory Request Details</h5>
-        <div style="border-left: 4px solid #0d6efd; padding-left: 15px;">
-          ${labRequest.request_text.replace(/\n/g, '<br>')}
-        </div>
-      </div>
-
-      <div style="display: flex; margin-top: 40px;">
-        <div style="flex: 1; border: 1px solid #000; padding: 15px; text-align: center; margin-right: 10px;">
-          <p style="margin-bottom: 5px;"><strong>Doctor's Signature</strong></p>
-          <div style="height: 60px; border-bottom: 1px solid #000;"></div>
-          <small style="color: #6c757d;">Dr. ${labRequest.doctor_name}</small>
-        </div>
-        <div style="flex: 1; border: 1px solid #000; padding: 15px; text-align: center; margin-left: 10px;">
-          <p style="margin-bottom: 5px;"><strong>Date & Time</strong></p>
-          <div style="height: 60px; border-bottom: 1px solid #000;"></div>
-          <small style="color: #6c757d;">${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</small>
-        </div>
-      </div>
-
-      <div style="text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #dee2e6;">
-        <p style="color: #6c757d; margin: 5px 0;">This is an official document from MCSTUFFIN's Clinic</p>
-        <p style="color: #6c757d; margin: 5px 0;">For inquiries, please contact our clinic</p>
-      </div>
-    `;
-
-    document.body.appendChild(tempDiv);
-
-    // Wait a bit for the DOM to be ready
-    setTimeout(() => {
-      // Use html2canvas to convert the div to an image
-      if (typeof html2canvas !== 'undefined') {
-        html2canvas(tempDiv, {
-          width: 800,
-          height: 1200,
-          backgroundColor: '#ffffff',
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: false
-        }).then(canvas => {
-          try {
-            // Convert canvas to blob and download
-            canvas.toBlob((blob) => {
-              if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Lab_Request_${labRequest.lab_request_id}_${labRequest.patient_name.replace(/\s+/g, '_')}.png`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                Swal.fire('Success', 'Image saved successfully!', 'success');
-              } else {
-                throw new Error('Failed to create blob from canvas');
-              }
-            }, 'image/png', 0.95);
-          } catch (error) {
-            console.error('Error creating blob:', error);
-            Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
-          }
-
-          // Clean up
-          document.body.removeChild(tempDiv);
-        }).catch(error => {
-          console.error('html2canvas error:', error);
-          console.log('Falling back to canvas method...');
-          // Fallback to canvas method
-          generateCanvasImage(labRequest);
-          document.body.removeChild(tempDiv);
+        appointments.forEach(appointment => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <div class="fw-semibold">${appointment.appointment_date}</div>
+                    <small class="text-muted">${appointment.appointment_time || ''}</small>
+                </td>
+                <td>
+                    <div class="fw-semibold">${appointment.doctor_name || 'N/A'}</div>
+                    <small class="text-muted">${appointment.specialization_name || 'General'}</small>
+                </td>
+                <td>
+                    <span class="badge bg-${getStatusBadgeClass(appointment.appointment_status)}">
+                        ${appointment.appointment_status || 'Unknown'}
+                    </span>
+                </td>
+                <td>
+                    <a href="patient_appointments.html" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                </td>
+            `;
+            recentAppointmentsBody.appendChild(tr);
         });
-      } else {
-        // Fallback: use the canvas method
-        console.log('html2canvas not available, using fallback method');
-        generateCanvasImage(labRequest);
-        document.body.removeChild(tempDiv);
-      }
-    }, 100);
-  }
-
-  // Fallback canvas-based image generation
-  function generateCanvasImage(labRequest) {
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 800;
-      canvas.height = 1200;
-
-      // Set background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Set text styles
-      ctx.fillStyle = '#0d6efd';
-      ctx.font = 'bold 24px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('MCSTUFFIN\'s CLINIC', canvas.width/2, 50);
-
-      ctx.fillStyle = '#6c757d';
-      ctx.font = '16px Arial';
-      ctx.fillText('Professional Medical Services', canvas.width/2, 80);
-      ctx.fillText('Lab Request Form', canvas.width/2, 100);
-
-      // Request Information
-      ctx.fillStyle = '#0d6efd';
-      ctx.font = 'bold 18px Arial';
-      ctx.textAlign = 'left';
-      ctx.fillText('Request Information:', 50, 150);
-
-      ctx.fillStyle = '#000000';
-      ctx.font = '14px Arial';
-      ctx.fillText(`Request #: LR-${labRequest.lab_request_id.toString().padStart(4, '0')}`, 50, 180);
-      ctx.fillText(`Date Created: ${new Date(labRequest.created_at).toLocaleDateString()}`, 50, 200);
-      ctx.fillText(`Time: ${new Date(labRequest.created_at).toLocaleTimeString()}`, 50, 220);
-      ctx.fillText(`Status: ${labRequest.status_name}`, 50, 240);
-
-      // Patient Information
-      ctx.fillStyle = '#0d6efd';
-      ctx.font = 'bold 18px Arial';
-      ctx.fillText('Patient Information:', 50, 290);
-
-      ctx.fillStyle = '#000000';
-      ctx.font = '14px Arial';
-      ctx.fillText(`Patient Name: ${labRequest.patient_name}`, 50, 320);
-      ctx.fillText(`Doctor: Dr. ${labRequest.doctor_name}`, 50, 340);
-      ctx.fillText(`License: ${labRequest.license_number}`, 50, 360);
-      if (labRequest.appointment_date) {
-        ctx.fillText(`Appointment: ${labRequest.appointment_date} (Q#${labRequest.queue_number})`, 50, 380);
-      }
-
-      // Lab Request Details
-      ctx.fillStyle = '#0d6efd';
-      ctx.font = 'bold 18px Arial';
-      ctx.fillText('Laboratory Request Details:', 50, 430);
-
-      ctx.fillStyle = '#000000';
-      ctx.font = '14px Arial';
-
-      // Split text into lines for proper display
-      const words = labRequest.request_text.split(' ');
-      let line = '';
-      let y = 460;
-      for (let i = 0; i < words.length; i++) {
-        const testLine = line + words[i] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > 700 && i > 0) {
-          ctx.fillText(line, 50, y);
-          line = words[i] + ' ';
-          y += 20;
-        } else {
-          line = testLine;
-        }
-      }
-      ctx.fillText(line, 50, y);
-
-      // Footer
-      ctx.fillStyle = '#6c757d';
-      ctx.font = '12px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('This is an official document from MCSTUFFIN\'s Clinic', canvas.width/2, 1100);
-      ctx.fillText('For inquiries, please contact our clinic', canvas.width/2, 1120);
-
-      // Convert canvas to blob and download
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `Lab_Request_${labRequest.lab_request_id}_${labRequest.patient_name.replace(/\s+/g, '_')}.png`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-
-          Swal.fire('Success', 'Image saved successfully!', 'success');
-        } else {
-          Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
-        }
-      }, 'image/png', 0.95);
-
-    } catch (error) {
-      console.error('Canvas generation error:', error);
-      Swal.fire('Error', 'Failed to generate image. Please try again.', 'error');
     }
-  }
 
-  // Load queue status for the patient
-  async function loadQueueStatus() {
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const currentDate = new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+    // Load recent receipts
+    function loadRecentReceipts(receipts) {
+        const recentReceiptsBody = document.getElementById('recentReceiptsBody');
+        if (!recentReceiptsBody) return;
 
-      // Get enhanced queue status
-      const res = await axios.get(`${enhancedQueueApi}?operation=get_enhanced_queue_status&date=${today}`);
+        recentReceiptsBody.innerHTML = '';
 
-      if (res.data.success) {
-        const data = res.data;
-        const queueCard = document.getElementById('queueStatusCard');
-
-        // Find patient's appointment in today's queue
-        const patientAppointment = data.all_appointments.find(apt => apt.patient_id == patientId);
-
-        if (patientAppointment) {
-          // Show the queue card
-          queueCard.style.display = 'block';
-
-          // Update queue information
-          document.getElementById('patientQueueNumber').textContent = patientAppointment.queue_number || '-';
-          document.getElementById('currentQueueNumber').textContent = data.current_consultation ? data.current_consultation.queue_number : '-';
-
-          // Calculate estimated wait time
-          let estimatedWait = '-';
-          if (data.current_consultation && patientAppointment.queue_number > data.current_consultation.queue_number) {
-            const patientsAhead = patientAppointment.queue_number - data.current_consultation.queue_number;
-            const estimatedMinutes = patientsAhead * 15; // Assume 15 minutes per patient
-            estimatedWait = `${estimatedMinutes} minutes`;
-          } else if (patientAppointment.appointment_status === 'In Consultation') {
-            estimatedWait = 'Now';
-          }
-
-          document.getElementById('estimatedWaitTime').textContent = estimatedWait;
-
-          // Update status info with current date
-          const statusInfo = document.getElementById('queueStatusInfo');
-          if (patientAppointment.appointment_status === 'In Consultation') {
-            statusInfo.innerHTML = `
-              <div class="alert alert-success mb-0">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-user-md fa-2x me-3 text-success"></i>
-                  <div>
-                    <h6 class="mb-1">Your Turn Now!</h6>
-                    <p class="mb-0">You are currently in consultation with <strong>Dr. ${patientAppointment.doctor_name || 'Doctor'}</strong></p>
-                    <small class="text-muted">Date: ${currentDate}</small>
-                  </div>
-                </div>
-              </div>
-            `;
-          } else if (data.current_consultation && patientAppointment.queue_number > data.current_consultation.queue_number) {
-            statusInfo.innerHTML = `
-              <div class="alert alert-info mb-0">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-clock fa-2x me-3 text-info"></i>
-                  <div>
-                    <h6 class="mb-1">Please Wait</h6>
-                    <p class="mb-0">Currently serving queue #${data.current_consultation.queue_number}. Your estimated wait time: <strong>${estimatedWait}</strong></p>
-                    <small class="text-muted">Date: ${currentDate} | Please stay in the waiting area and listen for your number to be called.</small>
-                  </div>
-                </div>
-              </div>
-            `;
-          } else if (patientAppointment.appointment_status === 'Completed') {
-            statusInfo.innerHTML = `
-              <div class="alert alert-secondary mb-0">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-check-circle fa-2x me-3 text-secondary"></i>
-                  <div>
-                    <h6 class="mb-1">Consultation Completed</h6>
-                    <p class="mb-0">Your consultation with <strong>Dr. ${patientAppointment.doctor_name || 'Doctor'}</strong> has been completed.</p>
-                    <small class="text-muted">Date: ${currentDate}</small>
-                  </div>
-                </div>
-              </div>
-            `;
-          } else {
-            statusInfo.innerHTML = `
-              <div class="alert alert-info mb-0">
-                <div class="d-flex align-items-center">
-                  <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
-                  <div>
-                    <h6 class="mb-1">Queue Information</h6>
-                    <p class="mb-0">You have an appointment today with <strong>Dr. ${patientAppointment.doctor_name || 'Doctor'}</strong> (${patientAppointment.specialization_name || 'General'})</p>
-                    <small class="text-muted">Date: ${currentDate} | Queue number: ${patientAppointment.queue_number}</small>
-                  </div>
-                </div>
-              </div>
-            `;
-          }
-        } else {
-          // Hide queue card if no appointment today
-          document.getElementById('queueStatusCard').style.display = 'none';
+        if (receipts.length === 0) {
+            recentReceiptsBody.innerHTML = '<div class="p-3 text-center text-muted">No recent receipts</div>';
+            return;
         }
-      } else {
-        // Hide queue card if no queue data
-        document.getElementById('queueStatusCard').style.display = 'none';
-      }
-    } catch (error) {
-      console.error('Error loading queue status:', error);
-      // Hide queue card on error
-      document.getElementById('queueStatusCard').style.display = 'none';
+
+        receipts.forEach(receipt => {
+            const receiptDiv = document.createElement('div');
+            receiptDiv.className = 'p-3 border-bottom';
+            receiptDiv.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1 fw-semibold">${receipt.doctor_name}</h6>
+                        <small class="text-muted">${receipt.appointment_date}</small>
+                    </div>
+                    <span class="badge bg-success">₱${(receipt.estimated_total || 0).toFixed(2)}</span>
+                </div>
+                <p class="mb-2 small text-truncate" title="${receipt.diagnosis}">
+                    ${receipt.diagnosis}
+                </p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">${receipt.prescription_count || 0} medicines</small>
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewReceiptFromDashboard(${receipt.consultation_id})">
+                        <i class="fas fa-receipt me-1"></i>View
+                    </button>
+                </div>
+            `;
+            recentReceiptsBody.appendChild(receiptDiv);
+        });
     }
-  }
+
+    // Get status badge class
+    function getStatusBadgeClass(status) {
+        switch (status?.toLowerCase()) {
+            case 'scheduled': return 'primary';
+            case 'confirmed': return 'info';
+            case 'in consultation': return 'warning';
+            case 'completed': return 'success';
+            case 'cancelled': return 'danger';
+            default: return 'secondary';
+        }
+    }
+
+    // View receipt from dashboard (global function)
+    window.viewReceiptFromDashboard = async function(consultationId) {
+        try {
+            const patId = await getPatientId();
+            if (!patId) {
+                Swal.fire('Error', 'Patient profile not found', 'error');
+                return;
+            }
+
+            const res = await axios.get(`${prescriptionReceiptApi}?operation=get_receipt&consultation_id=${consultationId}&patient_id=${patId}`);
+
+            if (res.data.success) {
+                const receipt = res.data.receipt;
+                displayReceiptModal(receipt);
+            } else {
+                Swal.fire('Error', res.data.message || 'Failed to load receipt', 'error');
+            }
+        } catch (e) {
+            console.error('Failed to load receipt:', e);
+            Swal.fire('Error', 'Failed to load receipt', 'error');
+        }
+    };
+
+    // Display receipt in modal
+    function displayReceiptModal(receipt) {
+        let prescriptionsHtml = '';
+        if (receipt.prescriptions && receipt.prescriptions.length > 0) {
+            prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+            prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Specifications</th><th>Dosage</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
+            receipt.prescriptions.forEach(p => {
+                const specs = `${p.weight}${p.form ? ' (' + p.form + ')' : ''}`;
+                prescriptionsHtml += `<tr>
+                    <td><strong>${p.medicine_name}</strong></td>
+                    <td>${specs}</td>
+                    <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
+                    <td>${p.quantity || 1}</td>
+                    <td>₱${p.unit_price} per unit</td>
+                    <td class="fw-bold">₱${p.total_cost.toFixed(2)}</td>
+                </tr>`;
+            });
+            prescriptionsHtml += '</tbody></table></div>';
+        }
+
+        let labRequestsHtml = '';
+        if (receipt.lab_requests && receipt.lab_requests.length > 0) {
+            labRequestsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+            labRequestsHtml += '<thead class="table-light"><tr><th>Lab Test</th><th>Description</th><th>Request Notes</th><th>Price</th></tr></thead><tbody>';
+            receipt.lab_requests.forEach(l => {
+                labRequestsHtml += `<tr>
+                    <td><strong>${l.type_name}</strong></td>
+                    <td>${l.description || 'N/A'}</td>
+                    <td>${l.request_text || 'N/A'}</td>
+                    <td class="fw-bold">₱${l.price.toFixed(2)}</td>
+                </tr>`;
+            });
+            labRequestsHtml += '</tbody></table></div>';
+        }
+
+        Swal.fire({
+            title: 'Prescription Receipt',
+            html: `
+                <div class="text-start">
+                    <div class="text-center mb-3">
+                        <h6 class="text-primary">${receipt.receipt_number}</h6>
+                        <small class="text-muted">Generated on ${receipt.generated_date}</small>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Patient:</strong> ${receipt.patient_name}<br>
+                            <strong>Date:</strong> ${receipt.consultation_date}
+                        </div>
+                        <div class="col-6">
+                            <strong>Doctor:</strong> ${receipt.doctor_name}<br>
+                            <strong>Specialization:</strong> ${receipt.specialization || 'General'}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Diagnosis:</strong> ${receipt.diagnosis}
+                    </div>
+
+                    ${receipt.prescriptions && receipt.prescriptions.length > 0 ? `
+                    <div class="mb-3">
+                        <h6 class="text-primary">Prescribed Medications</h6>
+                        ${prescriptionsHtml}
+                    </div>
+                    ` : ''}
+
+                    ${receipt.lab_requests && receipt.lab_requests.length > 0 ? `
+                    <div class="mb-3">
+                        <h6 class="text-info">Laboratory Tests</h6>
+                        ${labRequestsHtml}
+                    </div>
+                    ` : ''}
+
+                    <div class="text-end mt-3">
+                        ${receipt.prescriptions && receipt.prescriptions.length > 0 ? `
+                        <div><strong>Prescriptions Subtotal:</strong> ₱${receipt.prescription_subtotal.toFixed(2)}</div>
+                        ` : ''}
+                        ${receipt.lab_requests && receipt.lab_requests.length > 0 ? `
+                        <div><strong>Lab Tests Subtotal:</strong> ₱${receipt.lab_subtotal.toFixed(2)}</div>
+                        ` : ''}
+                        <div class="h5 text-success"><strong>Total: ₱${receipt.total_amount.toFixed(2)}</strong></div>
+                    </div>
+                </div>
+            `,
+            width: '900px',
+            confirmButtonText: 'Close',
+            showCloseButton: true
+        });
+    }
+
+    // Initial load
+    loadDashboardStats();
 });

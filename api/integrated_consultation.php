@@ -16,6 +16,9 @@ class IntegratedConsultation
     public function create_consultation($data)
     {
         try {
+            // Log the incoming data for debugging
+            error_log("Creating consultation with data: " . json_encode($data));
+
             $this->conn->beginTransaction();
 
             // Validate required fields
@@ -40,19 +43,30 @@ class IntegratedConsultation
             $consultationStmt->bindParam(":doctor_id", $data['doctor_id']);
             $consultationStmt->bindParam(":patient_id", $data['patient_id']);
             $consultationStmt->bindParam(":diagnosis", $data['diagnosis']);
-            $consultationStmt->bindParam(":consultation_notes", $data['consultation_notes'] ?? '');
-            $consultationStmt->bindParam(":next_appointment_date", $data['next_appointment_date'] ?? null);
-            $consultationStmt->bindParam(":next_appointment_notes", $data['next_appointment_notes'] ?? '');
-            $consultationStmt->bindParam(":consultation_status", $data['consultation_status'] ?? 'Active');
+
+            // Ensure these are proper variables for bindParam
+            $consultationNotes = $data['consultation_notes'] ?? '';
+            $nextAppointmentDate = $data['next_appointment_date'] ?? null;
+            $nextAppointmentNotes = $data['next_appointment_notes'] ?? '';
+            $consultationStatus = $data['consultation_status'] ?? 'Active';
+
+            $consultationStmt->bindParam(":consultation_notes", $consultationNotes);
+            $consultationStmt->bindParam(":next_appointment_date", $nextAppointmentDate);
+            $consultationStmt->bindParam(":next_appointment_notes", $nextAppointmentNotes);
+            $consultationStmt->bindParam(":consultation_status", $consultationStatus);
 
             if (!$consultationStmt->execute()) {
-                throw new Exception("Failed to create consultation");
+                $errorInfo = $consultationStmt->errorInfo();
+                error_log("Failed to create consultation: " . json_encode($errorInfo));
+                throw new Exception("Failed to create consultation: " . ($errorInfo[2] ?? 'Unknown error'));
             }
 
             $consultationId = $this->conn->lastInsertId();
+            error_log("Created consultation with ID: " . $consultationId);
 
             // Create prescriptions if provided
             if (!empty($data['prescriptions']) && is_array($data['prescriptions'])) {
+                error_log("Creating " . count($data['prescriptions']) . " prescriptions");
                 foreach ($data['prescriptions'] as $prescription) {
                     $prescriptionStmt = $this->conn->prepare("
                         INSERT INTO tbl_prescriptions (
@@ -72,16 +86,22 @@ class IntegratedConsultation
                     $prescriptionStmt->bindParam(":dosage", $prescription['dosage']);
                     $prescriptionStmt->bindParam(":frequency", $prescription['frequency']);
                     $prescriptionStmt->bindParam(":duration", $prescription['duration']);
-                    $prescriptionStmt->bindParam(":instructions", $prescription['instructions'] ?? '');
+
+                    // Ensure instructions is a proper variable for bindParam
+                    $instructions = $prescription['instructions'] ?? '';
+                    $prescriptionStmt->bindParam(":instructions", $instructions);
 
                     if (!$prescriptionStmt->execute()) {
-                        throw new Exception("Failed to create prescription");
+                        $errorInfo = $prescriptionStmt->errorInfo();
+                        error_log("Failed to create prescription: " . json_encode($errorInfo));
+                        throw new Exception("Failed to create prescription: " . ($errorInfo[2] ?? 'Unknown error'));
                     }
                 }
             }
 
             // Create lab requests if provided
             if (!empty($data['lab_requests']) && is_array($data['lab_requests'])) {
+                error_log("Creating " . count($data['lab_requests']) . " lab requests");
                 foreach ($data['lab_requests'] as $labRequest) {
                     $labRequestStmt = $this->conn->prepare("
                         INSERT INTO tbl_lab_requests (
@@ -98,16 +118,23 @@ class IntegratedConsultation
                     $labRequestStmt->bindParam(":appointment_id", $data['appointment_id']);
                     $labRequestStmt->bindParam(":lab_test_type_id", $labRequest['lab_test_type_id']);
                     $labRequestStmt->bindParam(":request_text", $labRequest['request_text']);
-                    $labRequestStmt->bindParam(":status_id", $labRequest['status_id'] ?? 14); // Default to Processing
+
+                    // Ensure status_id is a proper variable for bindParam
+                    $statusId = $labRequest['status_id'] ?? 14; // Default to Processing
+                    $labRequestStmt->bindParam(":status_id", $statusId);
 
                     if (!$labRequestStmt->execute()) {
-                        throw new Exception("Failed to create lab request");
+                        $errorInfo = $labRequestStmt->errorInfo();
+                        error_log("Failed to create lab request: " . json_encode($errorInfo));
+                        throw new Exception("Failed to create lab request: " . ($errorInfo[2] ?? 'Unknown error'));
                     }
                 }
             }
 
             // Update appointment status to completed
             $completedStatusId = $this->getStatusId('Completed');
+            error_log("Completed status ID: " . ($completedStatusId ?? 'null'));
+
             if ($completedStatusId) {
                 $updateAppointmentStmt = $this->conn->prepare("
                     UPDATE tbl_appointments
@@ -116,19 +143,33 @@ class IntegratedConsultation
                 ");
                 $updateAppointmentStmt->bindParam(":status_id", $completedStatusId);
                 $updateAppointmentStmt->bindParam(":appointment_id", $data['appointment_id']);
-                $updateAppointmentStmt->execute();
+
+                if (!$updateAppointmentStmt->execute()) {
+                    $errorInfo = $updateAppointmentStmt->errorInfo();
+                    error_log("Failed to update appointment status: " . json_encode($errorInfo));
+                    throw new Exception("Failed to update appointment status: " . ($errorInfo[2] ?? 'Unknown error'));
+                }
+                error_log("Appointment status updated successfully");
+            } else {
+                error_log("Warning: Could not find 'Completed' status ID");
             }
 
             $this->conn->commit();
+            error_log("Transaction committed successfully for consultation ID: " . $consultationId);
 
-            echo json_encode([
+            $response = [
                 "success" => true,
                 "message" => "Consultation created successfully",
                 "consultation_id" => $consultationId
-            ]);
+            ];
+
+            error_log("Sending response: " . json_encode($response));
+            echo json_encode($response);
 
         } catch (Exception $e) {
+            error_log("Error in create_consultation: " . $e->getMessage());
             $this->conn->rollBack();
+            error_log("Transaction rolled back");
             echo json_encode([
                 "success" => false,
                 "message" => $e->getMessage()
@@ -317,17 +358,41 @@ class IntegratedConsultation
     // Helper to get status ID by status name
     private function getStatusId($statusName)
     {
-        $stmt = $this->conn->prepare("
-            SELECT s.status_id
-            FROM tbl_status s
-            JOIN tbl_status_type t ON s.status_type_id = t.status_type_id
-            WHERE t.status_type_name = 'Appointment' AND s.status_name = :name
-            LIMIT 1
-        ");
-        $stmt->bindParam(":name", $statusName);
-        $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? intval($row['status_id']) : null;
+        try {
+            error_log("Looking for status: '$statusName'");
+
+            $stmt = $this->conn->prepare("
+                SELECT s.status_id
+                FROM tbl_status s
+                JOIN tbl_status_type t ON s.status_type_id = t.status_type_id
+                WHERE t.status_type_name = 'Appointment' AND s.status_name = :name
+                LIMIT 1
+            ");
+            $stmt->bindParam(":name", $statusName);
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            error_log("Status lookup result: " . json_encode($row));
+
+            if (!$row) {
+                error_log("No status found for: '$statusName'");
+                // Let's also check what statuses are available
+                $checkStmt = $this->conn->prepare("
+                    SELECT s.status_id, s.status_name, t.status_type_name
+                    FROM tbl_status s
+                    JOIN tbl_status_type t ON s.status_type_id = t.status_type_id
+                    WHERE t.status_type_name = 'Appointment'
+                ");
+                $checkStmt->execute();
+                $availableStatuses = $checkStmt->fetchAll(PDO::FETCH_ASSOC);
+                error_log("Available appointment statuses: " . json_encode($availableStatuses));
+            }
+
+            return $row ? intval($row['status_id']) : null;
+        } catch (Exception $e) {
+            error_log("Error in getStatusId: " . $e->getMessage());
+            return null;
+        }
     }
 }
 
@@ -382,4 +447,3 @@ switch ($operation) {
         break;
 }
 ?>
-

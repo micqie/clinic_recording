@@ -260,13 +260,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="row g-2">
                         <div class="col-md-6">
                             <label class="form-label">Test Type</label>
-                            <select class="form-select" name="lab_requests[${labRequestCounter-1}][lab_test_type_id]" required>
+                            <select class="form-select" name="lab_requests[${labRequestCounter-1}][lab_test_type_id]">
                                 <option value="">Select test type</option>
                             </select>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Request Notes</label>
-                            <input type="text" class="form-control" name="lab_requests[${labRequestCounter-1}][request_text]" placeholder="Reason for test" required>
+                            <input type="text" class="form-control" name="lab_requests[${labRequestCounter-1}][request_text]" placeholder="Reason for test">
                         </div>
                     </div>
                 </div>
@@ -281,13 +281,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load medicines for prescription dropdown
     async function loadMedicinesForPrescription(prescriptionId) {
         try {
-            const res = await axios.get(`${medicinesApi}?operation=get_all`);
-            if (res.data.success) {
+            const res = await axios.get(`${medicinesApi}?operation=getAll`);
+            if (res.data && (res.data.success || Array.isArray(res.data.data) || Array.isArray(res.data.medicines))) {
                 const select = document.querySelector(`#${prescriptionId} select[name*="[medicine_id]"]`);
-                res.data.data.forEach(medicine => {
+                const list = res.data.medicines || res.data.data || [];
+                list.forEach(medicine => {
                     const opt = document.createElement('option');
                     opt.value = medicine.medicine_id;
-                    opt.textContent = `${medicine.medicine_name} ${medicine.weight || ''} (${medicine.form_name || ''})`;
+                    const weight = medicine.weight_value || medicine.weight || '';
+                    const form = medicine.form_name || '';
+                    opt.textContent = `${medicine.medicine_name}${weight ? ` ${weight}` : ''}${form ? ` (${form})` : ''}`;
                     select.appendChild(opt);
                 });
             }
@@ -297,10 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load lab test types for lab request dropdown
     async function loadLabTestTypesForRequest(labRequestId) {
         try {
-            const res = await axios.get(`${labTestTypesApi}?operation=get_all`);
-            if (res.data.success) {
+            const res = await axios.get(`${labTestTypesApi}?operation=getAll`);
+            if (res.data && (res.data.success || Array.isArray(res.data.types) || Array.isArray(res.data.data))) {
                 const select = document.querySelector(`#${labRequestId} select[name*="[lab_test_type_id]"]`);
-                res.data.data.forEach(testType => {
+                const list = res.data.types || res.data.data || [];
+                list.forEach(testType => {
                     const opt = document.createElement('option');
                     opt.value = testType.lab_test_type_id;
                     opt.textContent = testType.type_name;
@@ -606,6 +610,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Require at least one prescription
+        if (prescriptions.length === 0) {
+            Swal.fire('Error', 'At least one prescription is required to complete the consultation.', 'error');
+            return;
+        }
+
         // Collect lab requests
         const labRequests = [];
         const labRequestElements = labRequestsContainer.querySelectorAll('.card');
@@ -621,19 +631,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        if (prescriptions.length > 0) {
-            data.prescriptions = prescriptions;
-        }
+        // Always include prescriptions (required)
+        data.prescriptions = prescriptions;
 
         if (labRequests.length > 0) {
             data.lab_requests = labRequests;
         }
 
         try {
-            const res = await axios.post(integratedConsultationApi, {
-                operation: 'create',
-                json: JSON.stringify(data)
-            });
+            const payload = new FormData();
+            payload.append('operation', 'create');
+            payload.append('json', JSON.stringify(data));
+
+            // Debug: Log the data being sent
+            console.log('Sending consultation data:', data);
+            console.log('FormData payload:', payload);
+
+            const res = await axios.post(integratedConsultationApi, payload);
+
+            // Debug: Log the API response
+            console.log('API Response:', res.data);
 
             if (res.data.success) {
                 Swal.fire('Success', 'Consultation completed successfully!', 'success');
@@ -646,11 +663,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadMyConsultations();
                 loadCurrentQueueStatus();
             } else {
-                Swal.fire('Error', res.data.message || 'Failed to save consultation.', 'error');
+                console.error('API Error Response:', res.data);
+                const errorMessage = res.data.message || res.data.error || 'Unknown error occurred';
+                Swal.fire('Error', errorMessage, 'error');
             }
         } catch (e) {
-            console.error(e);
-            Swal.fire('Error', 'Something went wrong.', 'error');
+            console.error('Request failed:', e);
+            console.error('Error response:', e.response?.data);
+            console.error('Error status:', e.response?.status);
+            console.error('Error headers:', e.response?.headers);
+
+            let errorMessage = 'Something went wrong.';
+            if (e.response?.data?.message) {
+                errorMessage = e.response.data.message;
+            } else if (e.response?.data?.error) {
+                errorMessage = e.response.data.error;
+            } else if (e.message) {
+                errorMessage = e.message;
+            }
+
+            Swal.fire('Error', errorMessage, 'error');
         }
     });
 
