@@ -44,19 +44,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const select = document.getElementById('approve_doctor_id');
     const queueSelect = document.getElementById('queueDoctor');
 
-    select.innerHTML = '<option value="">Select doctor</option>';
-    queueSelect.innerHTML = '<option value="">All Doctors</option>';
+    if (select) {
+      select.innerHTML = '<option value="">Select doctor</option>';
+    }
+    if (queueSelect) {
+      queueSelect.innerHTML = '<option value="">All Doctors</option>';
+    }
 
     (resp.data.data || []).forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.doctor_id;
-      opt.textContent = d.doctor_name;
-      select.appendChild(opt);
-
-      const queueOpt = document.createElement('option');
-      queueOpt.value = d.doctor_id;
-      queueOpt.textContent = d.doctor_name;
-      queueSelect.appendChild(queueOpt);
+      if (select) {
+        const opt = document.createElement('option');
+        opt.value = d.doctor_id;
+        opt.textContent = d.doctor_name;
+        select.appendChild(opt);
+      }
+      if (queueSelect) {
+        const queueOpt = document.createElement('option');
+        queueOpt.value = d.doctor_id;
+        queueOpt.textContent = d.doctor_name;
+        queueSelect.appendChild(queueOpt);
+      }
     });
   }
 
@@ -223,29 +230,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   tbody.addEventListener('click', (e) => {
-    const approveId = e.target.getAttribute('data-approve');
-    const statusName = e.target.getAttribute('data-status');
-    const appointmentId = e.target.getAttribute('data-id');
-
-    if (approveId) {
+    const approveBtn = e.target.closest('[data-approve]');
+    if (approveBtn) {
+      const approveId = approveBtn.getAttribute('data-approve');
       document.getElementById('approve_appointment_id').value = approveId;
       document.getElementById('approve_queue_number').value = '';
-      loadDoctors().then(() => approveModal.show());
+      loadDoctors().then(() => approveModal?.show());
       return;
     }
-    if (statusName && appointmentId) {
-      setAppointmentStatus(appointmentId, statusName);
+
+    const statusBtn = e.target.closest('[data-status]');
+    if (statusBtn) {
+      const statusName = statusBtn.getAttribute('data-status');
+      const appointmentId = statusBtn.getAttribute('data-id');
+      if (statusName && appointmentId) setAppointmentStatus(appointmentId, statusName);
       return;
     }
   });
 
   // Handle clicks in Pending table
   pendingBody?.addEventListener('click', (e) => {
-    const approveId = e.target.getAttribute('data-approve');
-    if (approveId) {
+    const approveBtn = e.target.closest('[data-approve]');
+    if (approveBtn) {
+      const approveId = approveBtn.getAttribute('data-approve');
       document.getElementById('approve_appointment_id').value = approveId;
       document.getElementById('approve_queue_number').value = '';
-      loadDoctors().then(() => approveModal.show());
+      loadDoctors().then(() => approveModal?.show());
     }
   });
 
