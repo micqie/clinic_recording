@@ -25,6 +25,33 @@ class Doctors
         }
     }
 
+    function getDoctorByUserId($user_id)
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT d.*, u.name, u.email, u.created_at, s.name AS specialization_name
+                FROM tbl_doctors d
+                JOIN tbl_users u ON d.user_id = u.user_id
+                LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
+                WHERE u.user_id = :user_id
+                LIMIT 1
+            ");
+            $stmt->bindParam(":user_id", $user_id);
+            $stmt->execute();
+            $doctor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($doctor) {
+                return ['success' => true, 'doctor' => $doctor];
+            } else {
+                return ['success' => false, 'message' => 'Doctor not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch doctor: ' . $e->getMessage()];
+        }
+    }
+
     function getDoctorById($doctor_id)
     {
         include "connection.php";
@@ -451,6 +478,10 @@ switch ($operation) {
         break;
     case "getDoctorsWithAppointments":
         echo json_encode($doctors->getDoctorsWithAppointments());
+        break;
+    case "getByUserId":
+        $uid = $_GET['user_id'] ?? $_POST['user_id'] ?? '';
+        echo json_encode($doctors->getDoctorByUserId($uid));
         break;
     case "getSchedulesByDoctor":
         $did = $_GET['doctor_id'] ?? $_POST['doctor_id'] ?? '';

@@ -124,7 +124,7 @@ class QueueManagement
     }
 
     // Start consultation (change status to "In Consultation")
-    public function start_consultation($appointmentId)
+    public function start_consultation($appointmentId, $doctorId)
     {
         $inConsultationId = $this->getStatusId('In Consultation');
         if (!$inConsultationId) {
@@ -132,14 +132,33 @@ class QueueManagement
             return;
         }
 
+        // Validate that the appointment belongs to the doctor and is Confirmed
+        $check = $this->conn->prepare("
+            SELECT a.appointment_id
+            FROM tbl_appointments a
+            JOIN tbl_status s ON a.status_id = s.status_id
+            WHERE a.appointment_id = :appointment_id
+              AND a.doctor_id = :doctor_id
+              AND s.status_name = 'Confirmed'
+            LIMIT 1
+        ");
+        $check->bindParam(":appointment_id", $appointmentId);
+        $check->bindParam(":doctor_id", $doctorId);
+        $check->execute();
+        if (!$check->fetch()) {
+            echo json_encode(["success" => false, "message" => "You are not allowed to start this consultation or it is not in Confirmed status."]);
+            return;
+        }
+
         $stmt = $this->conn->prepare("
             UPDATE tbl_appointments
             SET status_id = :status_id
-            WHERE appointment_id = :appointment_id
+            WHERE appointment_id = :appointment_id AND doctor_id = :doctor_id
         ");
 
         $stmt->bindParam(":status_id", $inConsultationId);
         $stmt->bindParam(":appointment_id", $appointmentId);
+        $stmt->bindParam(":doctor_id", $doctorId);
 
         if ($stmt->execute()) {
             echo json_encode(["success" => true, "message" => "Consultation started."]);
@@ -149,7 +168,7 @@ class QueueManagement
     }
 
     // Complete consultation (change status to "Completed")
-    public function complete_consultation($appointmentId)
+    public function complete_consultation($appointmentId, $doctorId)
     {
         $completedId = $this->getStatusId('Completed');
         if (!$completedId) {
@@ -157,14 +176,33 @@ class QueueManagement
             return;
         }
 
+        // Validate that the appointment belongs to the doctor and is In Consultation
+        $check = $this->conn->prepare("
+            SELECT a.appointment_id
+            FROM tbl_appointments a
+            JOIN tbl_status s ON a.status_id = s.status_id
+            WHERE a.appointment_id = :appointment_id
+              AND a.doctor_id = :doctor_id
+              AND s.status_name = 'In Consultation'
+            LIMIT 1
+        ");
+        $check->bindParam(":appointment_id", $appointmentId);
+        $check->bindParam(":doctor_id", $doctorId);
+        $check->execute();
+        if (!$check->fetch()) {
+            echo json_encode(["success" => false, "message" => "You are not allowed to complete this consultation or it is not In Consultation."]);
+            return;
+        }
+
         $stmt = $this->conn->prepare("
             UPDATE tbl_appointments
             SET status_id = :status_id
-            WHERE appointment_id = :appointment_id
+            WHERE appointment_id = :appointment_id AND doctor_id = :doctor_id
         ");
 
         $stmt->bindParam(":status_id", $completedId);
         $stmt->bindParam(":appointment_id", $appointmentId);
+        $stmt->bindParam(":doctor_id", $doctorId);
 
         if ($stmt->execute()) {
             echo json_encode(["success" => true, "message" => "Consultation completed."]);
@@ -298,19 +336,19 @@ switch ($operation) {
         break;
     case 'start_consultation':
         $data = json_decode($json ?: '{}', true);
-        if (empty($data['appointment_id'])) {
-            echo json_encode(["success" => false, "message" => "appointment_id is required."]);
+        if (empty($data['appointment_id']) || empty($data['doctor_id'])) {
+            echo json_encode(["success" => false, "message" => "appointment_id and doctor_id are required."]);
             break;
         }
-        $svc->start_consultation($data['appointment_id']);
+        $svc->start_consultation($data['appointment_id'], $data['doctor_id']);
         break;
     case 'complete_consultation':
         $data = json_decode($json ?: '{}', true);
-        if (empty($data['appointment_id'])) {
-            echo json_encode(["success" => false, "message" => "appointment_id is required."]);
+        if (empty($data['appointment_id']) || empty($data['doctor_id'])) {
+            echo json_encode(["success" => false, "message" => "appointment_id and doctor_id are required."]);
             break;
         }
-        $svc->complete_consultation($data['appointment_id']);
+        $svc->complete_consultation($data['appointment_id'], $data['doctor_id']);
         break;
     case 'get_patient_queue_info':
         $patientId = $_GET['patient_id'] ?? '';
@@ -326,4 +364,3 @@ switch ($operation) {
         break;
 }
 ?>
-

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Doctor Profile - MCSTUFFIN's Clinic</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../css/dashboard.css">
+    <link rel="stylesheet" href="../../css/table.css">
+    <script src="../../js/logout.js" defer></script>
+    <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="main-navbar">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <i class="fas fa-stethoscope me-2 fs-3 text-primary"></i>
+                <span class="fs-4 fw-bold text-primary">MCSTUFFIN's</span>
+            </a>
+            <div class="dropdown ms-auto">
+                <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
+                    <span class="fw-semibold">Doctor</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <button type="button" class="dropdown-item text-danger" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt me-2"></i> Logout
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="d-flex">
+        <nav id="sidebar-wrapper" role="navigation" aria-label="Sidebar menu" tabindex="0">
+            <div class="list-group list-group-flush">
+                <a href="doctor_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
+                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                </a>
+                <a href="doctor_profile.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
+                    <i class="fas fa-user-edit me-2"></i>My Profile
+                </a>
+                <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
+                    <i class="fa-solid fa-calendar-check me-2"></i>My Appointments
+                </a>
+                <a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple">
+                    <i class="fa-solid fa-user-doctor me-2"></i>Consultations
+                </a>
+                <a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
+                    <i class="fa-solid fa-people-group me-2"></i>My Patients
+                </a>
+                <a href="doctor_prescriptions.html" class="list-group-item list-group-item-action py-3 ripple">
+                    <i class="fa-solid fa-pills me-2"></i>Prescriptions
+                </a>
+                <a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
+                    <i class="fa-solid fa-flask me-2"></i>Lab Requests
+                </a>
+            </div>
+        </nav>
+
+        <main id="page-content-wrapper" class="pt-5" tabindex="-1">
+            <button class="btn btn-primary d-lg-none offcanvas-toggle-btn" type="button" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <div class="content-container mt-5 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                    <div>
+                        <h1 class="fw-bold text-secondary mb-1">My Profile</h1>
+                        <p class="text-muted mb-0">Manage your professional and account information</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" id="editProfileBtn">
+                            <i class="fas fa-edit me-2"></i>Edit Profile
+                        </button>
+                        <button class="btn btn-outline-info" id="refreshProfileBtn">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh
+                        </button>
+                        <button class="btn btn-outline-secondary" id="changePasswordBtn">
+                            <i class="fas fa-key me-2"></i>Change Password
+                        </button>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0 fw-bold">
+                                    <i class="fas fa-user me-2"></i>Professional Information
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted">Full Name</label>
+                                        <p class="form-control-plaintext" id="profileFullName">Loading...</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted">Email</label>
+                                        <p class="form-control-plaintext" id="profileEmail">Loading...</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted">License Number</label>
+                                        <p class="form-control-plaintext" id="profileLicense">Loading...</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted">Specialization</label>
+                                        <p class="form-control-plaintext" id="profileSpecialization">Loading...</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold text-muted">Years of Experience</label>
+                                        <p class="form-control-plaintext" id="profileExperience">Loading...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0 fw-bold">
+                                    <i class="fas fa-info-circle me-2"></i>Account Information
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-muted">Doctor ID</label>
+                                    <p class="form-control-plaintext" id="profileDoctorId">Loading...</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-muted">Member Since</label>
+                                    <p class="form-control-plaintext" id="profileMemberSince">Loading...</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold text-muted">Last Updated</label>
+                                    <p class="form-control-plaintext" id="profileLastUpdated">Loading...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form id="editProfileForm" class="modal-content needs-validation" novalidate>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-user-edit me-2"></i>Edit Profile</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Full Name</label>
+                            <input type="text" class="form-control" id="editFullName" name="name" required />
+                            <div class="invalid-feedback">Please enter your full name.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Email Address</label>
+                            <input type="email" class="form-control" id="editEmail" name="email" required />
+                            <div class="invalid-feedback">Please enter a valid email address.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">License Number</label>
+                            <input type="text" class="form-control" id="editLicense" name="license_number" required />
+                            <div class="invalid-feedback">Please enter your license number.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Specialization</label>
+                            <select class="form-select" id="editSpecialization" name="specialization_id" required></select>
+                            <div class="invalid-feedback">Please select specialization.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Years of Experience</label>
+                            <input type="number" min="0" class="form-control" id="editExperience" name="years_experience" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Save Changes</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="changePasswordForm" class="modal-content needs-validation" novalidate>
+                <div class="modal-header bg-warning text-white">
+                    <h5 class="modal-title"><i class="fas fa-key me-2"></i>Change Password</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Current Password</label>
+                        <input type="password" class="form-control" name="current_password" required />
+                        <div class="invalid-feedback">Please enter your current password.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">New Password</label>
+                        <input type="password" class="form-control" name="new_password" required />
+                        <div class="invalid-feedback">Please enter a new password.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Confirm New Password</label>
+                        <input type="password" class="form-control" name="confirm_password" required />
+                        <div class="invalid-feedback">Please confirm your new password.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-warning"><i class="fas fa-key me-2"></i>Change Password</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="../../js/doctor_profile.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebar = document.getElementById('sidebar-wrapper');
+            const toggleBtn = document.querySelector('.offcanvas-toggle-btn');
+            toggleBtn?.addEventListener('click', () => { sidebar.classList.toggle('show'); });
+            document.addEventListener('click', (e) => {
+                if (window.innerWidth <= 991.98 && sidebar.classList.contains('show') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+                    sidebar.classList.remove('show');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -52,17 +52,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Display current patient information
+    // Enable/disable consultation form based on availability
+    function setFormEnabled(isEnabled) {
+        const controls = form.querySelectorAll('input, select, textarea, button[type="submit"], button[type="reset"]');
+        controls.forEach(el => {
+            // Keep the external Refresh Queue button unaffected
+            if (el.id === 'refreshQueueBtn') return;
+            el.disabled = !isEnabled;
+        });
+        addPrescriptionBtn && (addPrescriptionBtn.disabled = !isEnabled);
+        addLabRequestBtn && (addLabRequestBtn.disabled = !isEnabled);
+        saveDraftBtn && (saveDraftBtn.disabled = !isEnabled);
+    }
+
+    // Display current patient information (only for this doctor)
     function displayCurrentPatient(currentConsultation) {
         if (!currentConsultation) {
             currentPatientDisplay.innerHTML = `
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>No patient currently in consultation</strong>
+                    <strong>No patient under you is currently in consultation</strong>
                     <br>
-                    <small class="text-muted">Please wait for the secretary to start a consultation or click "Refresh Queue" to check for updates.</small>
+                    <small class="text-muted">Please wait until a patient assigned to you is placed In Consultation. Click "Refresh Queue" to check for updates.</small>
                 </div>
             `;
+            // Clear hidden fields and disable form
+            patientIdInput.value = '';
+            appointmentIdInput.value = '';
+            setFormEnabled(false);
             return false;
         }
 
@@ -83,10 +100,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `;
+        setFormEnabled(true);
         return true;
     }
 
-    // Load current queue status for the doctor
+    // Load current queue status strictly for the logged-in doctor
     async function loadCurrentQueueStatus() {
         try {
             const docId = await getDoctorId();
@@ -96,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const today = new Date().toISOString().slice(0, 10);
-            const res = await axios.get(`${enhancedQueueApi}?operation=get_enhanced_queue_status&date=${today}`);
+            const res = await axios.get(`${enhancedQueueApi}?operation=get_doctor_queue_status&doctor_id=${docId}&date=${today}`);
 
             if (res.data.success) {
                 const data = res.data;
@@ -120,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-user-md fa-2x me-3 text-success"></i>
                                     <div>
-                                        <h6 class="mb-1">Currently Consulting</h6>
+                                        <h6 class="mb-1">Currently Consulting (Your Patient)</h6>
                                         <p class="mb-0"><strong>${data.current_consultation.patient_name}</strong> - Queue #${data.current_consultation.queue_number}</p>
                                         <small class="text-muted">Started by: ${data.queue_updated_by || 'Secretary'}</small>
                                     </div>
@@ -128,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                                                 `;
 
-                        // Display current patient in the form
+                        // Display current patient and enable form
                         displayCurrentPatient(data.current_consultation);
 
                     } else if (data.next_in_queue) {
@@ -137,26 +155,27 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-clock fa-2x me-3 text-warning"></i>
                                     <div>
-                                        <h6 class="mb-1">Next Patient Ready</h6>
+                                        <h6 class="mb-1">Next Patient Ready (Yours)</h6>
                                         <p class="mb-0"><strong>${data.next_in_queue.patient_name}</strong> - Queue #${data.next_in_queue.queue_number}</p>
                                         <small class="text-muted">Waiting for secretary to start consultation</small>
                                     </div>
                                 </div>
                             </div>
                         `;
-                                        } else {
+                        // No active current patient yet for you; keep form disabled
+                        displayCurrentPatient(null);
+                    } else {
                         currentPatientInfo.innerHTML = `
                             <div class="alert alert-info mb-0">
                                 <div class="d-flex align-items-center">
                                     <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
                                     <div>
                                         <h6 class="mb-1">Queue Status</h6>
-                                        <p class="mb-0">All consultations completed for today</p>
+                                        <p class="mb-0">No patients assigned to you are currently in consultation</p>
                                     </div>
                                 </div>
                             </div>
                         `;
-
                         // Display no patient in form
                         displayCurrentPatient(null);
                     }
@@ -172,6 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }
+            // On error, disable form as a precaution
+            setFormEnabled(false);
         }
     }
 
@@ -434,9 +455,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Start consultation function (global scope for onclick)
     window.startConsultation = async function(appointmentId) {
         try {
+            const docId = await getDoctorId();
             const res = await axios.post(queueApi, {
                 operation: 'start_consultation',
-                json: JSON.stringify({ appointment_id: appointmentId })
+                json: JSON.stringify({ appointment_id: appointmentId, doctor_id: docId })
             });
 
             if (res.data.success) {
@@ -454,9 +476,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Complete consultation function (global scope for onclick)
     window.completeConsultation = async function(appointmentId) {
         try {
+            const docId = await getDoctorId();
             const res = await axios.post(queueApi, {
                 operation: 'complete_consultation',
-                json: JSON.stringify({ appointment_id: appointmentId })
+                json: JSON.stringify({ appointment_id: appointmentId, doctor_id: docId })
             });
 
             if (res.data.success) {
