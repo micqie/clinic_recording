@@ -9,9 +9,8 @@ class Medicines
         include "connection.php";
 
         try {
-            // ✅ Use `weight` column as weight_value (temporary fix)
             $stmt = $conn->prepare("
-                SELECT m.*, f.form_name, m.weight AS weight_value
+                SELECT m.*, f.form_name
                 FROM tbl_medicines m
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 ORDER BY m.medicine_name
@@ -50,15 +49,31 @@ class Medicines
                 return ['success' => false, 'message' => 'Medicine name already exists.'];
             }
 
-            $sql = "INSERT INTO tbl_medicines (medicine_name, weight, form_id, price)
-                    VALUES (:medicine_name, :weight, :form_id, :price)";
+            $sql = "INSERT INTO tbl_medicines (medicine_name, strength, form_id, price)
+                    VALUES (:medicine_name, :strength, :form_id, :price)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $weightParam = isset($data['weight']) && $data['weight'] !== '' ? $data['weight'] : null;
-            $stmt->bindValue(":weight", $weightParam, $weightParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $strengthParam = isset($data['strength']) && $data['strength'] !== '' ? $data['strength'] : null;
+            $stmt->bindValue(":strength", $strengthParam, $strengthParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":form_id", $data['form_id']);
             $stmt->bindParam(":price", $data['price']);
             $stmt->execute();
+
+            $newMedicineId = $conn->lastInsertId();
+
+            // Optional packaging config
+            if (isset($data['packaging']) && is_array($data['packaging'])) {
+                $pkg = $data['packaging'];
+                if (!empty($pkg['packaging_unit']) && !empty($pkg['quantity_per_package'])) {
+                    $stmtPkg = $conn->prepare("INSERT INTO tbl_medicine_packaging_config (medicine_id, packaging_unit, quantity_per_package, unit_label) VALUES (:medicine_id, :unit, :qpp, :label)");
+                    $stmtPkg->bindParam(":medicine_id", $newMedicineId);
+                    $stmtPkg->bindParam(":unit", $pkg['packaging_unit']);
+                    $stmtPkg->bindParam(":qpp", $pkg['quantity_per_package']);
+                    $label = isset($pkg['unit_label']) && $pkg['unit_label'] !== '' ? $pkg['unit_label'] : null;
+                    $stmtPkg->bindValue(":label", $label, $label === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmtPkg->execute();
+                }
+            }
 
             return ['success' => true, 'message' => 'Medicine added successfully!'];
         } catch (PDOException $e) {
@@ -82,14 +97,14 @@ class Medicines
         try {
             $sql = "UPDATE tbl_medicines
                     SET medicine_name = :medicine_name,
-                        weight = :weight,
+                        strength = :strength,
                         form_id = :form_id,
                         price = :price
                     WHERE medicine_id = :medicine_id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $weightParam = isset($data['weight']) && $data['weight'] !== '' ? $data['weight'] : null;
-            $stmt->bindValue(":weight", $weightParam, $weightParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $strengthParam = isset($data['strength']) && $data['strength'] !== '' ? $data['strength'] : null;
+            $stmt->bindValue(":strength", $strengthParam, $strengthParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":form_id", $data['form_id']);
             $stmt->bindParam(":price", $data['price']);
             $stmt->bindParam(":medicine_id", $data['medicine_id']);
@@ -119,6 +134,72 @@ class Medicines
                 : ['success' => false, 'message' => 'Medicine not found.'];
         } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to delete medicine: ' . $e->getMessage()];
+        }
+    }
+
+    // Packaging config endpoints
+    function getPackagingConfigs($medicine_id)
+    {
+        include "connection.php";
+        try {
+            $stmt = $conn->prepare("SELECT * FROM tbl_medicine_packaging_config WHERE medicine_id = :medicine_id ORDER BY packaging_unit");
+            $stmt->bindParam(":medicine_id", $medicine_id);
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ['success' => true, 'configs' => $rows];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch packaging configs: ' . $e->getMessage()];
+        }
+    }
+
+    function upsertPackagingConfig($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+        if (empty($data['medicine_id']) || empty($data['packaging_unit']) || empty($data['quantity_per_package'])) {
+            return ['success' => false, 'message' => 'medicine_id, packaging_unit, and quantity_per_package are required.'];
+        }
+        try {
+            // Check if exists
+            $check = $conn->prepare("SELECT config_id FROM tbl_medicine_packaging_config WHERE medicine_id = :medicine_id AND packaging_unit = :packaging_unit");
+            $check->bindParam(":medicine_id", $data['medicine_id']);
+            $check->bindParam(":packaging_unit", $data['packaging_unit']);
+            $check->execute();
+            if ($row = $check->fetch(PDO::FETCH_ASSOC)) {
+                $stmt = $conn->prepare("UPDATE tbl_medicine_packaging_config SET quantity_per_package = :qpp, unit_label = :unit_label WHERE config_id = :config_id");
+                $stmt->bindParam(":qpp", $data['quantity_per_package']);
+                $stmt->bindParam(":unit_label", $data['unit_label']);
+                $stmt->bindParam(":config_id", $row['config_id']);
+                $stmt->execute();
+            } else {
+                $stmt = $conn->prepare("INSERT INTO tbl_medicine_packaging_config (medicine_id, packaging_unit, quantity_per_package, unit_label) VALUES (:medicine_id, :packaging_unit, :qpp, :unit_label)");
+                $stmt->bindParam(":medicine_id", $data['medicine_id']);
+                $stmt->bindParam(":packaging_unit", $data['packaging_unit']);
+                $stmt->bindParam(":qpp", $data['quantity_per_package']);
+                $stmt->bindParam(":unit_label", $data['unit_label']);
+                $stmt->execute();
+            }
+            return ['success' => true, 'message' => 'Packaging configuration saved.'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to save packaging config: ' . $e->getMessage()];
+        }
+    }
+
+    function deletePackagingConfig($config_id)
+    {
+        include "connection.php";
+        if (empty($config_id)) {
+            return ['success' => false, 'message' => 'config_id is required.'];
+        }
+        try {
+            $stmt = $conn->prepare("DELETE FROM tbl_medicine_packaging_config WHERE config_id = :config_id");
+            $stmt->bindParam(":config_id", $config_id);
+            $stmt->execute();
+            return $stmt->rowCount() > 0
+                ? ['success' => true, 'message' => 'Packaging configuration deleted.']
+                : ['success' => false, 'message' => 'Packaging configuration not found.'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete packaging config: ' . $e->getMessage()];
         }
     }
 
@@ -278,8 +359,8 @@ class Medicines
                 $stmt->bindParam(":weight_id", $data['weight_id']);
                 $stmt->execute();
 
-                // Propagate new weight text into medicines table (current schema uses text column `weight`)
-                $sql = "UPDATE tbl_medicines SET weight = :new_weight WHERE weight = :old_weight";
+                // Propagate new weight text into medicines table (schema now uses `strength`)
+                $sql = "UPDATE tbl_medicines SET strength = :new_weight WHERE strength = :old_weight";
                 $stmt = $conn->prepare($sql);
                 $stmt->bindParam(":new_weight", $data['weight_value']);
                 $stmt->bindParam(":old_weight", $oldWeight['weight_value']);
@@ -343,7 +424,7 @@ class Medicines
             $weight = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($weight) {
-                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM tbl_medicines WHERE weight = :weight_value");
+                $stmt = $conn->prepare("SELECT COUNT(*) as count FROM tbl_medicines WHERE strength = :weight_value");
                 $stmt->bindParam(":weight_value", $weight['weight_value']);
                 $stmt->execute();
                 $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -364,6 +445,92 @@ class Medicines
             }
         } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to delete medicine weight: ' . $e->getMessage()];
+        }
+    }
+
+    // Packaging units (global lookup) CRUD
+    function getPackagingUnits()
+    {
+        include "connection.php";
+        try {
+            $stmt = $conn->prepare("SELECT * FROM tbl_medicine_packaging ORDER BY packaging_name");
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return ['success' => true, 'units' => $rows];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch packaging units: ' . $e->getMessage()];
+        }
+    }
+
+    function addPackagingUnit($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+        if (empty($data['packaging_name'])) {
+            return ['success' => false, 'message' => 'packaging_name is required.'];
+        }
+        try {
+            // uniqueness by name
+            $check = $conn->prepare("SELECT packaging_id FROM tbl_medicine_packaging WHERE packaging_name = :name");
+            $check->bindParam(":name", $data['packaging_name']);
+            $check->execute();
+            if ($check->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Packaging name already exists.'];
+            }
+            $stmt = $conn->prepare("INSERT INTO tbl_medicine_packaging (packaging_name, description) VALUES (:name, :desc)");
+            $stmt->bindParam(":name", $data['packaging_name']);
+            $desc = isset($data['description']) ? $data['description'] : null;
+            $stmt->bindValue(":desc", $desc, $desc === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->execute();
+            return ['success' => true, 'message' => 'Packaging unit added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add packaging unit: ' . $e->getMessage()];
+        }
+    }
+
+    function updatePackagingUnit($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+        if (empty($data['packaging_id']) || empty($data['packaging_name'])) {
+            return ['success' => false, 'message' => 'packaging_id and packaging_name are required.'];
+        }
+        try {
+            // ensure unique among others
+            $check = $conn->prepare("SELECT packaging_id FROM tbl_medicine_packaging WHERE packaging_name = :name AND packaging_id != :id");
+            $check->bindParam(":name", $data['packaging_name']);
+            $check->bindParam(":id", $data['packaging_id']);
+            $check->execute();
+            if ($check->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Packaging name already exists.'];
+            }
+            $stmt = $conn->prepare("UPDATE tbl_medicine_packaging SET packaging_name = :name, description = :desc WHERE packaging_id = :id");
+            $stmt->bindParam(":name", $data['packaging_name']);
+            $desc = isset($data['description']) ? $data['description'] : null;
+            $stmt->bindValue(":desc", $desc, $desc === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindParam(":id", $data['packaging_id']);
+            $stmt->execute();
+            return ['success' => true, 'message' => 'Packaging unit updated successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update packaging unit: ' . $e->getMessage()];
+        }
+    }
+
+    function deletePackagingUnit($packaging_id)
+    {
+        include "connection.php";
+        if (empty($packaging_id)) {
+            return ['success' => false, 'message' => 'packaging_id is required.'];
+        }
+        try {
+            $stmt = $conn->prepare("DELETE FROM tbl_medicine_packaging WHERE packaging_id = :id");
+            $stmt->bindParam(":id", $packaging_id);
+            $stmt->execute();
+            return $stmt->rowCount() > 0
+                ? ['success' => true, 'message' => 'Packaging unit deleted successfully!']
+                : ['success' => false, 'message' => 'Packaging unit not found.'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete packaging unit: ' . $e->getMessage()];
         }
     }
 }
@@ -421,6 +588,27 @@ switch ($operation) {
         break;
     case "deleteMedicineWeight":
         echo json_encode($medicines->deleteMedicineWeight($weight_id));
+        break;
+    case "getPackagingConfigs":
+        echo json_encode($medicines->getPackagingConfigs($medicine_id));
+        break;
+    case "upsertPackagingConfig":
+        echo json_encode($medicines->upsertPackagingConfig($json));
+        break;
+    case "deletePackagingConfig":
+        echo json_encode($medicines->deletePackagingConfig($medicine_id));
+        break;
+    case "getPackagingUnits":
+        echo json_encode($medicines->getPackagingUnits());
+        break;
+    case "addPackagingUnit":
+        echo json_encode($medicines->addPackagingUnit($json));
+        break;
+    case "updatePackagingUnit":
+        echo json_encode($medicines->updatePackagingUnit($json));
+        break;
+    case "deletePackagingUnit":
+        echo json_encode($medicines->deletePackagingUnit($medicine_id));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

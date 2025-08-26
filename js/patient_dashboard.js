@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
             prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
             prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Specifications</th><th>Dosage</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
             receipt.prescriptions.forEach(p => {
-                const specs = `${p.weight}${p.form ? ' (' + p.form + ')' : ''}`;
+                const specs = `${p.strength || p.weight || ''}${p.form ? ' (' + p.form + ')' : ''}`;
                 prescriptionsHtml += `<tr>
                     <td><strong>${p.medicine_name}</strong></td>
                     <td>${specs}</td>

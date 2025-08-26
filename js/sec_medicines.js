@@ -38,9 +38,9 @@
           populateSelectOptions('add_form_id', medicineForms, "form_name", "form_id", "Select Form");
           populateSelectOptions('edit_form_id', medicineForms, "form_name", "form_id", "Select Form");
 
-          // Populate weight dropdowns
-          populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_value", "Select Weight");
-          populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_value", "Select Weight");
+          // Populate strength dropdowns (using weights table values for strength options)
+          populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_value", "Select Strength");
+          populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_value", "Select Strength");
 
           console.log("Dropdowns populated successfully");
         } catch (error) {
@@ -110,7 +110,7 @@
             const row = document.createElement("tr");
             row.innerHTML = `
               <td>${med.medicine_name}</td>
-              <td>${med.weight_value || 'N/A'}</td>
+              <td>${med.strength || med.weight || med.weight_value || 'N/A'}</td>
               <td>${med.form_name || 'N/A'}</td>
               <td>₱${parseFloat(med.price).toFixed(2)}</td>
               <td>
@@ -159,9 +159,17 @@
 
         const jsonPayload = JSON.stringify({
           medicine_name: formData.get("medicine_name"),
-          weight: formData.get("weight"),
+          strength: formData.get("weight"),
           form_id: formData.get("form_id"),
           price: parseFloat(formData.get("price")),
+          packaging: (() => {
+            const unit = (formData.get("pkg_unit") || "").toString();
+            const qppStr = (formData.get("pkg_qpp") || "").toString();
+            const label = (formData.get("pkg_label") || "").toString();
+            const qpp = qppStr ? parseInt(qppStr, 10) : null;
+            if (!unit || !qpp) return null;
+            return { packaging_unit: unit, quantity_per_package: qpp, unit_label: label || null };
+          })(),
         });
 
         const payload = new FormData();
@@ -224,12 +232,22 @@
             Swal.fire("Error", "Medicine not found", "error");
             return;
           }
+          // Load packaging configs
+          const pkgResp = await axios.get(`${medicineApiUrl}?operation=getPackagingConfigs&medicine_id=${medicineId}`);
+          const configs = pkgResp.data.configs || [];
+
+          const pkgHtml = configs.length
+            ? `<ul class="mb-0">${configs.map(c => `<li>${c.packaging_unit}: ${c.quantity_per_package}${c.unit_label ? ' ' + c.unit_label : ''}</li>`).join('')}</ul>`
+            : '<em class="text-muted">No packaging configured</em>';
 
           const content = `
             <p><strong>Name:</strong> ${med.medicine_name}</p>
-            <p><strong>Weight:</strong> ${med.weight_value || 'N/A'}</p>
+            <p><strong>Strength:</strong> ${med.strength || med.weight || med.weight_value || 'N/A'}</p>
             <p><strong>Form:</strong> ${med.form_name || 'N/A'}</p>
             <p><strong>Price:</strong> ₱${parseFloat(med.price).toFixed(2)}</p>
+            <hr/>
+            <p class="mb-1"><strong>Packaging:</strong></p>
+            ${pkgHtml}
             <p><strong>Created At:</strong> ${formatDate(med.created_at)}</p>
             <p><strong>Updated At:</strong> ${formatDate(med.updated_at)}</p>
           `;
@@ -271,21 +289,127 @@
             }
           }
 
-          // Set weight dropdown by matching weight value
+          // Set strength dropdown by matching value
           const weightSelect = document.getElementById("edit_weight");
           if (weightSelect) {
-            console.log("Medicine weight data:", med.weight);
+            console.log("Medicine strength data:", med.strength);
             console.log("Weight dropdown options:", Array.from(weightSelect.options).map(opt => ({text: opt.text, value: opt.value})));
 
-            // Try to match by weight value
-            if (med.weight) {
-              weightSelect.value = med.weight;
-              console.log("Weight matched with weight value:", med.weight);
+            // Try to match by strength text
+            if (med.strength) {
+              weightSelect.value = med.strength;
+              console.log("Strength matched with value:", med.strength);
             } else {
-              console.log("No weight found, setting to empty");
-              weightSelect.selectedIndex = 0; // Set to "Select Weight"
+              console.log("No strength found, setting to empty");
+              weightSelect.selectedIndex = 0; // Set to "Select Strength"
             }
           }
+
+          // Load packaging configs
+          const pkgResp = await axios.get(`${medicineApiUrl}?operation=getPackagingConfigs&medicine_id=${medicineId}`);
+          const configs = pkgResp.data.configs || [];
+
+          // Inject packaging config editor UI
+          const modalBody = document.querySelector('#editMedicineModal .modal-body');
+          const existing = document.getElementById('pkgConfigEditor');
+          if (existing) existing.remove();
+          const editor = document.createElement('div');
+          editor.id = 'pkgConfigEditor';
+          editor.innerHTML = `
+            <hr/>
+            <div class="mb-2 d-flex align-items-center justify-content-between">
+              <h6 class="mb-0">Packaging Configuration</h6>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="addPkgRowBtn">
+                <i class="fas fa-plus"></i> Add
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style="width: 25%">Unit</th>
+                    <th style="width: 25%">Qty per package</th>
+                    <th style="width: 25%">Unit label</th>
+                    <th style="width: 25%">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="pkgRows"></tbody>
+              </table>
+            </div>
+          `;
+          modalBody.appendChild(editor);
+
+          const pkgRows = editor.querySelector('#pkgRows');
+          const renderRow = (c) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>
+                <select class="form-select form-select-sm pkg-unit">
+                  <option value="tablet">Tablet</option>
+                  <option value="capsule">Capsule</option>
+                  <option value="blister pack">Blister Pack</option>
+                  <option value="strip">Strip</option>
+                  <option value="box">Box</option>
+                  <option value="bottle">Bottle</option>
+                  <option value="tube">Tube</option>
+                  <option value="vial">Vial</option>
+                  <option value="sachet">Sachet</option>
+                </select>
+              </td>
+              <td><input type="number" class="form-control form-control-sm pkg-qpp" min="1" value="${c?.quantity_per_package || ''}" placeholder="e.g., 10"/></td>
+              <td><input type="text" class="form-control form-control-sm pkg-label" value="${c?.unit_label || ''}" placeholder="e.g., tablets, mL, g"/></td>
+              <td>
+                <div class="btn-group btn-group-sm">
+                  <button type="button" class="btn btn-outline-success save-pkg">Save</button>
+                  ${c?.config_id ? `<button type="button" class="btn btn-outline-danger delete-pkg">Delete</button>` : ''}
+                </div>
+              </td>
+            `;
+            if (c?.packaging_unit) tr.querySelector('.pkg-unit').value = c.packaging_unit;
+            tr.querySelector('.save-pkg').addEventListener('click', async () => {
+              const payload = new FormData();
+              payload.append('operation', 'upsertPackagingConfig');
+              payload.append('json', JSON.stringify({
+                medicine_id: medicineId,
+                packaging_unit: tr.querySelector('.pkg-unit').value,
+                quantity_per_package: parseInt(tr.querySelector('.pkg-qpp').value || '0', 10),
+                unit_label: tr.querySelector('.pkg-label').value || null,
+              }));
+              try {
+                const resp = await axios.post(medicineApiUrl, payload);
+                if (resp.data.success) {
+                  Swal.fire('Saved', 'Packaging saved', 'success');
+                } else {
+                  Swal.fire('Error', resp.data.message || 'Failed to save', 'error');
+                }
+              } catch (e) {
+                Swal.fire('Error', 'Failed to save', 'error');
+              }
+            });
+            const delBtn = tr.querySelector('.delete-pkg');
+            if (delBtn) delBtn.addEventListener('click', async () => {
+              const confirm = await Swal.fire({ icon: 'warning', title: 'Delete?', showCancelButton: true });
+              if (!confirm.isConfirmed) return;
+              const fd = new FormData();
+              fd.append('operation', 'deletePackagingConfig');
+              fd.append('medicine_id', c.config_id); // reuse param slot
+              try {
+                const resp = await axios.post(medicineApiUrl, fd);
+                if (resp.data.success) {
+                  tr.remove();
+                  Swal.fire('Deleted', 'Packaging removed', 'success');
+                } else {
+                  Swal.fire('Error', resp.data.message || 'Failed to delete', 'error');
+                }
+              } catch (e) {
+                Swal.fire('Error', 'Failed to delete', 'error');
+              }
+            });
+            pkgRows.appendChild(tr);
+          };
+
+          configs.forEach(c => renderRow(c));
+          editor.querySelector('#addPkgRowBtn').addEventListener('click', () => renderRow({}));
 
           editMedicineModal.show();
         } catch (err) {
@@ -309,7 +433,7 @@
         const jsonPayload = JSON.stringify({
           medicine_id: formData.get("medicine_id"),
           medicine_name: formData.get("medicine_name"),
-          weight: formData.get("weight"),
+          strength: formData.get("weight"),
           form_id: formData.get("form_id"),
           price: parseFloat(formData.get("price")),
         });
@@ -317,7 +441,7 @@
         console.log("Edit form data:", {
           medicine_id: formData.get("medicine_id"),
           medicine_name: formData.get("medicine_name"),
-          weight: formData.get("weight"),
+          strength: formData.get("weight"),
           form_id: formData.get("form_id"),
           price: formData.get("price"),
         });

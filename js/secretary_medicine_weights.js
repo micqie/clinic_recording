@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <tr>
                         <td colspan="3" class="text-center text-muted py-4">
                             <i class="fas fa-weight-scale fa-3x mb-3"></i>
-                            <p>No medicine weights found</p>
+                            <p>No medicine strengths found</p>
                         </td>
                     </tr>
                 `;
@@ -61,12 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 weightsTableBody.appendChild(row);
             });
         } catch (error) {
-            console.error("Failed to load medicine weights", error);
+            console.error("Failed to load medicine strengths", error);
             weightsTableBody.innerHTML = `
                 <tr>
                     <td colspan="3" class="text-center text-danger py-4">
                         <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                        <p>Failed to load medicine weights</p>
+                        <p>Failed to load medicine strengths</p>
                     </td>
                 </tr>
             `;
@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 Swal.fire("Error", response.data.message, "error");
             }
         } catch (error) {
-            console.error("Error adding medicine weight", error);
+            console.error("Error adding medicine strength", error);
             Swal.fire("Error", "Something went wrong", "error");
         }
     });
@@ -116,8 +116,8 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("edit_weight_value").value = weightValue;
             editWeightModal.show();
         } catch (error) {
-            console.error("Error editing weight", error);
-            Swal.fire("Error", "Failed to load weight details", "error");
+            console.error("Error editing strength", error);
+            Swal.fire("Error", "Failed to load strength details", "error");
         }
     };
 
@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 Swal.fire("Error", response.data.message, "error");
             }
         } catch (error) {
-            console.error("Error updating medicine weight", error);
+            console.error("Error updating medicine strength", error);
             Swal.fire("Error", "Something went wrong", "error");
         }
     });
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const confirm = await Swal.fire({
             icon: "warning",
             title: "Are you sure?",
-            text: `This will permanently delete the medicine weight "${weightValue}". This action cannot be undone.`,
+            text: `This will permanently delete the medicine strength "${weightValue}". This action cannot be undone.`,
             showCancelButton: true,
             confirmButtonText: "Yes, delete it!",
             cancelButtonText: "Cancel"
@@ -182,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             } catch (error) {
                 console.error("Delete error", error);
-                Swal.fire("Error", "Could not delete medicine weight.", "error");
+                Swal.fire("Error", "Could not delete medicine strength.", "error");
             }
         }
     };

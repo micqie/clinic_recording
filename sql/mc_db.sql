@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 25, 2025 at 09:00 AM
+-- Generation Time: Aug 26, 2025 at 10:02 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -44,7 +44,7 @@ CREATE TABLE `tbl_appointments` (
 INSERT INTO `tbl_appointments` (`appointment_id`, `patient_id`, `doctor_id`, `secretary_id`, `appointment_date`, `queue_number`, `status_id`) VALUES
 (12, 9, 1, 1, '2025-08-29', 1, 7),
 (15, 9, 1, 1, '2025-08-20', 3, 7),
-(16, 13, 1, 1, '2025-08-26', 4, 7),
+(16, 13, 1, 1, '2025-08-26', 4, 9),
 (17, 10, 2, 1, '2025-08-25', 1, 6),
 (18, 3, 3, 2, '2025-08-27', 2, 7),
 (19, 9, 2, NULL, '2025-08-16', 1, 7),
@@ -84,7 +84,8 @@ CREATE TABLE `tbl_consultations` (
 INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id`, `patient_id`, `diagnosis`, `consultation_notes`, `next_appointment_date`, `next_appointment_notes`, `consultation_status`, `created_at`, `updated_at`) VALUES
 (1, 12, 1, 9, 'Upper Respiratory Tract Infection', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-25', 'Follow-up to check if symptoms improved', 'Completed', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
 (3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed. Patient needs regular monitoring.', '2025-08-30', 'Blood sugar check and medication adjustment', 'Follow-up Required', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
-(4, 23, 1, 9, 'Common Cold', 'Mild symptoms, rest and fluids recommended', NULL, NULL, 'Completed', '2025-08-23 15:14:44', '2025-08-23 15:14:44');
+(4, 23, 1, 9, 'Common Cold', 'Mild symptoms, rest and fluids recommended', NULL, NULL, 'Completed', '2025-08-23 15:14:44', '2025-08-23 15:14:44'),
+(7, 16, 1, 13, 'Cough', 'asd', NULL, '', 'Completed', '2025-08-26 15:32:03', '2025-08-26 15:32:03');
 
 -- --------------------------------------------------------
 
@@ -100,6 +101,13 @@ CREATE TABLE `tbl_current_queue` (
   `last_updated_by` int(11) DEFAULT NULL COMMENT 'Secretary who last updated',
   `last_updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_current_queue`
+--
+
+INSERT INTO `tbl_current_queue` (`queue_id`, `date`, `current_appointment_id`, `next_appointment_id`, `last_updated_by`, `last_updated_at`) VALUES
+(1, '2025-08-26', 16, NULL, 11, '2025-08-26 14:38:46');
 
 -- --------------------------------------------------------
 
@@ -285,7 +293,7 @@ INSERT INTO `tbl_lab_test_types` (`lab_test_type_id`, `type_name`, `description`
 CREATE TABLE `tbl_medicines` (
   `medicine_id` int(11) NOT NULL,
   `medicine_name` varchar(255) NOT NULL,
-  `weight` varchar(100) DEFAULT NULL,
+  `strength` varchar(100) DEFAULT NULL,
   `form_id` int(11) NOT NULL,
   `price` decimal(10,2) NOT NULL,
   `created_at` datetime DEFAULT current_timestamp(),
@@ -296,7 +304,7 @@ CREATE TABLE `tbl_medicines` (
 -- Dumping data for table `tbl_medicines`
 --
 
-INSERT INTO `tbl_medicines` (`medicine_id`, `medicine_name`, `weight`, `form_id`, `price`, `created_at`, `updated_at`) VALUES
+INSERT INTO `tbl_medicines` (`medicine_id`, `medicine_name`, `strength`, `form_id`, `price`, `created_at`, `updated_at`) VALUES
 (1, 'Paracetamol', '500mg', 1, 50.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
 (2, 'Ibuprofen', '400mg', 1, 80.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
 (3, 'Amoxicillin', '500mg', 3, 120.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
@@ -329,6 +337,33 @@ INSERT INTO `tbl_medicine_forms` (`form_id`, `form_name`) VALUES
 (3, 'capsule'),
 (4, 'ointment'),
 (5, 'injection');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tbl_medicine_packaging`
+--
+
+CREATE TABLE `tbl_medicine_packaging` (
+  `packaging_id` int(11) NOT NULL,
+  `packaging_name` varchar(100) NOT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_medicine_packaging`
+--
+
+INSERT INTO `tbl_medicine_packaging` (`packaging_id`, `packaging_name`, `description`, `created_at`) VALUES
+(1, 'tablet', 'Individual tablet/piece', '2025-08-26 14:38:15'),
+(2, 'blister pack', 'Strip of tablets in blister packaging', '2025-08-26 14:38:15'),
+(3, 'box', 'Box containing multiple tablets/capsules', '2025-08-26 14:38:15'),
+(4, 'bottle', 'Bottle for syrups, suspensions, or liquid medications', '2025-08-26 14:38:15'),
+(5, 'tube', 'Tube for ointments, creams, or gels', '2025-08-26 14:38:15'),
+(6, 'vial', 'Vial for injectable medications', '2025-08-26 14:38:15'),
+(7, 'sachet', 'Individual sachet/packet', '2025-08-26 14:38:15'),
+(8, 'strip', 'Strip of tablets or capsules', '2025-08-26 14:38:15');
 
 -- --------------------------------------------------------
 
@@ -413,7 +448,8 @@ CREATE TABLE `tbl_payments` (
 INSERT INTO `tbl_payments` (`payment_id`, `appointment_id`, `patient_id`, `amount`, `payment_method`, `status_id`, `payment_date`, `created_at`, `updated_at`) VALUES
 (1, 12, 9, 500.00, 'Walk-in', 12, '2025-08-15 09:30:00', '2025-08-15 09:30:00', '2025-08-15 09:30:00'),
 (3, 15, 9, 600.00, 'Walk-in', 11, NULL, '2025-08-20 10:00:00', '2025-08-20 10:00:00'),
-(4, NULL, 10, 300.00, 'Online', 12, '2025-08-16 16:45:00', '2025-08-16 16:45:00', '2025-08-16 16:45:00');
+(4, NULL, 10, 300.00, 'Online', 12, '2025-08-16 16:45:00', '2025-08-16 16:45:00', '2025-08-16 16:45:00'),
+(6, 16, 13, 13.00, '', 12, '2025-08-26 15:56:37', '2025-08-26 15:50:07', '2025-08-26 15:56:37');
 
 -- --------------------------------------------------------
 
@@ -447,6 +483,27 @@ INSERT INTO `tbl_payment_methods` (`method_id`, `method_name`, `description`, `i
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tbl_payment_references`
+--
+
+CREATE TABLE `tbl_payment_references` (
+  `ref_id` int(11) NOT NULL,
+  `payment_id` int(11) NOT NULL,
+  `method_name` varchar(100) NOT NULL,
+  `payer_account` varchar(100) DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_payment_references`
+--
+
+INSERT INTO `tbl_payment_references` (`ref_id`, `payment_id`, `method_name`, `payer_account`, `created_at`) VALUES
+(1, 6, 'Check', '213123', '2025-08-26 15:56:37');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tbl_prescriptions`
 --
 
@@ -461,6 +518,8 @@ CREATE TABLE `tbl_prescriptions` (
   `dosage` varchar(100) NOT NULL,
   `frequency` varchar(100) NOT NULL,
   `duration` varchar(100) NOT NULL,
+  `quantity` int(11) NOT NULL DEFAULT 1,
+  `packaging_unit` varchar(50) DEFAULT 'tablet',
   `instructions` text DEFAULT NULL,
   `status` enum('Active','Completed','Cancelled') DEFAULT 'Active',
   `created_at` datetime DEFAULT current_timestamp(),
@@ -471,10 +530,11 @@ CREATE TABLE `tbl_prescriptions` (
 -- Dumping data for table `tbl_prescriptions`
 --
 
-INSERT INTO `tbl_prescriptions` (`prescription_id`, `consultation_id`, `diagnosis_id`, `appointment_id`, `doctor_id`, `patient_id`, `medicine_id`, `dosage`, `frequency`, `duration`, `instructions`, `status`, `created_at`, `updated_at`) VALUES
-(1, NULL, 1, 12, 1, 9, 3, '500mg', 'Every 8 hours', '7 days', 'Take with food. Complete the full course even if symptoms improve.', 'Active', '2025-08-15 11:00:00', '2025-08-15 11:00:00'),
-(2, NULL, 1, 12, 1, 9, 1, '500mg', 'Every 6 hours', '3 days', 'Take for fever and pain relief. Do not exceed 4 doses per day.', 'Active', '2025-08-15 11:00:00', '2025-08-15 11:00:00'),
-(4, NULL, 3, 15, 1, 9, 9, '20mg', 'Once daily', '90 days', 'Take with meals. Regular blood sugar monitoring required.', 'Active', '2025-08-20 12:00:00', '2025-08-20 12:00:00');
+INSERT INTO `tbl_prescriptions` (`prescription_id`, `consultation_id`, `diagnosis_id`, `appointment_id`, `doctor_id`, `patient_id`, `medicine_id`, `dosage`, `frequency`, `duration`, `quantity`, `packaging_unit`, `instructions`, `status`, `created_at`, `updated_at`) VALUES
+(1, NULL, 1, 12, 1, 9, 3, '500mg', 'Every 8 hours', '7 days', 21, 'capsule', 'Take with food. Complete the full course even if symptoms improve.', 'Active', '2025-08-15 11:00:00', '2025-08-26 14:38:15'),
+(2, NULL, 1, 12, 1, 9, 1, '500mg', 'Every 6 hours', '3 days', 12, 'tablet', 'Take for fever and pain relief. Do not exceed 4 doses per day.', 'Active', '2025-08-15 11:00:00', '2025-08-26 14:38:15'),
+(4, NULL, 3, 15, 1, 9, 9, '20mg', 'Once daily', '90 days', 90, 'capsule', 'Take with meals. Regular blood sugar monitoring required.', 'Active', '2025-08-20 12:00:00', '2025-08-26 14:38:15'),
+(5, 7, NULL, 16, 1, 13, 8, '500mg', '8 hours', '7 days', 1, 'tablet', 'asd', 'Active', '2025-08-26 15:32:03', '2025-08-26 15:32:03');
 
 -- --------------------------------------------------------
 
@@ -755,6 +815,12 @@ ALTER TABLE `tbl_medicine_forms`
   ADD PRIMARY KEY (`form_id`);
 
 --
+-- Indexes for table `tbl_medicine_packaging`
+--
+ALTER TABLE `tbl_medicine_packaging`
+  ADD PRIMARY KEY (`packaging_id`);
+
+--
 -- Indexes for table `tbl_medicine_weights`
 --
 ALTER TABLE `tbl_medicine_weights`
@@ -784,6 +850,13 @@ ALTER TABLE `tbl_payment_methods`
   ADD UNIQUE KEY `uq_method_name` (`method_name`);
 
 --
+-- Indexes for table `tbl_payment_references`
+--
+ALTER TABLE `tbl_payment_references`
+  ADD PRIMARY KEY (`ref_id`),
+  ADD KEY `payment_id` (`payment_id`);
+
+--
 -- Indexes for table `tbl_prescriptions`
 --
 ALTER TABLE `tbl_prescriptions`
@@ -792,7 +865,9 @@ ALTER TABLE `tbl_prescriptions`
   ADD KEY `appointment_id` (`appointment_id`),
   ADD KEY `doctor_id` (`doctor_id`),
   ADD KEY `patient_id` (`patient_id`),
-  ADD KEY `medicine_id` (`medicine_id`);
+  ADD KEY `medicine_id` (`medicine_id`),
+  ADD KEY `idx_quantity` (`quantity`),
+  ADD KEY `idx_packaging_unit` (`packaging_unit`);
 
 --
 -- Indexes for table `tbl_roles`
@@ -849,13 +924,13 @@ ALTER TABLE `tbl_appointments`
 -- AUTO_INCREMENT for table `tbl_consultations`
 --
 ALTER TABLE `tbl_consultations`
-  MODIFY `consultation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `consultation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `tbl_current_queue`
 --
 ALTER TABLE `tbl_current_queue`
-  MODIFY `queue_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `queue_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `tbl_diagnoses`
@@ -903,13 +978,19 @@ ALTER TABLE `tbl_lab_test_types`
 -- AUTO_INCREMENT for table `tbl_medicines`
 --
 ALTER TABLE `tbl_medicines`
-  MODIFY `medicine_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `medicine_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `tbl_medicine_forms`
 --
 ALTER TABLE `tbl_medicine_forms`
   MODIFY `form_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT for table `tbl_medicine_packaging`
+--
+ALTER TABLE `tbl_medicine_packaging`
+  MODIFY `packaging_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `tbl_medicine_weights`
@@ -927,7 +1008,7 @@ ALTER TABLE `tbl_patients`
 -- AUTO_INCREMENT for table `tbl_payments`
 --
 ALTER TABLE `tbl_payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `tbl_payment_methods`
@@ -936,10 +1017,16 @@ ALTER TABLE `tbl_payment_methods`
   MODIFY `method_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
+-- AUTO_INCREMENT for table `tbl_payment_references`
+--
+ALTER TABLE `tbl_payment_references`
+  MODIFY `ref_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT for table `tbl_prescriptions`
 --
 ALTER TABLE `tbl_prescriptions`
-  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `tbl_roles`

@@ -231,7 +231,25 @@ document.addEventListener('DOMContentLoaded', () => {
                             <label class="form-label">Duration</label>
                             <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][duration]" placeholder="e.g., 7 days" required>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-2">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-control" name="prescriptions[${prescriptionCounter-1}][quantity]" placeholder="e.g., 20" min="1" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Unit</label>
+                            <select class="form-select" name="prescriptions[${prescriptionCounter-1}][packaging_unit]" required>
+                                <option value="tablet">Tablet</option>
+                                <option value="capsule">Capsule</option>
+                                <option value="blister pack">Blister Pack</option>
+                                <option value="box">Box</option>
+                                <option value="bottle">Bottle</option>
+                                <option value="tube">Tube</option>
+                                <option value="vial">Vial</option>
+                                <option value="sachet">Sachet</option>
+                                <option value="strip">Strip</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
                             <label class="form-label">Instructions</label>
                             <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][instructions]" placeholder="e.g., Take with food">
                         </div>
@@ -288,9 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 list.forEach(medicine => {
                     const opt = document.createElement('option');
                     opt.value = medicine.medicine_id;
-                    const weight = medicine.weight_value || medicine.weight || '';
+                    const strength = medicine.strength || medicine.weight_value || medicine.weight || '';
                     const form = medicine.form_name || '';
-                    opt.textContent = `${medicine.medicine_name}${weight ? ` ${weight}` : ''}${form ? ` (${form})` : ''}`;
+                    opt.textContent = `${medicine.medicine_name}${strength ? ` ${strength}` : ''}${form ? ` (${form})` : ''}`;
                     select.appendChild(opt);
                 });
             }

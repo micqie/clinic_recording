@@ -20,7 +20,9 @@ class PrescriptionReceipt
             $consultationStmt = $this->conn->prepare("
                 SELECT c.*, a.appointment_date, a.queue_number,
                        u.name AS patient_name, u.email AS patient_email,
-                       du.name AS doctor_name, sp.name AS specialization_name
+                       du.name AS doctor_name, sp.name AS specialization_name,
+                       pay.payment_method, pay.payment_date,
+                       pref.payer_account
                 FROM tbl_consultations c
                 JOIN tbl_appointments a ON c.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON c.patient_id = p.patient_id
@@ -28,6 +30,16 @@ class PrescriptionReceipt
                 JOIN tbl_doctors d ON c.doctor_id = d.doctor_id
                 JOIN tbl_users du ON d.user_id = du.user_id
                 LEFT JOIN tbl_specializations sp ON d.specialization_id = sp.specialization_id
+                LEFT JOIN tbl_payments pay ON pay.appointment_id = a.appointment_id
+                LEFT JOIN (
+                    SELECT pr.payment_id, pr.payer_account
+                    FROM tbl_payment_references pr
+                    JOIN (
+                        SELECT payment_id, MAX(ref_id) AS max_ref
+                        FROM tbl_payment_references
+                        GROUP BY payment_id
+                    ) latest ON pr.payment_id = latest.payment_id AND pr.ref_id = latest.max_ref
+                ) pref ON pref.payment_id = pay.payment_id
                 WHERE c.consultation_id = :consultation_id AND c.patient_id = :patient_id
             ");
             $consultationStmt->bindParam(":consultation_id", $consultationId);
@@ -42,7 +54,7 @@ class PrescriptionReceipt
 
             // Get prescriptions with medicine details and pricing
             $prescriptionStmt = $this->conn->prepare("
-                SELECT p.*, m.medicine_name, m.weight, m.price,
+                SELECT p.*, m.medicine_name, m.strength, m.price,
                        f.form_name
                 FROM tbl_prescriptions p
                 JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
@@ -83,11 +95,12 @@ class PrescriptionReceipt
 
                 $prescriptionDetails[] = [
                     'medicine_name' => $prescription['medicine_name'],
-                    'weight' => $prescription['weight'] ?? 'N/A',
+                    'strength' => $prescription['strength'] ?? ($prescription['weight'] ?? 'N/A'),
                     'form' => $prescription['form_name'] ?? 'N/A',
                     'dosage' => $prescription['dosage'],
                     'frequency' => $prescription['frequency'],
                     'duration' => $prescription['duration'],
+                    'packaging_unit' => $prescription['packaging_unit'] ?? 'tablet',
                     'instructions' => $prescription['instructions'],
                     'unit_price' => $prescription['price'],
                     'quantity' => $quantity,
@@ -124,6 +137,9 @@ class PrescriptionReceipt
                 'specialization' => $consultation['specialization_name'],
                 'diagnosis' => $consultation['diagnosis'],
                 'consultation_notes' => $consultation['consultation_notes'],
+                'appointment_date' => $consultation['appointment_date'],
+                'payment_method' => $consultation['payment_method'] ?? null,
+                'payer_account' => $consultation['payer_account'] ?? null,
                 'prescriptions' => $prescriptionDetails,
                 'lab_requests' => $labRequestDetails,
                 'prescription_subtotal' => $totalPrescriptionCost,

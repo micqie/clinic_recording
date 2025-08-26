@@ -19,7 +19,7 @@ class Prescriptions
                        doc.user_id as doctor_user_id,
                        du.name as doctor_name,
                        m.medicine_name,
-                       m.weight,
+                       m.strength,
                        f.form_name
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
@@ -54,7 +54,7 @@ class Prescriptions
                        doc.user_id as doctor_user_id,
                        du.name as doctor_name,
                        m.medicine_name,
-                       m.weight,
+                       m.strength,
                        f.form_name
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
@@ -89,7 +89,7 @@ class Prescriptions
                        p.user_id as patient_user_id,
                        u.name as patient_name,
                        m.medicine_name,
-                       m.weight,
+                       m.strength,
                        f.form_name
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
@@ -126,7 +126,7 @@ class Prescriptions
                        doc.user_id as doctor_user_id,
                        du.name as doctor_name,
                        m.medicine_name,
-                       m.weight,
+                       m.strength,
                        f.form_name
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
@@ -161,13 +161,13 @@ class Prescriptions
 
         if (empty($data['diagnosis_id']) || empty($data['appointment_id']) || empty($data['doctor_id']) ||
             empty($data['patient_id']) || empty($data['medicine_id']) || empty($data['dosage']) ||
-            empty($data['frequency']) || empty($data['duration'])) {
+            empty($data['frequency']) || empty($data['duration']) || empty($data['quantity'])) {
             return ['success' => false, 'message' => 'All required fields must be provided.'];
         }
 
         try {
-            $sql = "INSERT INTO tbl_prescriptions (diagnosis_id, appointment_id, doctor_id, patient_id, medicine_id, dosage, frequency, duration, instructions, status)
-                    VALUES (:diagnosis_id, :appointment_id, :doctor_id, :patient_id, :medicine_id, :dosage, :frequency, :duration, :instructions, :status)";
+            $sql = "INSERT INTO tbl_prescriptions (diagnosis_id, appointment_id, doctor_id, patient_id, medicine_id, dosage, frequency, duration, quantity, packaging_unit, instructions, status)
+                    VALUES (:diagnosis_id, :appointment_id, :doctor_id, :patient_id, :medicine_id, :dosage, :frequency, :duration, :quantity, :packaging_unit, :instructions, :status)";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":diagnosis_id", $data['diagnosis_id']);
             $stmt->bindParam(":appointment_id", $data['appointment_id']);
@@ -177,6 +177,8 @@ class Prescriptions
             $stmt->bindParam(":dosage", $data['dosage']);
             $stmt->bindParam(":frequency", $data['frequency']);
             $stmt->bindParam(":duration", $data['duration']);
+            $stmt->bindParam(":quantity", $data['quantity']);
+            $stmt->bindParam(":packaging_unit", $data['packaging_unit'] ?? 'tablet');
             $stmt->bindParam(":instructions", $data['instructions'] ?? null);
             $stmt->bindParam(":status", $data['status'] ?? 'Active');
             $stmt->execute();

@@ -63,9 +63,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         medicineSelects.forEach(select => {
           select.innerHTML = '<option value="">Select medicine</option>';
           (response.data.medicines || response.data.data || []).forEach(medicine => {
-            const weight = medicine.weight_value || medicine.weight || '';
+            const strength = medicine.strength || medicine.weight_value || medicine.weight || '';
             const form = medicine.form_name || '';
-            const text = `${medicine.medicine_name}${weight ? ` ${weight}` : ''}${form ? ` (${form})` : ''}`;
+            const text = `${medicine.medicine_name}${strength ? ` ${strength}` : ''}${form ? ` (${form})` : ''}`;
             select.innerHTML += `<option value="${medicine.medicine_id}">${text}</option>`;
           });
         });

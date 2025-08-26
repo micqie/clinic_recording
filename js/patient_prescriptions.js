@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </span>
                         </td>
                         <td>
-                            <span class="badge bg-info">${consultation.prescription_count || 0} medicines</span>
+                            <span class="badge bg-info">${consultation.packaging_summary || ((consultation.prescription_count || 0) + ' medicines')}</span>
                         </td>
                         <td>
                             <span class="fw-bold text-success">₱${(consultation.estimated_total || 0).toFixed(2)}</span>
@@ -73,6 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </button>
                                 <button class="btn btn-outline-success" onclick="viewReceipt(${consultation.consultation_id})" title="View Receipt">
                                     <i class="fas fa-receipt"></i>
+                                </button>
+                                <button class="btn btn-primary" onclick="payNow(${consultation.consultation_id})" title="Pay Online">
+                                    <i class="fas fa-credit-card"></i>
                                 </button>
                             </div>
                         </td>
@@ -166,6 +169,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // Pay online for prescriptions (prescriptions subtotal only)
+    window.payNow = async function(consultationId) {
+        try {
+            const patId = await getPatientId();
+            if (!patId) {
+                Swal.fire('Error', 'Patient profile not found', 'error');
+                return;
+            }
+
+            // Load active payment methods
+            const methodsResp = await axios.get(`${baseApiUrl}/payment_methods.php?operation=get_all`);
+            const methods = (methodsResp.data.success ? methodsResp.data.data : []) || [];
+            if (methods.length === 0) {
+                Swal.fire('Error', 'No online payment methods available', 'error');
+                return;
+            }
+
+            const optionsHtml = methods.map(m => `<option value="${m.method_name}">${m.method_name}</option>`).join('');
+            const { value: formValues } = await Swal.fire({
+                title: 'Pay online',
+                html:
+                  `<div class="mb-2 text-start">Select payment method</div>` +
+                  `<select id="swal-method" class="form-select mb-3">${optionsHtml}</select>` +
+                  `<div class="mb-2 text-start">Account / Reference (e.g., GCash number)</div>` +
+                  `<input id="swal-acct" class="form-control" placeholder="09xxxxxxxxx or account ref" />`,
+                focusConfirm: false,
+                showCancelButton: true,
+                preConfirm: () => {
+                  const method = document.getElementById('swal-method').value;
+                  const acct = document.getElementById('swal-acct').value.trim();
+                  if (!method) {
+                    Swal.showValidationMessage('Please choose a payment method');
+                    return false;
+                  }
+                  return { method, acct };
+                }
+            });
+            if (!formValues) return;
+
+            const payload = new FormData();
+            payload.append('operation', 'processOnlineConsultation');
+            payload.append('json', JSON.stringify({ consultation_id: consultationId, patient_id: patId, method_name: formValues.method, payer_account: formValues.acct }));
+
+            const resp = await axios.post(`${baseApiUrl}/payments.php`, payload);
+            if (resp.data.success) {
+                Swal.fire('Paid', `Payment successful. Amount: ₱${parseFloat(resp.data.amount || 0).toFixed(2)}`, 'success');
+                refreshPrescriptions();
+            } else {
+                Swal.fire('Error', resp.data.message || 'Payment failed', 'error');
+            }
+        } catch (e) {
+            console.error('Failed to process online payment:', e);
+            Swal.fire('Error', 'Payment request failed', 'error');
+        }
+    };
+
     // Display receipt in modal
     function displayReceipt(receipt) {
         const receiptModalBody = document.getElementById('receiptModalBody');
@@ -176,12 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
             prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
             prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Specifications</th><th>Dosage</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
             receipt.prescriptions.forEach(p => {
-                const specs = `${p.weight}${p.form ? ' (' + p.form + ')' : ''}`;
+                const specs = `${p.strength || p.weight || 'N/A'}${p.form ? ' (' + p.form + ')' : ''}`;
+                const quantityDisplay = `${p.quantity || 1} ${p.packaging_unit || 'unit'}`;
                 prescriptionsHtml += `<tr>
                     <td><strong>${p.medicine_name}</strong></td>
                     <td>${specs}</td>
                     <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
-                    <td>${p.quantity || 1}</td>
+                    <td>${quantityDisplay}</td>
                     <td>₱${p.unit_price} per unit</td>
                     <td class="fw-bold">₱${p.total_cost.toFixed(2)}</td>
                 </tr>`;
@@ -223,7 +283,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h6 class="text-primary">Patient Information</h6>
                         <p class="mb-1"><strong>Name:</strong> ${receipt.patient_name}</p>
                         <p class="mb-1"><strong>Email:</strong> ${receipt.patient_email}</p>
-                        <p class="mb-0"><strong>Date:</strong> ${receipt.consultation_date}</p>
+                        <p class="mb-1"><strong>Appointment Date:</strong> ${receipt.appointment_date || receipt.consultation_date}</p>
+                        ${receipt.payment_method ? `<p class="mb-0"><strong>Payment Method:</strong> ${receipt.payment_method}${receipt.payer_account ? ` - ${receipt.payer_account}` : ''}</p>` : ''}
                     </div>
                     <div class="col-md-6">
                         <h6 class="text-primary">Doctor Information</h6>

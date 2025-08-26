@@ -214,6 +214,99 @@ class Payments
         }
     }
 
+    // Patient online payment for a consultation: computes prescription subtotal and marks Paid
+    function processOnlineConsultationPayment($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        $consultation_id = $data['consultation_id'] ?? null;
+        $patient_id = $data['patient_id'] ?? null;
+        $method_name = $data['method_name'] ?? 'Online';
+        $payer_account = $data['payer_account'] ?? null; // e.g., GCash number, PayMaya number, bank account
+
+        if (empty($consultation_id) || empty($patient_id)) {
+            return ['success' => false, 'message' => 'consultation_id and patient_id are required.'];
+        }
+
+        try {
+            // Pull appointment_id and compute prescriptions subtotal only (lab is optional)
+            $cstmt = $conn->prepare("SELECT appointment_id FROM tbl_consultations WHERE consultation_id = :cid AND patient_id = :pid");
+            $cstmt->bindParam(":cid", $consultation_id);
+            $cstmt->bindParam(":pid", $patient_id);
+            $cstmt->execute();
+            $crow = $cstmt->fetch(PDO::FETCH_ASSOC);
+            if (!$crow) {
+                return ['success' => false, 'message' => 'Consultation not found or access denied.'];
+            }
+            $appointment_id = $crow['appointment_id'];
+
+            $pstmt = $conn->prepare("SELECT SUM(m.price * COALESCE(p.quantity,1)) AS subtotal
+                                      FROM tbl_prescriptions p
+                                      JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
+                                      WHERE p.consultation_id = :cid");
+            $pstmt->bindParam(":cid", $consultation_id);
+            $pstmt->execute();
+            $subtotal = (float)($pstmt->fetchColumn() ?: 0);
+
+            if ($subtotal <= 0) {
+                return ['success' => false, 'message' => 'No billable prescriptions found for this consultation.'];
+            }
+
+            // If there is an existing Unpaid payment for this appointment, update it; else insert new Paid payment
+            $find = $conn->prepare("SELECT payment_id FROM tbl_payments WHERE appointment_id = :aid AND patient_id = :pid ORDER BY payment_id DESC LIMIT 1");
+            $find->bindParam(":aid", $appointment_id);
+            $find->bindParam(":pid", $patient_id);
+            $find->execute();
+            $existing = $find->fetch(PDO::FETCH_ASSOC);
+
+            if ($existing) {
+                $upd = $conn->prepare("UPDATE tbl_payments SET amount = :amount, payment_method = :pmethod, status_id = 12, payment_date = NOW() WHERE payment_id = :pid");
+                $upd->bindParam(":amount", $subtotal);
+                $upd->bindParam(":pmethod", $method_name);
+                $upd->bindParam(":pid", $existing['payment_id']);
+                $upd->execute();
+                $payment_id = $existing['payment_id'];
+            } else {
+                $ins = $conn->prepare("INSERT INTO tbl_payments (appointment_id, patient_id, amount, payment_method, status_id, payment_date) VALUES (:aid, :pid, :amount, :pmethod, 12, NOW())");
+                $ins->bindParam(":aid", $appointment_id);
+                $ins->bindParam(":pid", $patient_id);
+                $ins->bindParam(":amount", $subtotal);
+                $ins->bindParam(":pmethod", $method_name);
+                $ins->execute();
+                $payment_id = $conn->lastInsertId();
+            }
+
+            // Optionally store payer account reference in a log table for audit
+            if ($payer_account) {
+                $conn->prepare("CREATE TABLE IF NOT EXISTS tbl_payment_references (
+                    ref_id INT AUTO_INCREMENT PRIMARY KEY,
+                    payment_id INT NOT NULL,
+                    method_name VARCHAR(100) NOT NULL,
+                    payer_account VARCHAR(100) NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    INDEX(payment_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")->execute();
+                $log = $conn->prepare("INSERT INTO tbl_payment_references (payment_id, method_name, payer_account) VALUES (:pid, :m, :acct)");
+                $log->bindParam(":pid", $payment_id);
+                $log->bindParam(":m", $method_name);
+                $log->bindParam(":acct", $payer_account);
+                $log->execute();
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Payment completed successfully.',
+                'payment_id' => $payment_id,
+                'amount' => $subtotal,
+                'appointment_id' => $appointment_id
+            ];
+
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to process online payment: ' . $e->getMessage()];
+        }
+    }
+
     function getPaymentStatistics()
     {
         include "connection.php";
@@ -297,6 +390,9 @@ switch ($operation) {
         break;
     case "processOnline":
         echo json_encode($payments->processOnlinePayment($json));
+        break;
+    case "processOnlineConsultation":
+        echo json_encode($payments->processOnlineConsultationPayment($json));
         break;
     case "getStatistics":
         echo json_encode($payments->getPaymentStatistics());

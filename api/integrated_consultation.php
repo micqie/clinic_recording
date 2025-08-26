@@ -39,10 +39,10 @@ class IntegratedConsultation
                 )
             ");
 
-            $consultationStmt->bindParam(":appointment_id", $data['appointment_id']);
-            $consultationStmt->bindParam(":doctor_id", $data['doctor_id']);
-            $consultationStmt->bindParam(":patient_id", $data['patient_id']);
-            $consultationStmt->bindParam(":diagnosis", $data['diagnosis']);
+            $consultationStmt->bindValue(":appointment_id", $data['appointment_id']);
+            $consultationStmt->bindValue(":doctor_id", $data['doctor_id']);
+            $consultationStmt->bindValue(":patient_id", $data['patient_id']);
+            $consultationStmt->bindValue(":diagnosis", $data['diagnosis']);
 
             // Ensure these are proper variables for bindParam
             $consultationNotes = $data['consultation_notes'] ?? '';
@@ -71,21 +71,23 @@ class IntegratedConsultation
                     $prescriptionStmt = $this->conn->prepare("
                         INSERT INTO tbl_prescriptions (
                             consultation_id, appointment_id, doctor_id, patient_id,
-                            medicine_id, dosage, frequency, duration, instructions, status
+                            medicine_id, dosage, frequency, duration, quantity, packaging_unit, instructions, status
                         ) VALUES (
                             :consultation_id, :appointment_id, :doctor_id, :patient_id,
-                            :medicine_id, :dosage, :frequency, :duration, :instructions, 'Active'
+                            :medicine_id, :dosage, :frequency, :duration, :quantity, :packaging_unit, :instructions, 'Active'
                         )
                     ");
 
                     $prescriptionStmt->bindParam(":consultation_id", $consultationId);
-                    $prescriptionStmt->bindParam(":appointment_id", $data['appointment_id']);
-                    $prescriptionStmt->bindParam(":doctor_id", $data['doctor_id']);
-                    $prescriptionStmt->bindParam(":patient_id", $data['patient_id']);
-                    $prescriptionStmt->bindParam(":medicine_id", $prescription['medicine_id']);
-                    $prescriptionStmt->bindParam(":dosage", $prescription['dosage']);
-                    $prescriptionStmt->bindParam(":frequency", $prescription['frequency']);
-                    $prescriptionStmt->bindParam(":duration", $prescription['duration']);
+                    $prescriptionStmt->bindValue(":appointment_id", $data['appointment_id']);
+                    $prescriptionStmt->bindValue(":doctor_id", $data['doctor_id']);
+                    $prescriptionStmt->bindValue(":patient_id", $data['patient_id']);
+                    $prescriptionStmt->bindValue(":medicine_id", $prescription['medicine_id']);
+                    $prescriptionStmt->bindValue(":dosage", $prescription['dosage']);
+                    $prescriptionStmt->bindValue(":frequency", $prescription['frequency']);
+                    $prescriptionStmt->bindValue(":duration", $prescription['duration']);
+                    $prescriptionStmt->bindValue(":quantity", isset($prescription['quantity']) ? (int)$prescription['quantity'] : 1, PDO::PARAM_INT);
+                    $prescriptionStmt->bindValue(":packaging_unit", $prescription['packaging_unit'] ?? 'tablet');
 
                     // Ensure instructions is a proper variable for bindParam
                     $instructions = $prescription['instructions'] ?? '';
@@ -113,11 +115,11 @@ class IntegratedConsultation
                         )
                     ");
 
-                    $labRequestStmt->bindParam(":doctor_id", $data['doctor_id']);
-                    $labRequestStmt->bindParam(":patient_id", $data['patient_id']);
-                    $labRequestStmt->bindParam(":appointment_id", $data['appointment_id']);
-                    $labRequestStmt->bindParam(":lab_test_type_id", $labRequest['lab_test_type_id']);
-                    $labRequestStmt->bindParam(":request_text", $labRequest['request_text']);
+                    $labRequestStmt->bindValue(":doctor_id", $data['doctor_id']);
+                    $labRequestStmt->bindValue(":patient_id", $data['patient_id']);
+                    $labRequestStmt->bindValue(":appointment_id", $data['appointment_id']);
+                    $labRequestStmt->bindValue(":lab_test_type_id", $labRequest['lab_test_type_id']);
+                    $labRequestStmt->bindValue(":request_text", $labRequest['request_text']);
 
                     // Ensure status_id is a proper variable for bindParam
                     $statusId = $labRequest['status_id'] ?? 14; // Default to Processing
@@ -142,7 +144,7 @@ class IntegratedConsultation
                     WHERE appointment_id = :appointment_id
                 ");
                 $updateAppointmentStmt->bindParam(":status_id", $completedStatusId);
-                $updateAppointmentStmt->bindParam(":appointment_id", $data['appointment_id']);
+                $updateAppointmentStmt->bindValue(":appointment_id", $data['appointment_id']);
 
                 if (!$updateAppointmentStmt->execute()) {
                     $errorInfo = $updateAppointmentStmt->errorInfo();
@@ -203,7 +205,7 @@ class IntegratedConsultation
 
             // Get prescriptions
             $prescriptionStmt = $this->conn->prepare("
-                SELECT p.*, m.medicine_name, m.weight, f.form_name
+                SELECT p.*, m.medicine_name, m.strength, f.form_name
                 FROM tbl_prescriptions p
                 JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
@@ -285,6 +287,7 @@ class IntegratedConsultation
     public function get_consultations_by_patient($patientId)
     {
         try {
+            // Base consultations for patient
             $stmt = $this->conn->prepare("
                 SELECT c.*, a.appointment_date, a.queue_number, du.name AS doctor_name, sp.name AS specialization_name
                 FROM tbl_consultations c
@@ -295,10 +298,46 @@ class IntegratedConsultation
                 WHERE c.patient_id = :patient_id
                 ORDER BY a.appointment_date DESC, a.queue_number ASC
             ");
-
             $stmt->bindParam(":patient_id", $patientId);
             $stmt->execute();
             $consultations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // For each consultation, compute prescription counts, totals, and packaging summary
+            foreach ($consultations as &$c) {
+                $pstmt = $this->conn->prepare("
+                    SELECT p.quantity, p.packaging_unit, m.price
+                    FROM tbl_prescriptions p
+                    JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
+                    WHERE p.consultation_id = :cid
+                ");
+                $pstmt->bindParam(":cid", $c['consultation_id']);
+                $pstmt->execute();
+                $rows = $pstmt->fetchAll(PDO::FETCH_ASSOC);
+
+                $prescriptionCount = count($rows);
+                $estimatedTotal = 0.0;
+                $unitToQty = [];
+                foreach ($rows as $r) {
+                    $qty = isset($r['quantity']) && $r['quantity'] !== null ? (int)$r['quantity'] : 1;
+                    $unit = $r['packaging_unit'] ?? 'unit';
+                    $estimatedTotal += ((float)$r['price']) * $qty;
+                    if (!isset($unitToQty[$unit])) $unitToQty[$unit] = 0;
+                    $unitToQty[$unit] += $qty;
+                }
+
+                // Build packaging summary like: "2 tablets, 1 box"
+                $parts = [];
+                foreach ($unitToQty as $unit => $qty) {
+                    $label = $unit;
+                    if ($qty !== 1) { $label = $unit; } // keep as-is; units already pluralized in lookup
+                    $parts[] = $qty . ' ' . $label;
+                }
+                $packagingSummary = count($parts) ? implode(', ', $parts) : '0 medicines';
+
+                $c['prescription_count'] = $prescriptionCount;
+                $c['estimated_total'] = (float)number_format($estimatedTotal, 2, '.', '');
+                $c['packaging_summary'] = $packagingSummary;
+            }
 
             echo json_encode([
                 "success" => true,
