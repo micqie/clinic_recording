@@ -269,6 +269,7 @@ CREATE TABLE `tbl_lab_test_types` (
   `lab_test_type_id` int(11) NOT NULL,
   `type_name` varchar(150) NOT NULL,
   `description` text DEFAULT NULL,
+  `price` decimal(10,2) NOT NULL DEFAULT 0.00,
   `created_at` datetime DEFAULT current_timestamp(),
   `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -277,12 +278,12 @@ CREATE TABLE `tbl_lab_test_types` (
 -- Dumping data for table `tbl_lab_test_types`
 --
 
-INSERT INTO `tbl_lab_test_types` (`lab_test_type_id`, `type_name`, `description`, `created_at`, `updated_at`) VALUES
-(1, 'Complete Blood Count (CBC)', 'Measures red/white cells, hemoglobin, etc.', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(2, 'Blood Sugar Test', 'Measures glucose levels for diabetes screening/monitoring', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(3, 'Urinalysis', 'Checks urine components to detect disorders', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(4, 'Lipid Profile', 'Measures cholesterol and triglycerides', '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(5, 'Liver Function Test', 'Assesses liver enzymes and proteins', '2025-08-10 15:35:40', '2025-08-10 15:35:40');
+INSERT INTO `tbl_lab_test_types` (`lab_test_type_id`, `type_name`, `description`, `price`, `created_at`, `updated_at`) VALUES
+(1, 'Complete Blood Count (CBC)', 'Measures red/white cells, hemoglobin, etc.', 500.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(2, 'Blood Sugar Test', 'Measures glucose levels for diabetes screening/monitoring', 300.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(3, 'Urinalysis', 'Checks urine components to detect disorders', 250.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(4, 'Lipid Profile', 'Measures cholesterol and triglycerides', 600.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(5, 'Liver Function Test', 'Assesses liver enzymes and proteins', 800.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40');
 
 -- --------------------------------------------------------
 

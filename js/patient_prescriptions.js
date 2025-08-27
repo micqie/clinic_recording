@@ -147,13 +147,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // View prescription receipt
     window.viewReceipt = async function(consultationId) {
         try {
+            console.log('Viewing receipt for consultation ID:', consultationId);
+
             const patId = await getPatientId();
             if (!patId) {
                 Swal.fire('Error', 'Patient profile not found', 'error');
                 return;
             }
 
+            console.log('Patient ID:', patId);
+            console.log('API URL:', `${prescriptionReceiptApi}?operation=get_receipt&consultation_id=${consultationId}&patient_id=${patId}`);
+
             const res = await axios.get(`${prescriptionReceiptApi}?operation=get_receipt&consultation_id=${consultationId}&patient_id=${patId}`);
+
+            console.log('API Response:', res.data);
 
             if (res.data.success) {
                 currentReceipt = res.data.receipt;
@@ -161,11 +168,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
                 receiptModal.show();
             } else {
+                console.error('API returned error:', res.data);
                 Swal.fire('Error', res.data.message || 'Failed to load receipt', 'error');
             }
         } catch (e) {
             console.error('Failed to load receipt:', e);
-            Swal.fire('Error', 'Failed to load receipt', 'error');
+            console.error('Error response:', e.response?.data);
+            console.error('Error status:', e.response?.status);
+            Swal.fire('Error', 'Failed to load receipt: ' + (e.response?.data?.message || e.message), 'error');
         }
     };
 
@@ -242,8 +252,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${specs}</td>
                     <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
                     <td>${quantityDisplay}</td>
-                    <td>₱${p.unit_price} per unit</td>
-                    <td class="fw-bold">₱${p.total_cost.toFixed(2)}</td>
+                    <td>₱${(parseFloat(p.unit_price) || 0).toFixed(2)} per unit</td>
+                    <td class="fw-bold">₱${(parseFloat(p.total_cost) || 0).toFixed(2)}</td>
                 </tr>`;
             });
             prescriptionsHtml += '</tbody></table></div>';
@@ -254,11 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
             labRequestsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
             labRequestsHtml += '<thead class="table-light"><tr><th>Lab Test</th><th>Description</th><th>Request Notes</th><th>Price</th></tr></thead><tbody>';
             receipt.lab_requests.forEach(l => {
+                const price = parseFloat(l.price) || 0;
                 labRequestsHtml += `<tr>
                     <td><strong>${l.type_name}</strong></td>
                     <td>${l.description || 'N/A'}</td>
                     <td>${l.request_text || 'N/A'}</td>
-                    <td class="fw-bold">₱${l.price.toFixed(2)}</td>
+                    <td class="fw-bold">₱${price.toFixed(2)}</td>
                 </tr>`;
             });
             labRequestsHtml += '</tbody></table></div>';
@@ -317,18 +328,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${receipt.prescriptions && receipt.prescriptions.length > 0 ? `
                             <tr>
                                 <td class="text-end"><strong>Prescriptions Subtotal:</strong></td>
-                                <td class="text-end">₱${receipt.prescription_subtotal.toFixed(2)}</td>
+                                <td class="text-end">₱${(parseFloat(receipt.prescription_subtotal) || 0).toFixed(2)}</td>
                             </tr>
                             ` : ''}
                             ${receipt.lab_requests && receipt.lab_requests.length > 0 ? `
                             <tr>
                                 <td class="text-end"><strong>Lab Tests Subtotal:</strong></td>
-                                <td class="text-end">₱${receipt.lab_subtotal.toFixed(2)}</td>
+                                <td class="text-end">₱${(parseFloat(receipt.lab_subtotal) || 0).toFixed(2)}</td>
                             </tr>
                             ` : ''}
                             <tr class="border-top">
                                 <td class="text-end"><strong>Total Amount:</strong></td>
-                                <td class="text-end fw-bold text-success fs-5">₱${receipt.total_amount.toFixed(2)}</td>
+                                <td class="text-end fw-bold text-success fs-5">₱${(parseFloat(receipt.total_amount) || 0).toFixed(2)}</td>
                             </tr>
                         </table>
                     </div>

@@ -16,6 +16,13 @@ class PrescriptionReceipt
     public function get_prescription_receipt($consultationId, $patientId)
     {
         try {
+            // Debug logging
+            error_log("Getting prescription receipt for consultation_id: $consultationId, patient_id: $patientId");
+
+            if (empty($consultationId) || empty($patientId)) {
+                echo json_encode(["success" => false, "message" => "Consultation ID and Patient ID are required"]);
+                return;
+            }
             // Get consultation details
             $consultationStmt = $this->conn->prepare("
                 SELECT c.*, a.appointment_date, a.queue_number,
@@ -65,16 +72,18 @@ class PrescriptionReceipt
             $prescriptionStmt->execute();
             $prescriptions = $prescriptionStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Get lab requests with pricing
+            // Get lab requests with pricing from database (with fallback pricing)
             $labRequestStmt = $this->conn->prepare("
                 SELECT lr.*, ltt.type_name, ltt.description,
-                       CASE
-                           WHEN ltt.type_name LIKE '%Blood%' THEN 500.00
-                           WHEN ltt.type_name LIKE '%Urine%' THEN 300.00
-                           WHEN ltt.type_name LIKE '%Liver%' THEN 800.00
-                           WHEN ltt.type_name LIKE '%Lipid%' THEN 600.00
-                           ELSE 400.00
-                       END as price
+                       COALESCE(ltt.price,
+                           CASE
+                               WHEN ltt.type_name LIKE '%Blood%' THEN 500.00
+                               WHEN ltt.type_name LIKE '%Urine%' THEN 300.00
+                               WHEN ltt.type_name LIKE '%Liver%' THEN 800.00
+                               WHEN ltt.type_name LIKE '%Lipid%' THEN 600.00
+                               ELSE 400.00
+                           END
+                       ) as price
                 FROM tbl_lab_requests lr
                 JOIN tbl_lab_test_types ltt ON lr.lab_test_type_id = ltt.lab_test_type_id
                 WHERE lr.appointment_id = :appointment_id
@@ -82,6 +91,9 @@ class PrescriptionReceipt
             $labRequestStmt->bindParam(":appointment_id", $consultation['appointment_id']);
             $labRequestStmt->execute();
             $labRequests = $labRequestStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Debug logging
+            error_log("Found " . count($labRequests) . " lab requests for appointment_id: " . $consultation['appointment_id']);
 
             // Calculate total cost for prescriptions
             $totalPrescriptionCost = 0;
@@ -102,9 +114,9 @@ class PrescriptionReceipt
                     'duration' => $prescription['duration'],
                     'packaging_unit' => $prescription['packaging_unit'] ?? 'tablet',
                     'instructions' => $prescription['instructions'],
-                    'unit_price' => $prescription['price'],
-                    'quantity' => $quantity,
-                    'total_cost' => $cost
+                    'unit_price' => floatval($prescription['price']),
+                    'quantity' => intval($quantity),
+                    'total_cost' => floatval($cost)
                 ];
             }
 
@@ -118,7 +130,7 @@ class PrescriptionReceipt
                     'type_name' => $labRequest['type_name'],
                     'description' => $labRequest['description'],
                     'request_text' => $labRequest['request_text'],
-                    'price' => $labRequest['price']
+                    'price' => floatval($labRequest['price'])
                 ];
             }
 
@@ -142,9 +154,9 @@ class PrescriptionReceipt
                 'payer_account' => $consultation['payer_account'] ?? null,
                 'prescriptions' => $prescriptionDetails,
                 'lab_requests' => $labRequestDetails,
-                'prescription_subtotal' => $totalPrescriptionCost,
-                'lab_subtotal' => $totalLabCost,
-                'total_amount' => $totalCost,
+                'prescription_subtotal' => floatval($totalPrescriptionCost),
+                'lab_subtotal' => floatval($totalLabCost),
+                'total_amount' => floatval($totalCost),
                 'generated_date' => date('Y-m-d H:i:s')
             ];
 

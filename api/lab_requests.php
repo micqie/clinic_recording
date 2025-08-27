@@ -335,6 +335,33 @@ class LabRequests
 			return ['success' => false, 'message' => 'Failed to update lab request status: ' . $e->getMessage()];
 		}
 	}
+
+	function getLabRequestsByAppointment($appointment_id)
+	{
+		include "connection.php";
+
+		if (empty($appointment_id)) {
+			return ['success' => false, 'message' => 'Appointment ID is required.'];
+		}
+
+		try {
+			$stmt = $conn->prepare("
+                SELECT lr.*, ltt.type_name, ltt.description, ltt.price, s.status_name
+                FROM tbl_lab_requests lr
+                JOIN tbl_lab_test_types ltt ON lr.lab_test_type_id = ltt.lab_test_type_id
+                LEFT JOIN tbl_status s ON lr.status_id = s.status_id
+                WHERE lr.appointment_id = :appointment_id
+                ORDER BY lr.created_at DESC
+            ");
+			$stmt->bindParam(":appointment_id", $appointment_id);
+			$stmt->execute();
+			$requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+			return ['success' => true, 'requests' => $requests];
+		} catch (PDOException $e) {
+			return ['success' => false, 'message' => 'Failed to fetch lab requests: ' . $e->getMessage()];
+		}
+	}
 }
 
 // Handle incoming request
@@ -342,8 +369,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
 	$operation = $_GET['operation'] ?? "";
 	$json = $_GET['json'] ?? "";
 	$lab_request_id = $_GET['lab_request_id'] ?? "";
-	$patient_id = $_GET['patient_id'] ?? "";
-	$doctor_id = $_GET['doctor_id'] ?? "";
+$patient_id = $_GET['patient_id'] ?? "";
+$doctor_id = $_GET['doctor_id'] ?? "";
+$appointment_id = $_GET['appointment_id'] ?? "";
 } else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 	$operation = $_POST['operation'] ?? ($_GET['operation'] ?? "");
 	$json = $_POST['json'] ?? ($_GET['json'] ?? "");
@@ -366,6 +394,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
 				$lab_request_id = $parsed['lab_request_id'] ?? $lab_request_id;
 				$patient_id = $parsed['patient_id'] ?? $patient_id;
 				$doctor_id = $parsed['doctor_id'] ?? $doctor_id;
+				$appointment_id = $parsed['appointment_id'] ?? $appointment_id;
 			}
 		}
 	}
@@ -385,6 +414,9 @@ switch ($operation) {
 		break;
 	case "getByDoctor":
 		echo json_encode($labRequests->getLabRequestsByDoctor($doctor_id));
+		break;
+	case "getByAppointment":
+		echo json_encode($labRequests->getLabRequestsByAppointment($appointment_id));
 		break;
 	case "getDelivered":
 		echo json_encode($labRequests->getDelivered());

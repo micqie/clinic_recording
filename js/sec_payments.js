@@ -118,11 +118,11 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       // Get prescriptions for this appointment
       const prescriptionResp = await axios.get(`${prescriptionApi}?operation=get_by_appointment&appointment_id=${appointmentId}`);
-      const prescriptions = prescriptionResp.data.success ? prescriptionResp.data.data : [];
+             const prescriptions = prescriptionResp.data.success ? prescriptionResp.data.prescriptions : [];
 
-      // Get lab requests for this appointment
-      const labResp = await axios.get(`${labApi}?operation=get_by_appointment&appointment_id=${appointmentId}`);
-      const labRequests = labResp.data.success ? labResp.data.data : [];
+             // Get lab requests for this appointment
+       const labResp = await axios.get(`${labApi}?operation=getByAppointment&appointment_id=${appointmentId}`);
+             const labRequests = labResp.data.success ? labResp.data.requests : [];
 
       // Get appointment details for doctor and date
       const appointmentResp = await axios.get(`${baseApiUrl}/appointments.php?operation=get&appointment_id=${appointmentId}`);
@@ -156,13 +156,13 @@ document.addEventListener("DOMContentLoaded", () => {
       labTbody.innerHTML = '';
 
       labRequests.forEach(lab => {
-        // Assuming a fixed price for lab tests (you can modify this based on your needs)
-        const price = 500; // Default lab test price
+        // Use actual price from lab test type
+        const price = parseFloat(lab.price) || 400; // Default to 400 if no price set
         labTotal += price;
 
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>Lab Test</td>
+          <td>${lab.type_name || 'Lab Test'}</td>
           <td>${lab.request_text}</td>
           <td class="text-end">₱${price.toFixed(2)}</td>
         `;
