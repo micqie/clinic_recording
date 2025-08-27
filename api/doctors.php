@@ -84,7 +84,6 @@ class Doctors
     {
         include "connection.php";
         $data = json_decode($json, true);
-        file_put_contents("add_doctor_debug.log", date("Y-m-d H:i:s") . " | RAW JSON: " . $json . PHP_EOL, FILE_APPEND);
 
         if (empty($data['name']) || empty($data['email']) || empty($data['password']) ||
             empty($data['license_number']) || empty($data['specialization_id'])) {
@@ -162,7 +161,6 @@ class Doctors
             }
 
             $conn->commit();
-            file_put_contents("add_doctor_debug.log", date("Y-m-d H:i:s") . " | SUCCESS user_id=" . $user_id . PHP_EOL, FILE_APPEND);
             return ['success' => true, 'message' => 'Doctor added successfully!'];
         } catch (PDOException $e) {
             if ($conn->inTransaction()) {

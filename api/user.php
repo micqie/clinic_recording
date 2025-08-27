@@ -9,8 +9,7 @@ class User
     include "connection.php";
     $data = json_decode($json, true);
 
-    // 1. Log raw payload for debugging
-    file_put_contents("register_debug.log", date("Y-m-d H:i:s") . " | RAW JSON: " . $json . PHP_EOL, FILE_APPEND);
+    // 1. (debug logging removed)
 
     // 2. Basic validation
     if (
@@ -162,7 +161,6 @@ function registerDoctor($json)
         }
 
         $conn->commit();
-        file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | SUCCESS user_id={$user_id}" . PHP_EOL, FILE_APPEND);
         return ['success' => true, 'message' => 'Doctor registration successful!'];
     } catch (PDOException $e) {
         if ($conn->inTransaction()) {
