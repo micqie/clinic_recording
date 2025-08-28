@@ -63,15 +63,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         medicineSelects.forEach(select => {
           select.innerHTML = '<option value="">Select medicine</option>';
           (response.data.medicines || response.data.data || []).forEach(medicine => {
-            const strength = medicine.strength || medicine.weight_value || medicine.weight || '';
-            const form = medicine.form_name || '';
-            const text = `${medicine.medicine_name}${strength ? ` ${strength}` : ''}${form ? ` (${form})` : ''}`;
+            const text = `${medicine.medicine_name}`;
             select.innerHTML += `<option value="${medicine.medicine_id}">${text}</option>`;
           });
         });
       }
     } catch (error) {
       console.error("Error loading medicines:", error);
+    }
+  }
+
+  async function loadDosages() {
+    try {
+      const response = await axios.get(`${medicineApiUrl}?operation=getMedicineWeights`);
+      const weights = response.data?.weights || [];
+      const dosageSelects = document.querySelectorAll('select[name="dosage"]');
+      dosageSelects.forEach(select => {
+        const current = select.getAttribute('data-current') || '';
+        select.innerHTML = '<option value="">Select dosage</option>';
+        weights.forEach(w => {
+          const value = w.weight_value;
+          const selected = String(value) === String(current) ? ' selected' : '';
+          select.insertAdjacentHTML('beforeend', `<option value="${value}"${selected}>${value}</option>`);
+        });
+      });
+    } catch (error) {
+      console.error('Error loading dosages:', error);
     }
   }
 
@@ -243,4 +260,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadPrescriptions();
   await loadPatients();
   await loadMedicines();
+  await loadDosages();
 });

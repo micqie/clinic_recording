@@ -221,7 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Dosage</label>
-                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][dosage]" placeholder="e.g., 500mg" required>
+                            <select class="form-select" name="prescriptions[${prescriptionCounter-1}][dosage]" required>
+                                <option value="">Select dosage</option>
+                            </select>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Frequency</label>
@@ -259,8 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         prescriptionsContainer.insertAdjacentHTML('beforeend', prescriptionHtml);
 
-        // Load medicines for this prescription
+        // Load medicines and dosages for this prescription
         loadMedicinesForPrescription(prescriptionId);
+        loadDosagesForPrescription(prescriptionId);
     }
 
     // Add lab request field
@@ -306,12 +309,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 list.forEach(medicine => {
                     const opt = document.createElement('option');
                     opt.value = medicine.medicine_id;
-                    const strength = medicine.strength || medicine.weight_value || medicine.weight || '';
-                    const form = medicine.form_name || '';
-                    opt.textContent = `${medicine.medicine_name}${strength ? ` ${strength}` : ''}${form ? ` (${form})` : ''}`;
+                    opt.textContent = `${medicine.medicine_name}`;
                     select.appendChild(opt);
                 });
             }
+        } catch (e) { console.error(e); }
+    }
+
+    async function loadDosagesForPrescription(prescriptionId) {
+        try {
+            const res = await axios.get(`${medicinesApi}?operation=getMedicineWeights`);
+            const list = res.data?.weights || [];
+            const select = document.querySelector(`#${prescriptionId} select[name*="[dosage]"]`);
+            if (!select) return;
+            select.innerHTML = '<option value="">Select dosage</option>';
+            list.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w.weight_value;
+                opt.textContent = w.weight_value;
+                select.appendChild(opt);
+            });
         } catch (e) { console.error(e); }
     }
 
