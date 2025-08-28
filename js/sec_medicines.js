@@ -6,53 +6,68 @@
       const addMedicineForm = document.getElementById("addMedicineForm");
       const editMedicineForm = document.getElementById("editMedicineForm");
 
+      // Search functionality elements
+      const medicineSearchInput = document.getElementById("medicineSearchInput");
+      const searchFilter = document.getElementById("searchFilter");
+      const searchBtn = document.getElementById("searchBtn");
+      const clearSearchBtn = document.getElementById("clearSearchBtn");
+
       // Bootstrap modal instances
       const viewMedicineModal = new bootstrap.Modal(document.getElementById('viewMedicineModal'));
       const editMedicineModal = new bootstrap.Modal(document.getElementById('editMedicineModal'));
       const addMedicineModal = new bootstrap.Modal(document.getElementById('addMedicineModal'));
 
-      // Cache form and weight options for dropdowns (used in add/edit forms)
-      let medicineForms = [];
-      let medicineWeights = [];
+             // Cache form and weight options for dropdowns (used in add/edit forms)
+       let medicineForms = [];
+       let medicineWeights = [];
+       let genericMedicineNames = [];
 
-      // Load forms and weights for dropdowns
-      async function loadFormsAndWeights() {
-        try {
-          console.log("Loading forms and weights...");
+             // Load forms, weights, and generic names for dropdowns
+       async function loadFormsAndWeights() {
+         try {
+           console.log("Loading forms, weights, and generic names...");
 
-          const [formsResp, weightsResp] = await Promise.all([
-            axios.get(`${medicineApiUrl}?operation=getMedicineForms`),
-            axios.get(`${medicineApiUrl}?operation=getMedicineWeights`),
-          ]);
+           const [formsResp, weightsResp, genericsResp] = await Promise.all([
+             axios.get(`${medicineApiUrl}?operation=getMedicineForms`),
+             axios.get(`${medicineApiUrl}?operation=getMedicineWeights`),
+             axios.get(`${medicineApiUrl}?operation=getGenericMedicineNames`),
+           ]);
 
-          console.log("Forms response:", formsResp.data);
-          console.log("Weights response:", weightsResp.data);
+           console.log("Forms response:", formsResp.data);
+           console.log("Weights response:", weightsResp.data);
+           console.log("Generics response:", genericsResp.data);
 
-          medicineForms = formsResp.data.forms || [];
-          medicineWeights = weightsResp.data.weights || [];
+           medicineForms = formsResp.data.forms || [];
+           medicineWeights = weightsResp.data.weights || [];
+           genericMedicineNames = genericsResp.data.generics || [];
 
-          console.log("Medicine forms:", medicineForms);
-          console.log("Medicine weights:", medicineWeights);
+           console.log("Medicine forms:", medicineForms);
+           console.log("Medicine weights:", medicineWeights);
+           console.log("Generic medicine names:", genericMedicineNames);
 
-          // Populate form dropdowns
-          populateSelectOptions('add_form_id', medicineForms, "form_name", "form_id", "Select Form");
-          populateSelectOptions('edit_form_id', medicineForms, "form_name", "form_id", "Select Form");
+           // Populate form dropdowns
+           populateSelectOptions('add_form_id', medicineForms, "form_name", "form_id", "Select Form");
+           populateSelectOptions('edit_form_id', medicineForms, "form_name", "form_id", "Select Form");
 
-          // Populate strength dropdowns (using weights table values for strength options)
-          populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_value", "Select Strength");
-          populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_value", "Select Strength");
+           // Populate strength dropdowns (using weights table values for strength options)
+           populateSelectOptions('add_weight', medicineWeights, "weight_value", "weight_value", "Select Strength");
+           populateSelectOptions('edit_weight', medicineWeights, "weight_value", "weight_value", "Select Strength");
 
-          console.log("Dropdowns populated successfully");
-        } catch (error) {
-          console.error("Failed to load forms or weights", error);
-          // Show error to user
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Failed to load medicine forms and weights. Please refresh the page.'
-          });
-        }
-      }
+           // Populate generic name dropdowns
+           populateSelectOptions('generic_id', genericMedicineNames, "generic_name", "generic_id", "Select Generic Name");
+           populateSelectOptions('edit_generic_id', genericMedicineNames, "generic_name", "generic_id", "Select Generic Name");
+
+           console.log("Dropdowns populated successfully");
+         } catch (error) {
+           console.error("Failed to load forms, weights, or generics", error);
+           // Show error to user
+           Swal.fire({
+             icon: 'error',
+             title: 'Error',
+             text: 'Failed to load medicine forms, weights, and generic names. Please refresh the page.'
+           });
+         }
+       }
 
       // Helper: format date for display
       function formatDate(dateString) {
@@ -79,63 +94,24 @@
         });
       }
 
-      // Load medicines and populate table
+            // Load medicines and populate table
       async function loadMedicines() {
         try {
           console.log("Loading medicines...");
           const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
           console.log("Medicines response:", response.data);
 
-          const medicines = response.data.medicines || [];
-          console.log("Medicines array:", medicines);
+          allMedicines = response.data.medicines || [];
+          console.log("Medicines array:", allMedicines);
 
-          medicineTableBody.innerHTML = "";
-
-          if (medicines.length === 0) {
-            console.log("No medicines found, showing empty message");
-            medicineTableBody.innerHTML = `
-              <tr>
-                <td colspan="7" class="text-center text-muted py-4">
-                  <i class="fas fa-pills fa-3x mb-3"></i>
-                  <p>No medicines found</p>
-                </td>
-              </tr>
-            `;
-            return;
-          }
-
-          console.log("Populating table with", medicines.length, "medicines");
-          medicines.forEach((med, index) => {
-            console.log(`Processing medicine ${index + 1}:`, med);
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td>${med.medicine_name}</td>
-              <td>${med.strength || med.weight || med.weight_value || 'N/A'}</td>
-              <td>${med.form_name || 'N/A'}</td>
-              <td>₱${parseFloat(med.price).toFixed(2)}</td>
-              <td>
-                <div class="btn-group" role="group">
-                  <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewMedicine(${med.medicine_id})">
-                    <i class="fas fa-eye"></i>
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-warning" onclick="editMedicine(${med.medicine_id})">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteMedicine(${med.medicine_id})">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            `;
-            medicineTableBody.appendChild(row);
-          });
+          populateMedicineTable(allMedicines);
           console.log("Table populated successfully");
         } catch (error) {
           console.error("Failed to load medicines", error);
           console.error("Error details:", error.response?.data);
           medicineTableBody.innerHTML = `
             <tr>
-              <td colspan="7" class="text-center text-danger py-4">
+              <td colspan="5" class="text-center text-danger py-4">
                 <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                 <p>Failed to load medicines: ${error.message}</p>
                 <small>Check console for details</small>
@@ -143,6 +119,50 @@
             </tr>
           `;
         }
+      }
+
+      // Function to populate medicine table
+      function populateMedicineTable(medicines) {
+        medicineTableBody.innerHTML = "";
+
+        if (medicines.length === 0) {
+          console.log("No medicines found, showing empty message");
+          medicineTableBody.innerHTML = `
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">
+                <i class="fas fa-pills fa-3x mb-3"></i>
+                <p>No medicines found</p>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        console.log("Populating table with", medicines.length, "medicines");
+        medicines.forEach((med, index) => {
+          console.log(`Processing medicine ${index + 1}:`, med);
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${med.generic_name || 'N/A'}</td>
+            <td>${med.strength || med.weight || med.weight_value || 'N/A'}</td>
+            <td>${med.form_name || 'N/A'}</td>
+            <td>₱${parseFloat(med.price).toFixed(2)}</td>
+            <td>
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="viewMedicine(${med.medicine_id})">
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-warning" onclick="editMedicine(${med.medicine_id})">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteMedicine(${med.medicine_id})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          `;
+          medicineTableBody.appendChild(row);
+        });
       }
 
       // Add medicine submit handler
@@ -157,20 +177,13 @@
 
         const formData = new FormData(addMedicineForm);
 
-        const jsonPayload = JSON.stringify({
-          medicine_name: formData.get("medicine_name"),
-          strength: formData.get("weight"),
-          form_id: formData.get("form_id"),
-          price: parseFloat(formData.get("price")),
-          packaging: (() => {
-            const unit = (formData.get("pkg_unit") || "").toString();
-            const qppStr = (formData.get("pkg_qpp") || "").toString();
-            const label = (formData.get("pkg_label") || "").toString();
-            const qpp = qppStr ? parseInt(qppStr, 10) : null;
-            if (!unit || !qpp) return null;
-            return { packaging_unit: unit, quantity_per_package: qpp, unit_label: label || null };
-          })(),
-        });
+                 const jsonPayload = JSON.stringify({
+           generic_id: formData.get("generic_id"),
+           strength: formData.get("weight"),
+           form_id: formData.get("form_id"),
+           price: parseFloat(formData.get("price")),
+           packaging: null,
+         });
 
         const payload = new FormData();
         payload.append("operation", "add");
@@ -232,25 +245,14 @@
             Swal.fire("Error", "Medicine not found", "error");
             return;
           }
-          // Load packaging configs
-          const pkgResp = await axios.get(`${medicineApiUrl}?operation=getPackagingConfigs&medicine_id=${medicineId}`);
-          const configs = pkgResp.data.configs || [];
-
-          const pkgHtml = configs.length
-            ? `<ul class="mb-0">${configs.map(c => `<li>${c.packaging_unit}: ${c.quantity_per_package}${c.unit_label ? ' ' + c.unit_label : ''}</li>`).join('')}</ul>`
-            : '<em class="text-muted">No packaging configured</em>';
-
-          const content = `
-            <p><strong>Name:</strong> ${med.medicine_name}</p>
-            <p><strong>Strength:</strong> ${med.strength || med.weight || med.weight_value || 'N/A'}</p>
-            <p><strong>Form:</strong> ${med.form_name || 'N/A'}</p>
-            <p><strong>Price:</strong> ₱${parseFloat(med.price).toFixed(2)}</p>
-            <hr/>
-            <p class="mb-1"><strong>Packaging:</strong></p>
-            ${pkgHtml}
-            <p><strong>Created At:</strong> ${formatDate(med.created_at)}</p>
-            <p><strong>Updated At:</strong> ${formatDate(med.updated_at)}</p>
-          `;
+                     const content = `
+             <p><strong>Generic Name:</strong> ${med.generic_name || 'N/A'}</p>
+             <p><strong>Strength:</strong> ${med.strength || med.weight || med.weight_value || 'N/A'}</p>
+             <p><strong>Form:</strong> ${med.form_name || 'N/A'}</p>
+             <p><strong>Price:</strong> ₱${parseFloat(med.price).toFixed(2)}</p>
+             <p><strong>Created At:</strong> ${formatDate(med.created_at)}</p>
+             <p><strong>Updated At:</strong> ${formatDate(med.updated_at)}</p>
+           `;
 
           document.getElementById("viewMedicineContent").innerHTML = content;
           viewMedicineModal.show();
@@ -273,21 +275,32 @@
 
           console.log("Medicine data found:", med);
 
-          document.getElementById("edit_medicine_id").value = med.medicine_id;
-          document.getElementById("edit_name").value = med.medicine_name;
-          document.getElementById("edit_price").value = med.price;
+                     document.getElementById("edit_medicine_id").value = med.medicine_id;
+           document.getElementById("edit_price").value = med.price;
 
-          // Set form dropdown by matching form_id
-          const formSelect = document.getElementById("edit_form_id");
-          if (formSelect) {
-            // Find the form by form_id
-            const form = medicineForms.find(f => f.form_id == med.form_id);
-            if (form) {
-              formSelect.value = form.form_id;
-            } else {
-              formSelect.selectedIndex = 0; // Set to "Select Form"
-            }
-          }
+                     // Set generic name dropdown by matching generic_id
+           const genericSelect = document.getElementById("edit_generic_id");
+           if (genericSelect) {
+             // Find the generic by generic_id
+             const generic = genericMedicineNames.find(g => g.generic_id == med.generic_id);
+             if (generic) {
+               genericSelect.value = generic.generic_id;
+             } else {
+               genericSelect.selectedIndex = 0; // Set to "Select Generic Name"
+             }
+           }
+
+           // Set form dropdown by matching form_id
+           const formSelect = document.getElementById("edit_form_id");
+           if (formSelect) {
+             // Find the form by form_id
+             const form = medicineForms.find(f => f.form_id == med.form_id);
+             if (form) {
+               formSelect.value = form.form_id;
+             } else {
+               formSelect.selectedIndex = 0; // Set to "Select Form"
+             }
+           }
 
           // Set strength dropdown by matching value
           const weightSelect = document.getElementById("edit_weight");
@@ -305,111 +318,7 @@
             }
           }
 
-          // Load packaging configs
-          const pkgResp = await axios.get(`${medicineApiUrl}?operation=getPackagingConfigs&medicine_id=${medicineId}`);
-          const configs = pkgResp.data.configs || [];
 
-          // Inject packaging config editor UI
-          const modalBody = document.querySelector('#editMedicineModal .modal-body');
-          const existing = document.getElementById('pkgConfigEditor');
-          if (existing) existing.remove();
-          const editor = document.createElement('div');
-          editor.id = 'pkgConfigEditor';
-          editor.innerHTML = `
-            <hr/>
-            <div class="mb-2 d-flex align-items-center justify-content-between">
-              <h6 class="mb-0">Packaging Configuration</h6>
-              <button type="button" class="btn btn-sm btn-outline-primary" id="addPkgRowBtn">
-                <i class="fas fa-plus"></i> Add
-              </button>
-            </div>
-            <div class="table-responsive">
-              <table class="table table-sm align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th style="width: 25%">Unit</th>
-                    <th style="width: 25%">Qty per package</th>
-                    <th style="width: 25%">Unit label</th>
-                    <th style="width: 25%">Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="pkgRows"></tbody>
-              </table>
-            </div>
-          `;
-          modalBody.appendChild(editor);
-
-          const pkgRows = editor.querySelector('#pkgRows');
-          const renderRow = (c) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>
-                <select class="form-select form-select-sm pkg-unit">
-                  <option value="tablet">Tablet</option>
-                  <option value="capsule">Capsule</option>
-                  <option value="blister pack">Blister Pack</option>
-                  <option value="strip">Strip</option>
-                  <option value="box">Box</option>
-                  <option value="bottle">Bottle</option>
-                  <option value="tube">Tube</option>
-                  <option value="vial">Vial</option>
-                  <option value="sachet">Sachet</option>
-                </select>
-              </td>
-              <td><input type="number" class="form-control form-control-sm pkg-qpp" min="1" value="${c?.quantity_per_package || ''}" placeholder="e.g., 10"/></td>
-              <td><input type="text" class="form-control form-control-sm pkg-label" value="${c?.unit_label || ''}" placeholder="e.g., tablets, mL, g"/></td>
-              <td>
-                <div class="btn-group btn-group-sm">
-                  <button type="button" class="btn btn-outline-success save-pkg">Save</button>
-                  ${c?.config_id ? `<button type="button" class="btn btn-outline-danger delete-pkg">Delete</button>` : ''}
-                </div>
-              </td>
-            `;
-            if (c?.packaging_unit) tr.querySelector('.pkg-unit').value = c.packaging_unit;
-            tr.querySelector('.save-pkg').addEventListener('click', async () => {
-              const payload = new FormData();
-              payload.append('operation', 'upsertPackagingConfig');
-              payload.append('json', JSON.stringify({
-                medicine_id: medicineId,
-                packaging_unit: tr.querySelector('.pkg-unit').value,
-                quantity_per_package: parseInt(tr.querySelector('.pkg-qpp').value || '0', 10),
-                unit_label: tr.querySelector('.pkg-label').value || null,
-              }));
-              try {
-                const resp = await axios.post(medicineApiUrl, payload);
-                if (resp.data.success) {
-                  Swal.fire('Saved', 'Packaging saved', 'success');
-                } else {
-                  Swal.fire('Error', resp.data.message || 'Failed to save', 'error');
-                }
-              } catch (e) {
-                Swal.fire('Error', 'Failed to save', 'error');
-              }
-            });
-            const delBtn = tr.querySelector('.delete-pkg');
-            if (delBtn) delBtn.addEventListener('click', async () => {
-              const confirm = await Swal.fire({ icon: 'warning', title: 'Delete?', showCancelButton: true });
-              if (!confirm.isConfirmed) return;
-              const fd = new FormData();
-              fd.append('operation', 'deletePackagingConfig');
-              fd.append('medicine_id', c.config_id); // reuse param slot
-              try {
-                const resp = await axios.post(medicineApiUrl, fd);
-                if (resp.data.success) {
-                  tr.remove();
-                  Swal.fire('Deleted', 'Packaging removed', 'success');
-                } else {
-                  Swal.fire('Error', resp.data.message || 'Failed to delete', 'error');
-                }
-              } catch (e) {
-                Swal.fire('Error', 'Failed to delete', 'error');
-              }
-            });
-            pkgRows.appendChild(tr);
-          };
-
-          configs.forEach(c => renderRow(c));
-          editor.querySelector('#addPkgRowBtn').addEventListener('click', () => renderRow({}));
 
           editMedicineModal.show();
         } catch (err) {
@@ -430,21 +339,21 @@
 
         const formData = new FormData(editMedicineForm);
 
-        const jsonPayload = JSON.stringify({
-          medicine_id: formData.get("medicine_id"),
-          medicine_name: formData.get("medicine_name"),
-          strength: formData.get("weight"),
-          form_id: formData.get("form_id"),
-          price: parseFloat(formData.get("price")),
-        });
+                 const jsonPayload = JSON.stringify({
+           medicine_id: formData.get("medicine_id"),
+           generic_id: formData.get("generic_id"),
+           strength: formData.get("weight"),
+           form_id: formData.get("form_id"),
+           price: parseFloat(formData.get("price")),
+         });
 
-        console.log("Edit form data:", {
-          medicine_id: formData.get("medicine_id"),
-          medicine_name: formData.get("medicine_name"),
-          strength: formData.get("weight"),
-          form_id: formData.get("form_id"),
-          price: formData.get("price"),
-        });
+                 console.log("Edit form data:", {
+           medicine_id: formData.get("medicine_id"),
+           generic_id: formData.get("generic_id"),
+           strength: formData.get("weight"),
+           form_id: formData.get("form_id"),
+           price: formData.get("price"),
+         });
 
         const payload = new FormData();
         payload.append("operation", "update");
@@ -468,6 +377,70 @@
           console.error("Error response:", error.response?.data);
           const msg = error.response?.data?.message || error.message || "Request failed";
           Swal.fire("Error", msg, "error");
+        }
+      });
+
+      // Search functionality
+      let allMedicines = []; // Store all medicines for search filtering
+
+      // Function to filter medicines based on search criteria
+      function filterMedicines(searchTerm, filterType) {
+        if (!searchTerm.trim()) {
+          return allMedicines;
+        }
+
+        const term = searchTerm.toLowerCase().trim();
+
+        return allMedicines.filter(medicine => {
+          switch (filterType) {
+            case 'generic_name':
+              return medicine.generic_name.toLowerCase().includes(term);
+            case 'strength':
+              return medicine.strength.toLowerCase().includes(term);
+            case 'form':
+              return medicine.form_name.toLowerCase().includes(term);
+            case 'all':
+            default:
+              return (
+                medicine.generic_name.toLowerCase().includes(term) ||
+                medicine.strength.toLowerCase().includes(term) ||
+                medicine.form_name.toLowerCase().includes(term)
+              );
+          }
+        });
+      }
+
+      // Function to perform search
+      function performSearch() {
+        const searchTerm = medicineSearchInput.value;
+        const filterType = searchFilter.value;
+
+        const filteredMedicines = filterMedicines(searchTerm, filterType);
+        populateMedicineTable(filteredMedicines);
+      }
+
+      // Function to clear search
+      function clearSearch() {
+        medicineSearchInput.value = '';
+        searchFilter.value = 'all';
+        populateMedicineTable(allMedicines);
+      }
+
+      // Search event listeners
+      searchBtn?.addEventListener('click', performSearch);
+      clearSearchBtn?.addEventListener('click', clearSearch);
+
+      // Real-time search on input (optional - can be removed if you prefer button-only search)
+      medicineSearchInput?.addEventListener('input', (e) => {
+        if (e.target.value.trim() === '') {
+          clearSearch();
+        }
+      });
+
+      // Search on Enter key
+      medicineSearchInput?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          performSearch();
         }
       });
 

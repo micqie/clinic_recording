@@ -10,10 +10,11 @@ class Medicines
 
         try {
             $stmt = $conn->prepare("
-                SELECT m.*, f.form_name
+                SELECT m.*, f.form_name, g.generic_name
                 FROM tbl_medicines m
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
-                ORDER BY m.medicine_name
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
+                ORDER BY g.generic_name, m.strength
             ");
             $stmt->execute();
             $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -35,25 +36,27 @@ class Medicines
         include "connection.php";
         $data = json_decode($json, true);
 
-        if (empty($data['medicine_name']) || empty($data['form_id']) || !isset($data['price'])) {
-            return ['success' => false, 'message' => 'Medicine name, form, and price are required.'];
+        if (empty($data['generic_id']) || empty($data['form_id']) || !isset($data['price'])) {
+            return ['success' => false, 'message' => 'Generic medicine name, form, and price are required.'];
         }
 
         try {
-            // ✅ Check uniqueness only on medicine_name
-            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE medicine_name = :medicine_name");
-            $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            // Check uniqueness on generic_id + strength + form_id combination
+            $stmt = $conn->prepare("SELECT medicine_id FROM tbl_medicines WHERE generic_id = :generic_id AND strength = :strength AND form_id = :form_id");
+            $stmt->bindParam(":generic_id", $data['generic_id']);
+            $strengthParam = isset($data['strength']) && $data['strength'] !== '' ? $data['strength'] : null;
+            $stmt->bindValue(":strength", $strengthParam, $strengthParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindParam(":form_id", $data['form_id']);
             $stmt->execute();
 
             if ($stmt->rowCount() > 0) {
-                return ['success' => false, 'message' => 'Medicine name already exists.'];
+                return ['success' => false, 'message' => 'Medicine with this generic name, strength, and form already exists.'];
             }
 
-            $sql = "INSERT INTO tbl_medicines (medicine_name, strength, form_id, price)
-                    VALUES (:medicine_name, :strength, :form_id, :price)";
+            $sql = "INSERT INTO tbl_medicines (generic_id, strength, form_id, price)
+                    VALUES (:generic_id, :strength, :form_id, :price)";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(":medicine_name", $data['medicine_name']);
-            $strengthParam = isset($data['strength']) && $data['strength'] !== '' ? $data['strength'] : null;
+            $stmt->bindParam(":generic_id", $data['generic_id']);
             $stmt->bindValue(":strength", $strengthParam, $strengthParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":form_id", $data['form_id']);
             $stmt->bindParam(":price", $data['price']);
@@ -79,7 +82,7 @@ class Medicines
         } catch (PDOException $e) {
             $isDuplicate = isset($e->errorInfo[1]) && (int)$e->errorInfo[1] === 1062;
             if ($isDuplicate) {
-                return ['success' => false, 'message' => 'Medicine name already exists.'];
+                return ['success' => false, 'message' => 'Medicine with this generic name, strength, and form already exists.'];
             }
             return ['success' => false, 'message' => 'Failed to add medicine: ' . $e->getMessage()];
         }
@@ -90,19 +93,19 @@ class Medicines
         include "connection.php";
         $data = json_decode($json, true);
 
-        if (empty($data['medicine_id']) || empty($data['medicine_name']) || empty($data['form_id']) || !isset($data['price'])) {
-            return ['success' => false, 'message' => 'Medicine ID, name, form, and price are required.'];
+        if (empty($data['medicine_id']) || empty($data['generic_id']) || empty($data['form_id']) || !isset($data['price'])) {
+            return ['success' => false, 'message' => 'Medicine ID, generic name, form, and price are required.'];
         }
 
         try {
             $sql = "UPDATE tbl_medicines
-                    SET medicine_name = :medicine_name,
+                    SET generic_id = :generic_id,
                         strength = :strength,
                         form_id = :form_id,
                         price = :price
                     WHERE medicine_id = :medicine_id";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(":medicine_name", $data['medicine_name']);
+            $stmt->bindParam(":generic_id", $data['generic_id']);
             $strengthParam = isset($data['strength']) && $data['strength'] !== '' ? $data['strength'] : null;
             $stmt->bindValue(":strength", $strengthParam, $strengthParam === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->bindParam(":form_id", $data['form_id']);
@@ -230,6 +233,122 @@ class Medicines
             return ['success' => true, 'weights' => $weights];
         } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to fetch medicine weights: ' . $e->getMessage()];
+        }
+    }
+
+    function getGenericMedicineNames()
+    {
+        include "connection.php";
+
+        try {
+            $stmt = $conn->prepare("SELECT * FROM tbl_medicine_generic_names ORDER BY generic_name");
+            $stmt->execute();
+            $generics = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return ['success' => true, 'generics' => $generics];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch generic medicine names: ' . $e->getMessage()];
+        }
+    }
+
+    function addGenericMedicineName($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['generic_name'])) {
+            return ['success' => false, 'message' => 'Generic name is required.'];
+        }
+
+        try {
+            // Check if generic name already exists
+            $stmt = $conn->prepare("SELECT generic_id FROM tbl_medicine_generic_names WHERE generic_name = :generic_name");
+            $stmt->bindParam(":generic_name", $data['generic_name']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Generic name already exists.'];
+            }
+
+            $sql = "INSERT INTO tbl_medicine_generic_names (generic_name, description) VALUES (:generic_name, :description)";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":generic_name", $data['generic_name']);
+            $description = isset($data['description']) ? $data['description'] : null;
+            $stmt->bindValue(":description", $description, $description === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->execute();
+
+            return ['success' => true, 'message' => 'Generic medicine name added successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to add generic medicine name: ' . $e->getMessage()];
+        }
+    }
+
+    function updateGenericMedicineName($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['generic_id']) || empty($data['generic_name'])) {
+            return ['success' => false, 'message' => 'Generic ID and generic name are required.'];
+        }
+
+        try {
+            // Check if generic name already exists for other generics
+            $stmt = $conn->prepare("SELECT generic_id FROM tbl_medicine_generic_names WHERE generic_name = :generic_name AND generic_id != :generic_id");
+            $stmt->bindParam(":generic_name", $data['generic_name']);
+            $stmt->bindParam(":generic_id", $data['generic_id']);
+            $stmt->execute();
+            if ($stmt->rowCount() > 0) {
+                return ['success' => false, 'message' => 'Generic name already exists.'];
+            }
+
+            $sql = "UPDATE tbl_medicine_generic_names SET generic_name = :generic_name, description = :description WHERE generic_id = :generic_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":generic_name", $data['generic_name']);
+            $description = isset($data['description']) ? $data['description'] : null;
+            $stmt->bindValue(":description", $description, $description === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindParam(":generic_id", $data['generic_id']);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Generic medicine name updated successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Generic medicine name not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update generic medicine name: ' . $e->getMessage()];
+        }
+    }
+
+    function deleteGenericMedicineName($generic_id)
+    {
+        include "connection.php";
+
+        if (empty($generic_id)) {
+            return ['success' => false, 'message' => 'Generic ID is required.'];
+        }
+
+        try {
+            // Check if generic is being used by any medicines
+            $stmt = $conn->prepare("SELECT COUNT(*) as count FROM tbl_medicines WHERE generic_id = :generic_id");
+            $stmt->bindParam(":generic_id", $generic_id);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result['count'] > 0) {
+                return ['success' => false, 'message' => 'Cannot delete generic name. It is being used by existing medicines.'];
+            }
+
+            $stmt = $conn->prepare("DELETE FROM tbl_medicine_generic_names WHERE generic_id = :generic_id");
+            $stmt->bindParam(":generic_id", $generic_id);
+            $stmt->execute();
+
+            if ($stmt->rowCount() > 0) {
+                return ['success' => true, 'message' => 'Generic medicine name deleted successfully!'];
+            } else {
+                return ['success' => false, 'message' => 'Generic medicine name not found.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to delete generic medicine name: ' . $e->getMessage()];
         }
     }
 
@@ -588,6 +707,18 @@ switch ($operation) {
         break;
     case "deleteMedicineWeight":
         echo json_encode($medicines->deleteMedicineWeight($weight_id));
+        break;
+    case "getGenericMedicineNames":
+        echo json_encode($medicines->getGenericMedicineNames());
+        break;
+    case "addGenericMedicineName":
+        echo json_encode($medicines->addGenericMedicineName($json));
+        break;
+    case "updateGenericMedicineName":
+        echo json_encode($medicines->updateGenericMedicineName($json));
+        break;
+    case "deleteGenericMedicineName":
+        echo json_encode($medicines->deleteGenericMedicineName($medicine_id));
         break;
     case "getPackagingConfigs":
         echo json_encode($medicines->getPackagingConfigs($medicine_id));

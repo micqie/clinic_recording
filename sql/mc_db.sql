@@ -292,7 +292,7 @@ INSERT INTO `tbl_lab_test_types` (`lab_test_type_id`, `type_name`, `description`
 
 CREATE TABLE `tbl_medicines` (
   `medicine_id` int(11) NOT NULL,
-  `medicine_name` varchar(255) NOT NULL,
+  `generic_id` int(11) NOT NULL,
   `strength` varchar(100) DEFAULT NULL,
   `form_id` int(11) NOT NULL,
   `price` decimal(10,2) NOT NULL,
@@ -304,17 +304,17 @@ CREATE TABLE `tbl_medicines` (
 -- Dumping data for table `tbl_medicines`
 --
 
-INSERT INTO `tbl_medicines` (`medicine_id`, `medicine_name`, `strength`, `form_id`, `price`, `created_at`, `updated_at`) VALUES
-(1, 'Paracetamol', '500mg', 1, 50.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(2, 'Ibuprofen', '400mg', 1, 80.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(3, 'Amoxicillin', '500mg', 3, 120.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(5, 'Biogesic', '500mg', 1, 12.00, '2025-08-10 17:43:53', '2025-08-10 17:43:53'),
-(8, 'Aspirin', '100mg', 1, 13.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39'),
-(9, 'Omeprazole', '20mg', 3, 25.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39'),
-(10, 'asdasd', '250mg', 4, 12.00, '2025-08-22 17:14:05', '2025-08-22 17:14:05'),
-(14, 'asdasdasdasdasd', '10000mg', 3, 21.00, '2025-08-23 12:40:08', '2025-08-23 12:40:08'),
-(15, 'Biogesic 2', '100mg', 3, 12.00, '2025-08-23 12:42:47', '2025-08-23 12:42:47'),
-(16, 'Biogesic 2', '100mg', 3, 12.00, '2025-08-23 12:42:47', '2025-08-23 12:42:47');
+INSERT INTO `tbl_medicines` (`medicine_id`, `generic_id`, `strength`, `form_id`, `price`, `created_at`, `updated_at`) VALUES
+(1, 1, '500mg', 1, 50.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(2, 2, '400mg', 1, 80.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(3, 3, '500mg', 3, 120.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
+(5, 6, '500mg', 1, 12.00, '2025-08-10 17:43:53', '2025-08-10 17:43:53'),
+(8, 4, '100mg', 1, 13.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39'),
+(9, 5, '20mg', 3, 25.00, '2025-08-16 16:42:39', '2025-08-16 16:42:39'),
+(10, 7, '250mg', 4, 12.00, '2025-08-22 17:14:05', '2025-08-22 17:14:05'),
+(14, 8, '10000mg', 3, 21.00, '2025-08-23 12:40:08', '2025-08-23 12:40:08'),
+(15, 6, '100mg', 3, 12.00, '2025-08-23 12:42:47', '2025-08-23 12:42:47'),
+(16, 6, '100mg', 3, 12.00, '2025-08-23 12:42:47', '2025-08-23 12:42:47');
 
 -- --------------------------------------------------------
 
@@ -705,6 +705,36 @@ INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `mus
 (52, 'mika', 'mika@gmail.com', '$2y$10$2U1bmiLKBLHXTmkSqgl5.OxYqWOp8Dpt1Y6qBTebmsstiZAK3ALiy', 3, 1, 1, '2025-08-28 11:45:07'),
 (55, 'ace', 'ace@gmail.com', '$2y$10$5BUA46lo.j/VfzF/uX8JyuDbULN9Rzv9946SKcgy39iMT.BBIISvO', 3, 1, 1, '2025-08-28 11:53:59');
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `tbl_medicine_generic_names`
+--
+
+CREATE TABLE `tbl_medicine_generic_names` (
+  `generic_id` int(11) NOT NULL,
+  `generic_name` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  `updated_at` datetime DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_medicine_generic_names`
+--
+
+INSERT INTO `tbl_medicine_generic_names` (`generic_id`, `generic_name`, `description`, `created_at`) VALUES
+(1, 'Paracetamol', 'Common pain reliever and fever reducer', '2025-08-28 00:00:00'),
+(2, 'Ibuprofen', 'Non-steroidal anti-inflammatory drug (NSAID)', '2025-08-28 00:00:00'),
+(3, 'Amoxicillin', 'Broad-spectrum antibiotic', '2025-08-28 00:00:00'),
+(4, 'Aspirin', 'Salicylate drug used to treat pain, fever, and inflammation', '2025-08-28 00:00:00'),
+(5, 'Omeprazole', 'Proton pump inhibitor used to treat acid reflux', '2025-08-28 00:00:00'),
+(6, 'Biogesic', 'Brand name for Paracetamol - pain reliever and fever reducer', '2025-08-28 00:00:00'),
+(7, 'Generic Medicine A', 'Generic medicine for testing purposes', '2025-08-28 00:00:00'),
+(8, 'Generic Medicine B', 'Generic medicine for testing purposes', '2025-08-28 00:00:00');
+
+-- --------------------------------------------------------
+
 --
 -- Indexes for dumped tables
 --
@@ -805,7 +835,8 @@ ALTER TABLE `tbl_lab_test_types`
 --
 ALTER TABLE `tbl_medicines`
   ADD PRIMARY KEY (`medicine_id`),
-  ADD KEY `form_id` (`form_id`);
+  ADD KEY `form_id` (`form_id`),
+  ADD KEY `generic_id` (`generic_id`);
 
 --
 -- Indexes for table `tbl_medicine_forms`
@@ -824,6 +855,14 @@ ALTER TABLE `tbl_medicine_packaging`
 --
 ALTER TABLE `tbl_medicine_weights`
   ADD PRIMARY KEY (`weight_id`);
+
+--
+-- Indexes for table `tbl_medicine_generic_names`
+--
+
+ALTER TABLE `tbl_medicine_generic_names`
+  ADD PRIMARY KEY (`generic_id`),
+  ADD UNIQUE KEY `generic_name` (`generic_name`);
 
 --
 -- Indexes for table `tbl_patients`
@@ -996,6 +1035,12 @@ ALTER TABLE `tbl_medicine_weights`
   MODIFY `weight_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
+-- AUTO_INCREMENT for table `tbl_medicine_generic_names`
+--
+ALTER TABLE `tbl_medicine_generic_names`
+  MODIFY `generic_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
 -- AUTO_INCREMENT for table `tbl_patients`
 --
 ALTER TABLE `tbl_patients`
@@ -1137,7 +1182,8 @@ ALTER TABLE `tbl_lab_results`
 -- Constraints for table `tbl_medicines`
 --
 ALTER TABLE `tbl_medicines`
-  ADD CONSTRAINT `fk_medicines_form` FOREIGN KEY (`form_id`) REFERENCES `tbl_medicine_forms` (`form_id`);
+  ADD CONSTRAINT `fk_medicines_form` FOREIGN KEY (`form_id`) REFERENCES `tbl_medicine_forms` (`form_id`),
+  ADD CONSTRAINT `fk_medicines_generic` FOREIGN KEY (`generic_id`) REFERENCES `tbl_medicine_generic_names` (`generic_id`);
 
 --
 -- Constraints for table `tbl_patients`
