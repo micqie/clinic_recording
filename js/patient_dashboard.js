@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td><strong>${p.generic_name}</strong></td>
                     <td>${specs}</td>
                     <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
-                    <td>${p.quantity || 1}</td>
+                    <td>${p.quantity || 1} ${p.packaging_name || p.packaging_unit || 'unit'}</td>
                     <td>₱${p.unit_price} per unit</td>
                     <td class="fw-bold">₱${p.total_cost.toFixed(2)}</td>
                 </tr>`;

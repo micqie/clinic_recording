@@ -61,9 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             </span>
                         </td>
                         <td>
-                            <span class="badge bg-info">${consultation.prescription_count || 0} medicines</span>
-                        </td>
-                        <td>
                             <span class="fw-bold text-success">₱${calculateConsultationCost(consultation).toFixed(2)}</span>
                         </td>
                         <td>
@@ -244,9 +241,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (receipt.prescriptions && receipt.prescriptions.length > 0) {
             prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
             prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Specifications</th><th>Dosage</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
-            receipt.prescriptions.forEach(p => {
+                        receipt.prescriptions.forEach(p => {
                 const specs = `${p.strength || p.weight || 'N/A'}${p.form ? ' (' + p.form + ')' : ''}`;
-                const quantityDisplay = `${p.quantity || 1} ${p.packaging_unit || 'unit'}`;
+                const packagingName = p.packaging_name || p.packaging_unit || 'unit';
+                const packagingDesc = p.packaging_description || '';
+                const quantityDisplay = `${p.quantity || 1} ${packagingName}`;
 
                 // Calculate total cost on-the-fly
                 const unitPrice = parseFloat(p.price || 0);
@@ -271,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td><strong>${p.generic_name}</strong></td>
                     <td>${specs}</td>
                     <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
-                    <td>${quantityDisplay}</td>
+                    <td>${quantityDisplay}<br><small class="text-muted">${packagingDesc}</small></td>
                     <td>₱${unitPrice.toFixed(2)} per unit</td>
                     <td class="fw-bold">₱${totalCost.toFixed(2)}</td>
                 </tr>`;

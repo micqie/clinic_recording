@@ -248,11 +248,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                break;
        }
 
-                row.innerHTML = `
+                const packagingDisplay = prescription.packaging_name || prescription.packaging_unit || 'units';
+         row.innerHTML = `
            <td>${prescription.prescription_id}</td>
            <td>${prescription.patient_name}</td>
            <td>${prescription.generic_name}</td>
-           <td>${prescription.quantity} ${prescription.packaging_unit || 'units'}</td>
+           <td>${prescription.quantity} ${packagingDisplay}</td>
            <td>${prescription.frequency}</td>
            <td>${prescription.duration}</td>
            <td><span class="badge bg-${getStatusBadgeColor(prescription.status)}">${prescription.status}</span></td>

@@ -210,11 +210,13 @@ class IntegratedConsultation
 
             // Get prescriptions
             $prescriptionStmt = $this->conn->prepare("
-                SELECT p.*, g.generic_name, m.strength, f.form_name, m.price
+                SELECT p.*, g.generic_name, m.strength, f.form_name, m.price,
+                       mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions p
                 JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
                 JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_packaging mp ON p.packaging_unit_id = mp.packaging_id
                 WHERE p.consultation_id = :consultation_id
             ");
             $prescriptionStmt->bindParam(":consultation_id", $consultationId);
@@ -311,9 +313,10 @@ class IntegratedConsultation
             // For each consultation, compute prescription counts, totals, and packaging summary
             foreach ($consultations as &$c) {
                 $pstmt = $this->conn->prepare("
-                    SELECT p.quantity, p.packaging_unit, m.price
+                    SELECT p.quantity, p.packaging_unit, m.price, mp.packaging_name, mp.description as packaging_description
                     FROM tbl_prescriptions p
                     JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
+                    LEFT JOIN tbl_medicine_packaging mp ON p.packaging_unit_id = mp.packaging_id
                     WHERE p.consultation_id = :cid
                 ");
                 $pstmt->bindParam(":cid", $c['consultation_id']);
@@ -323,9 +326,10 @@ class IntegratedConsultation
                 $prescriptionCount = count($rows);
                 $estimatedTotal = 0.0;
                 $unitToQty = [];
-                foreach ($rows as $r) {
+                                foreach ($rows as $r) {
                     $qty = isset($r['quantity']) && $r['quantity'] !== null ? (int)$r['quantity'] : 1;
                     $unit = $r['packaging_unit'] ?? 'unit';
+                    $packagingName = $r['packaging_name'] ?? $unit;
                     $baseCost = ((float)$r['price']) * $qty;
 
                     // Apply packaging unit multiplier
@@ -343,8 +347,8 @@ class IntegratedConsultation
                     }
 
                     $estimatedTotal += $baseCost * $multiplier;
-                    if (!isset($unitToQty[$unit])) $unitToQty[$unit] = 0;
-                    $unitToQty[$unit] += $qty;
+                    if (!isset($unitToQty[$packagingName])) $unitToQty[$packagingName] = 0;
+                    $unitToQty[$packagingName] += $qty;
                 }
 
                 // Build packaging summary like: "2 tablets, 1 box"

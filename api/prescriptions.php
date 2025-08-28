@@ -21,7 +21,8 @@ class Prescriptions
                        g.generic_name,
                        m.strength,
                        f.form_name,
-                       m.price
+                       m.price,
+                       mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
@@ -32,6 +33,7 @@ class Prescriptions
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
                 JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_packaging mp ON pr.packaging_unit_id = mp.packaging_id
                 ORDER BY pr.created_at DESC
             ");
             $stmt->execute();
@@ -58,7 +60,8 @@ class Prescriptions
                        g.generic_name,
                        m.strength,
                        f.form_name,
-                       m.price
+                       m.price,
+                       mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
@@ -67,6 +70,7 @@ class Prescriptions
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
                 JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_packaging mp ON pr.packaging_unit_id = mp.packaging_id
                 WHERE pr.patient_id = :patient_id
                 ORDER BY pr.created_at DESC
             ");
@@ -95,7 +99,8 @@ class Prescriptions
                        g.generic_name,
                        m.strength,
                        f.form_name,
-                       m.price
+                       m.price,
+                       mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
@@ -104,6 +109,7 @@ class Prescriptions
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
                 JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_packaging mp ON pr.packaging_unit_id = mp.packaging_id
                 WHERE pr.doctor_id = :doctor_id
                 ORDER BY pr.created_at DESC
             ");
@@ -134,7 +140,8 @@ class Prescriptions
                        g.generic_name,
                        m.strength,
                        f.form_name,
-                       m.price
+                       m.price,
+                       mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
@@ -145,6 +152,7 @@ class Prescriptions
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
                 JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_packaging mp ON pr.packaging_unit_id = mp.packaging_id
                 WHERE pr.prescription_id = :prescription_id
                 LIMIT 1
             ");

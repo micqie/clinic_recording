@@ -62,11 +62,12 @@ class PrescriptionReceipt
             // Get prescriptions with medicine details and pricing
             $prescriptionStmt = $this->conn->prepare("
                 SELECT p.*, g.generic_name, m.strength, m.price,
-                       f.form_name
+                       f.form_name, mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions p
                 JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
                 JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 LEFT JOIN tbl_medicine_forms f ON m.form_id = f.form_id
+                LEFT JOIN tbl_medicine_packaging mp ON p.packaging_unit_id = mp.packaging_id
                 WHERE p.consultation_id = :consultation_id
             ");
             $prescriptionStmt->bindParam(":consultation_id", $consultationId);
@@ -131,6 +132,8 @@ class PrescriptionReceipt
                     'frequency' => $prescription['frequency'],
                     'duration' => $prescription['duration'],
                     'packaging_unit' => $prescription['packaging_unit'] ?? 'tablet',
+                    'packaging_name' => $prescription['packaging_name'] ?? 'tablet',
+                    'packaging_description' => $prescription['packaging_description'] ?? 'Individual tablet/piece',
                     'instructions' => $prescription['instructions'],
                     'unit_price' => floatval($prescription['price']),
                     'quantity' => intval($quantity),

@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
         medicineTotal += price;
 
         const row = document.createElement('tr');
+        const packagingDisplay = prescription.packaging_name || prescription.packaging_unit || 'unit';
         row.innerHTML = `
           <td>${prescription.generic_name}</td>
           <td>${prescription.dosage}</td>

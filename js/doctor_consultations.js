@@ -841,7 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 break;
                         }
 
-                        prescriptionsHtml += `<li><strong>${p.generic_name}</strong> - ${p.quantity || 'N/A'} ${p.packaging_unit || 'units'}, ${p.frequency}, ${p.duration} (Estimated Cost: ₱${totalCost.toFixed(2)})</li>`;
+                        const packagingDisplay = p.packaging_name || p.packaging_unit || 'units';
+                        prescriptionsHtml += `<li><strong>${p.generic_name}</strong> - ${p.quantity || 'N/A'} ${packagingDisplay}, ${p.frequency}, ${p.duration} (Estimated Cost: ₱${totalCost.toFixed(2)})</li>`;
                     });
                     prescriptionsHtml += '</ul>';
                 }
