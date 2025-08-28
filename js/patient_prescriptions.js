@@ -61,10 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             </span>
                         </td>
                         <td>
-                            <span class="badge bg-info">${consultation.packaging_summary || ((consultation.prescription_count || 0) + ' medicines')}</span>
+                            <span class="badge bg-info">${consultation.prescription_count || 0} medicines</span>
                         </td>
                         <td>
-                            <span class="fw-bold text-success">₱${(consultation.estimated_total || 0).toFixed(2)}</span>
+                            <span class="fw-bold text-success">₱${calculateConsultationCost(consultation).toFixed(2)}</span>
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     prescriptionsHtml = '<h6 class="text-primary">Prescriptions:</h6><div class="table-responsive"><table class="table table-sm">';
                     prescriptionsHtml += '<thead><tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Instructions</th></tr></thead><tbody>';
                     data.prescriptions.forEach(p => {
-                        prescriptionsHtml += `<tr><td><strong>${p.medicine_name}</strong></td><td>${p.dosage}</td><td>${p.frequency}</td><td>${p.duration}</td><td>${p.instructions || 'None'}</td></tr>`;
+                        prescriptionsHtml += `<tr><td><strong>${p.generic_name}</strong></td><td>${p.dosage}</td><td>${p.frequency}</td><td>${p.duration}</td><td>${p.instructions || 'None'}</td></tr>`;
                     });
                     prescriptionsHtml += '</tbody></table></div>';
                 }
@@ -247,13 +247,33 @@ document.addEventListener('DOMContentLoaded', () => {
             receipt.prescriptions.forEach(p => {
                 const specs = `${p.strength || p.weight || 'N/A'}${p.form ? ' (' + p.form + ')' : ''}`;
                 const quantityDisplay = `${p.quantity || 1} ${p.packaging_unit || 'unit'}`;
+
+                // Calculate total cost on-the-fly
+                const unitPrice = parseFloat(p.price || 0);
+                const quantity = parseInt(p.quantity || 1);
+                let totalCost = unitPrice * quantity;
+
+                // Apply packaging unit multiplier if needed
+                const packagingUnit = p.packaging_unit || 'tablet';
+                switch (packagingUnit) {
+                    case 'box':
+                        totalCost = totalCost * 1.2; // 20% markup
+                        break;
+                    case 'bottle':
+                        totalCost = totalCost * 1.15; // 15% markup
+                        break;
+                    case 'blister pack':
+                        totalCost = totalCost * 1.1; // 10% markup
+                        break;
+                }
+
                 prescriptionsHtml += `<tr>
-                    <td><strong>${p.medicine_name}</strong></td>
+                    <td><strong>${p.generic_name}</strong></td>
                     <td>${specs}</td>
                     <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
                     <td>${quantityDisplay}</td>
-                    <td>₱${(parseFloat(p.unit_price) || 0).toFixed(2)} per unit</td>
-                    <td class="fw-bold">₱${(parseFloat(p.total_cost) || 0).toFixed(2)}</td>
+                    <td>₱${unitPrice.toFixed(2)} per unit</td>
+                    <td class="fw-bold">₱${totalCost.toFixed(2)}</td>
                 </tr>`;
             });
             prescriptionsHtml += '</tbody></table></div>';
@@ -328,18 +348,18 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${receipt.prescriptions && receipt.prescriptions.length > 0 ? `
                             <tr>
                                 <td class="text-end"><strong>Prescriptions Subtotal:</strong></td>
-                                <td class="text-end">₱${(parseFloat(receipt.prescription_subtotal) || 0).toFixed(2)}</td>
+                                <td class="text-end">₱${calculatePrescriptionSubtotal(receipt.prescriptions).toFixed(2)}</td>
                             </tr>
                             ` : ''}
                             ${receipt.lab_requests && receipt.lab_requests.length > 0 ? `
                             <tr>
                                 <td class="text-end"><strong>Lab Tests Subtotal:</strong></td>
-                                <td class="text-end">₱${(parseFloat(receipt.lab_subtotal) || 0).toFixed(2)}</td>
+                                <td class="text-end">₱${calculateLabSubtotal(receipt.lab_requests).toFixed(2)}</td>
                             </tr>
                             ` : ''}
                             <tr class="border-top">
                                 <td class="text-end"><strong>Total Amount:</strong></td>
-                                <td class="text-end fw-bold text-success fs-5">₱${(parseFloat(receipt.total_amount) || 0).toFixed(2)}</td>
+                                <td class="text-end fw-bold text-success fs-5">₱${(calculatePrescriptionSubtotal(receipt.prescriptions) + calculateLabSubtotal(receipt.lab_requests)).toFixed(2)}</td>
                             </tr>
                         </table>
                     </div>
@@ -423,6 +443,69 @@ document.addEventListener('DOMContentLoaded', () => {
     function applyFilters() {
         // TODO: Implement filter functionality
         loadPrescriptions();
+    }
+
+    // Helper function to calculate consultation cost (for main table display)
+    function calculateConsultationCost(consultation) {
+        if (!consultation.prescriptions || consultation.prescriptions.length === 0) return 0;
+
+        return consultation.prescriptions.reduce((total, p) => {
+            const unitPrice = parseFloat(p.price || 0);
+            const quantity = parseInt(p.quantity || 1);
+            let cost = unitPrice * quantity;
+
+            // Apply packaging unit multiplier if needed
+            const packagingUnit = p.packaging_unit || 'tablet';
+            switch (packagingUnit) {
+                case 'box':
+                    cost = cost * 1.2; // 20% markup
+                    break;
+                case 'bottle':
+                    cost = cost * 1.15; // 15% markup
+                    break;
+                case 'blister pack':
+                    cost = cost * 1.1; // 10% markup
+                    break;
+            }
+
+            return total + cost;
+        }, 0);
+    }
+
+    // Helper function to calculate prescription subtotal
+    function calculatePrescriptionSubtotal(prescriptions) {
+        if (!prescriptions || prescriptions.length === 0) return 0;
+
+        return prescriptions.reduce((total, p) => {
+            const unitPrice = parseFloat(p.price || 0);
+            const quantity = parseInt(p.quantity || 1);
+            let cost = unitPrice * quantity;
+
+            // Apply packaging unit multiplier if needed
+            const packagingUnit = p.packaging_unit || 'tablet';
+            switch (packagingUnit) {
+                case 'box':
+                    cost = cost * 1.2; // 20% markup
+                    break;
+                case 'bottle':
+                    cost = cost * 1.15; // 15% markup
+                    break;
+                case 'blister pack':
+                    cost = cost * 1.1; // 10% markup
+                    break;
+            }
+
+            return total + cost;
+        }, 0);
+    }
+
+    // Helper function to calculate lab subtotal
+    function calculateLabSubtotal(labRequests) {
+        if (!labRequests || labRequests.length === 0) return 0;
+
+        return labRequests.reduce((total, l) => {
+            return total + (parseFloat(l.price) || 0);
+        }, 0);
     }
 
     // Event listeners for filters

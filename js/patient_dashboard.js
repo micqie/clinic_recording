@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             receipt.prescriptions.forEach(p => {
                 const specs = `${p.strength || p.weight || ''}${p.form ? ' (' + p.form + ')' : ''}`;
                 prescriptionsHtml += `<tr>
-                    <td><strong>${p.medicine_name}</strong></td>
+                    <td><strong>${p.generic_name}</strong></td>
                     <td>${specs}</td>
                     <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
                     <td>${p.quantity || 1}</td>

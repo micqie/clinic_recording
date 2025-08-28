@@ -61,10 +61,11 @@ class PrescriptionReceipt
 
             // Get prescriptions with medicine details and pricing
             $prescriptionStmt = $this->conn->prepare("
-                SELECT p.*, m.medicine_name, m.strength, m.price,
+                SELECT p.*, g.generic_name, m.strength, m.price,
                        f.form_name
                 FROM tbl_prescriptions p
                 JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 LEFT JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 WHERE p.consultation_id = :consultation_id
             ");
@@ -102,11 +103,28 @@ class PrescriptionReceipt
             foreach ($prescriptions as $prescription) {
                 // Calculate cost based on quantity (how many medicines prescribed)
                 $quantity = $prescription['quantity'] ?? 1; // Default to 1 if not specified
-                $cost = $prescription['price'] * $quantity;
+                $baseCost = $prescription['price'] * $quantity;
+
+                // Apply packaging unit multiplier
+                $packagingUnit = $prescription['packaging_unit'] ?? 'tablet';
+                $multiplier = 1.0;
+                switch ($packagingUnit) {
+                    case 'box':
+                        $multiplier = 1.2; // 20% markup
+                        break;
+                    case 'bottle':
+                        $multiplier = 1.15; // 15% markup
+                        break;
+                    case 'blister pack':
+                        $multiplier = 1.1; // 10% markup
+                        break;
+                }
+
+                $cost = $baseCost * $multiplier;
                 $totalPrescriptionCost += $cost;
 
                 $prescriptionDetails[] = [
-                    'medicine_name' => $prescription['medicine_name'],
+                    'generic_name' => $prescription['generic_name'],
                     'strength' => $prescription['strength'] ?? ($prescription['weight'] ?? 'N/A'),
                     'form' => $prescription['form_name'] ?? 'N/A',
                     'dosage' => $prescription['dosage'],

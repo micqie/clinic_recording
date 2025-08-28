@@ -45,8 +45,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setDefaultDate() {
-        const today = new Date().toISOString().slice(0, 10);
-        queueDate.value = today;
+        // Get today's date in local timezone to avoid timezone issues
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayString = `${year}-${month}-${day}`;
+
+        console.log('Setting default date to:', todayString);
+        queueDate.value = todayString;
     }
 
     async function loadDoctors() {
@@ -71,6 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const date = queueDate.value || new Date().toISOString().slice(0, 10);
             const doctorId = queueDoctor.value || '';
 
+            console.log('Loading queue status for date:', date);
+
             let url = `${enhancedQueueApi}?operation=get_enhanced_queue_status&date=${date}`;
             if (doctorId) {
                 url = `${enhancedQueueApi}?operation=get_doctor_queue_status&doctor_id=${doctorId}&date=${date}`;
@@ -79,12 +88,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await axios.get(url);
             if (res.data.success) {
                 updateQueueDisplay(res.data);
+
+                // Show message if no appointments found for the date
+                if (!res.data.all_appointments || res.data.all_appointments.length === 0) {
+                    console.log('No appointments found for date:', date);
+                }
             } else {
                 throw new Error(res.data.message || 'Failed to load queue status');
             }
         } catch (error) {
             console.error('Failed to load queue status:', error);
-            Swal.fire('Error', 'Failed to load queue status', 'error');
+
+            // Show user-friendly error message
+            let errorMessage = 'Failed to load queue status';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            Swal.fire('Error', errorMessage, 'error');
+
+            // Clear the display when there's an error
+            updateQueueDisplay({
+                all_appointments: [],
+                current_consultation: null,
+                next_in_queue: null,
+                confirmed_count: 0,
+                completed_count: 0
+            });
         }
     }
 

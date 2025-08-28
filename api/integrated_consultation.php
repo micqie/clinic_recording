@@ -68,6 +68,11 @@ class IntegratedConsultation
             if (!empty($data['prescriptions']) && is_array($data['prescriptions'])) {
                 error_log("Creating " . count($data['prescriptions']) . " prescriptions");
                 foreach ($data['prescriptions'] as $prescription) {
+                    // Validate required prescription fields
+                    if (empty($prescription['medicine_id']) || empty($prescription['quantity']) || empty($prescription['packaging_unit']) || empty($prescription['frequency']) || empty($prescription['duration'])) {
+                        throw new Exception("Missing required prescription fields: medicine_id, quantity, packaging_unit, frequency, duration");
+                    }
+
                     $prescriptionStmt = $this->conn->prepare("
                         INSERT INTO tbl_prescriptions (
                             consultation_id, appointment_id, doctor_id, patient_id,
@@ -83,11 +88,11 @@ class IntegratedConsultation
                     $prescriptionStmt->bindValue(":doctor_id", $data['doctor_id']);
                     $prescriptionStmt->bindValue(":patient_id", $data['patient_id']);
                     $prescriptionStmt->bindValue(":medicine_id", $prescription['medicine_id']);
-                    $prescriptionStmt->bindValue(":dosage", $prescription['dosage']);
+                    $prescriptionStmt->bindValue(":dosage", $prescription['dosage'] ?? 'N/A');
                     $prescriptionStmt->bindValue(":frequency", $prescription['frequency']);
                     $prescriptionStmt->bindValue(":duration", $prescription['duration']);
-                    $prescriptionStmt->bindValue(":quantity", isset($prescription['quantity']) ? (int)$prescription['quantity'] : 1, PDO::PARAM_INT);
-                    $prescriptionStmt->bindValue(":packaging_unit", $prescription['packaging_unit'] ?? 'tablet');
+                    $prescriptionStmt->bindValue(":quantity", (int)$prescription['quantity'], PDO::PARAM_INT);
+                    $prescriptionStmt->bindValue(":packaging_unit", $prescription['packaging_unit']);
 
                     // Ensure instructions is a proper variable for bindParam
                     $instructions = $prescription['instructions'] ?? '';
@@ -205,9 +210,10 @@ class IntegratedConsultation
 
             // Get prescriptions
             $prescriptionStmt = $this->conn->prepare("
-                SELECT p.*, m.medicine_name, m.strength, f.form_name
+                SELECT p.*, g.generic_name, m.strength, f.form_name, m.price
                 FROM tbl_prescriptions p
                 JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 WHERE p.consultation_id = :consultation_id
             ");
@@ -320,7 +326,23 @@ class IntegratedConsultation
                 foreach ($rows as $r) {
                     $qty = isset($r['quantity']) && $r['quantity'] !== null ? (int)$r['quantity'] : 1;
                     $unit = $r['packaging_unit'] ?? 'unit';
-                    $estimatedTotal += ((float)$r['price']) * $qty;
+                    $baseCost = ((float)$r['price']) * $qty;
+
+                    // Apply packaging unit multiplier
+                    $multiplier = 1.0;
+                    switch ($unit) {
+                        case 'box':
+                            $multiplier = 1.2; // 20% markup
+                            break;
+                        case 'bottle':
+                            $multiplier = 1.15; // 15% markup
+                            break;
+                        case 'blister pack':
+                            $multiplier = 1.1; // 10% markup
+                            break;
+                    }
+
+                    $estimatedTotal += $baseCost * $multiplier;
                     if (!isset($unitToQty[$unit])) $unitToQty[$unit] = 0;
                     $unitToQty[$unit] += $qty;
                 }

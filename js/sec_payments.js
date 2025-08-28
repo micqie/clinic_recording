@@ -142,7 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${prescription.medicine_name}</td>
+          <td>${prescription.generic_name}</td>
           <td>${prescription.dosage}</td>
           <td>${prescription.frequency}</td>
           <td>${prescription.duration}</td>

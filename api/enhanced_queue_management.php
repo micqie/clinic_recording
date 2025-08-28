@@ -537,17 +537,30 @@ class EnhancedQueueManagement
     // Helper to get status ID by status name
     private function getStatusId($statusName)
     {
+        // First try to find the status with type 1 (Appointment)
         $stmt = $this->conn->prepare("
             SELECT s.status_id
             FROM tbl_status s
             JOIN tbl_status_type t ON s.status_type_id = t.status_type_id
-            WHERE t.status_type_name = 'Appointment' AND s.status_name = :name
+            WHERE t.status_type_name = 'Appointment'
+            AND s.status_name = :name
             LIMIT 1
         ");
         $stmt->bindParam(":name", $statusName);
         $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? intval($row['status_id']) : null;
+        $statusId = $stmt->fetchColumn();
+
+        if (!$statusId) {
+            // If not found, try to find the status without the type filter
+            $stmt = $this->conn->prepare("
+                SELECT status_id FROM tbl_status WHERE status_name = :name LIMIT 1
+            ");
+            $stmt->bindParam(":name", $statusName);
+            $stmt->execute();
+            $statusId = $stmt->fetchColumn();
+        }
+
+        return $statusId;
     }
 }
 

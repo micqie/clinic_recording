@@ -18,9 +18,10 @@ class Prescriptions
                        u.name as patient_name,
                        doc.user_id as doctor_user_id,
                        du.name as doctor_name,
-                       m.medicine_name,
+                       g.generic_name,
                        m.strength,
-                       f.form_name
+                       f.form_name,
+                       m.price
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
@@ -29,6 +30,7 @@ class Prescriptions
                 JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
                 JOIN tbl_users du ON doc.user_id = du.user_id
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 ORDER BY pr.created_at DESC
             ");
@@ -53,15 +55,17 @@ class Prescriptions
                        a.queue_number,
                        doc.user_id as doctor_user_id,
                        du.name as doctor_name,
-                       m.medicine_name,
+                       g.generic_name,
                        m.strength,
-                       f.form_name
+                       f.form_name,
+                       m.price
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
                 JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
                 JOIN tbl_users du ON doc.user_id = du.user_id
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 WHERE pr.patient_id = :patient_id
                 ORDER BY pr.created_at DESC
@@ -88,15 +92,17 @@ class Prescriptions
                        a.queue_number,
                        p.user_id as patient_user_id,
                        u.name as patient_name,
-                       m.medicine_name,
+                       g.generic_name,
                        m.strength,
-                       f.form_name
+                       f.form_name,
+                       m.price
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON pr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 WHERE pr.doctor_id = :doctor_id
                 ORDER BY pr.created_at DESC
@@ -125,9 +131,10 @@ class Prescriptions
                        u.name as patient_name,
                        doc.user_id as doctor_user_id,
                        du.name as doctor_name,
-                       m.medicine_name,
+                       g.generic_name,
                        m.strength,
-                       f.form_name
+                       f.form_name,
+                       m.price
                 FROM tbl_prescriptions pr
                 JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
@@ -136,6 +143,7 @@ class Prescriptions
                 JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
                 JOIN tbl_users du ON doc.user_id = du.user_id
                 JOIN tbl_medicines m ON pr.medicine_id = m.medicine_id
+                JOIN tbl_medicine_generic_names g ON m.generic_id = g.generic_id
                 JOIN tbl_medicine_forms f ON m.form_id = f.form_id
                 WHERE pr.prescription_id = :prescription_id
                 LIMIT 1
@@ -159,26 +167,25 @@ class Prescriptions
         include "connection.php";
         $data = json_decode($json, true);
 
-        if (empty($data['diagnosis_id']) || empty($data['appointment_id']) || empty($data['doctor_id']) ||
-            empty($data['patient_id']) || empty($data['medicine_id']) || empty($data['dosage']) ||
-            empty($data['frequency']) || empty($data['duration']) || empty($data['quantity'])) {
+        if (empty($data['appointment_id']) || empty($data['doctor_id']) ||
+            empty($data['patient_id']) || empty($data['medicine_id']) || empty($data['quantity']) ||
+            empty($data['packaging_unit']) || empty($data['frequency']) || empty($data['duration']) {
             return ['success' => false, 'message' => 'All required fields must be provided.'];
         }
 
         try {
-            $sql = "INSERT INTO tbl_prescriptions (diagnosis_id, appointment_id, doctor_id, patient_id, medicine_id, dosage, frequency, duration, quantity, packaging_unit, instructions, status)
-                    VALUES (:diagnosis_id, :appointment_id, :doctor_id, :patient_id, :medicine_id, :dosage, :frequency, :duration, :quantity, :packaging_unit, :instructions, :status)";
+            $sql = "INSERT INTO tbl_prescriptions (appointment_id, doctor_id, patient_id, medicine_id, dosage, frequency, duration, quantity, packaging_unit, instructions, status)
+                    VALUES (:appointment_id, :doctor_id, :patient_id, :medicine_id, :dosage, :frequency, :duration, :quantity, :packaging_unit, :instructions, :status)";
             $stmt = $conn->prepare($sql);
-            $stmt->bindParam(":diagnosis_id", $data['diagnosis_id']);
             $stmt->bindParam(":appointment_id", $data['appointment_id']);
             $stmt->bindParam(":doctor_id", $data['doctor_id']);
             $stmt->bindParam(":patient_id", $data['patient_id']);
             $stmt->bindParam(":medicine_id", $data['medicine_id']);
-            $stmt->bindParam(":dosage", $data['dosage']);
+            $stmt->bindParam(":dosage", $data['dosage'] ?? 'N/A');
             $stmt->bindParam(":frequency", $data['frequency']);
             $stmt->bindParam(":duration", $data['duration']);
             $stmt->bindParam(":quantity", $data['quantity']);
-            $stmt->bindParam(":packaging_unit", $data['packaging_unit'] ?? 'tablet');
+            $stmt->bindParam(":packaging_unit", $data['packaging_unit']);
             $stmt->bindParam(":instructions", $data['instructions'] ?? null);
             $stmt->bindParam(":status", $data['status'] ?? 'Active');
             $stmt->execute();
@@ -203,7 +210,8 @@ class Prescriptions
         try {
             $sql = "UPDATE tbl_prescriptions SET
                     medicine_id = :medicine_id,
-                    dosage = :dosage,
+                    quantity = :quantity,
+                    packaging_unit = :packaging_unit,
                     frequency = :frequency,
                     duration = :duration,
                     instructions = :instructions,
@@ -211,7 +219,8 @@ class Prescriptions
                     WHERE prescription_id = :prescription_id";
             $stmt = $conn->prepare($sql);
             $stmt->bindParam(":medicine_id", $data['medicine_id']);
-            $stmt->bindParam(":dosage", $data['dosage']);
+            $stmt->bindParam(":quantity", $data['quantity']);
+            $stmt->bindParam(":packaging_unit", $data['packaging_unit']);
             $stmt->bindParam(":frequency", $data['frequency']);
             $stmt->bindParam(":duration", $data['duration']);
             $stmt->bindParam(":instructions", $data['instructions'] ?? null);

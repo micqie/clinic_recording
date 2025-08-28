@@ -59,18 +59,150 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
       const response = await axios.get(`${medicineApiUrl}?operation=getAll`);
       if (response.data.success) {
-        const medicineSelects = document.querySelectorAll('select[name="medicine_id"]');
-        medicineSelects.forEach(select => {
-          select.innerHTML = '<option value="">Select medicine</option>';
-          (response.data.medicines || response.data.data || []).forEach(medicine => {
-            const text = `${medicine.medicine_name}`;
-            select.innerHTML += `<option value="${medicine.medicine_id}">${text}</option>`;
+        const medicines = response.data.medicines || response.data.data || [];
+
+        // Store medicines globally for search functionality
+        window.availableMedicines = medicines;
+
+        // Setup search functionality for add form
+        const addSearchInput = document.getElementById('medicineSearchInput');
+        const addMedicineSelect = document.getElementById('medicineSelect');
+
+        if (addSearchInput && addMedicineSelect) {
+          addSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            filterMedicineOptions(addMedicineSelect, medicines, searchTerm);
           });
-        });
+
+          // Add change event to show medicine details
+          addMedicineSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value && selectedOption.dataset.medicine) {
+              const medicine = JSON.parse(selectedOption.dataset.medicine);
+              showMedicineDetails(medicine, 'add');
+            } else {
+              hideMedicineDetails('add');
+            }
+          });
+        }
+
+        // Setup search functionality for edit form
+        const editSearchInput = document.getElementById('editMedicineSearchInput');
+        const editMedicineSelect = document.getElementById('edit_medicine_id');
+
+        if (editSearchInput && editMedicineSelect) {
+          editSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            filterMedicineOptions(editMedicineSelect, medicines, searchTerm);
+          });
+
+          // Add change event to show medicine details
+          editMedicineSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value && selectedOption.dataset.medicine) {
+              const medicine = JSON.parse(selectedOption.dataset.medicine);
+              showMedicineDetails(medicine, 'edit');
+            } else {
+              hideMedicineDetails('edit');
+            }
+          });
+        }
+
+        // Populate initial options
+        populateMedicineOptions(addMedicineSelect, medicines);
+        populateMedicineOptions(editMedicineSelect, medicines);
       }
     } catch (error) {
       console.error("Error loading medicines:", error);
     }
+  }
+
+  // Function to populate medicine options
+  function populateMedicineOptions(selectElement, medicines) {
+    if (!selectElement) return;
+
+    selectElement.innerHTML = '<option value="">Search and select medicine...</option>';
+    medicines.forEach(medicine => {
+      const text = `${medicine.generic_name} - ${medicine.strength} ${medicine.form_name}`;
+      selectElement.innerHTML += `<option value="${medicine.medicine_id}" data-medicine='${JSON.stringify(medicine)}'>${text}</option>`;
+    });
+  }
+
+  // Function to filter medicine options based on search term
+  function filterMedicineOptions(selectElement, medicines, searchTerm) {
+    if (!selectElement) return;
+
+    const filteredMedicines = medicines.filter(medicine =>
+      medicine.generic_name.toLowerCase().includes(searchTerm) ||
+      medicine.strength.toLowerCase().includes(searchTerm) ||
+      medicine.form_name.toLowerCase().includes(searchTerm)
+    );
+
+    populateMedicineOptions(selectElement, filteredMedicines);
+  }
+
+  // Function to show medicine details
+  function showMedicineDetails(medicine, mode = 'add') {
+    const prefix = mode === 'edit' ? 'edit' : '';
+    const detailsDiv = document.getElementById(prefix ? 'editMedicineDetails' : 'medicineDetails');
+    const genericNameSpan = document.getElementById(prefix ? 'editSelectedGenericName' : 'selectedGenericName');
+    const strengthSpan = document.getElementById(prefix ? 'editSelectedStrength' : 'selectedStrength');
+    const formSpan = document.getElementById(prefix ? 'editSelectedForm' : 'selectedForm');
+    const priceSpan = document.getElementById(prefix ? 'editSelectedPrice' : 'selectedPrice');
+
+    if (detailsDiv && genericNameSpan && strengthSpan && formSpan && priceSpan) {
+      genericNameSpan.textContent = medicine.generic_name || '-';
+      strengthSpan.textContent = medicine.strength || '-';
+      formSpan.textContent = medicine.form_name || '-';
+      priceSpan.textContent = `₱${parseFloat(medicine.price || 0).toFixed(2)}`;
+
+      detailsDiv.style.display = 'block';
+
+      // Update total cost calculation
+      updateTotalCost(mode);
+    }
+  }
+
+  // Function to hide medicine details
+  function hideMedicineDetails(mode = 'add') {
+    const prefix = mode === 'edit' ? 'edit' : '';
+    const detailsDiv = document.getElementById(prefix ? 'editMedicineDetails' : 'medicineDetails');
+    if (detailsDiv) {
+      detailsDiv.style.display = 'none';
+    }
+  }
+
+  // Function to update total cost
+  function updateTotalCost(mode = 'add') {
+    const prefix = mode === 'edit' ? 'edit' : '';
+    const quantityInput = document.getElementById(prefix ? 'edit_quantity' : 'quantityInput');
+    const totalCostDisplay = document.getElementById(prefix ? 'editTotalCostDisplay' : 'totalCostDisplay');
+    const medicineSelect = document.getElementById(prefix ? 'edit_medicine_id' : 'medicineSelect');
+
+    if (quantityInput && totalCostDisplay && medicineSelect) {
+      const quantity = parseInt(quantityInput.value) || 1;
+      const selectedOption = medicineSelect.options[medicineSelect.selectedIndex];
+
+      if (selectedOption.value && selectedOption.dataset.medicine) {
+        const medicine = JSON.parse(selectedOption.dataset.medicine);
+        const unitPrice = parseFloat(medicine.price || 0);
+        const totalCost = quantity * unitPrice;
+        totalCostDisplay.value = `₱${totalCost.toFixed(2)}`;
+      } else {
+        totalCostDisplay.value = '₱0.00';
+      }
+    }
+  }
+
+  // Add event listeners for quantity changes
+  function setupQuantityListeners() {
+    const quantityInputs = document.querySelectorAll('#quantityInput, #edit_quantity');
+    quantityInputs.forEach(input => {
+      input.addEventListener('input', function() {
+        const mode = this.id === 'edit_quantity' ? 'edit' : 'add';
+        updateTotalCost(mode);
+      });
+    });
   }
 
   async function loadDosages() {
@@ -97,24 +229,44 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     prescriptions.forEach(prescription => {
       const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${prescription.prescription_id}</td>
-        <td>${prescription.patient_name}</td>
-        <td>${prescription.medicine_name}</td>
-        <td>${prescription.dosage}</td>
-        <td>${prescription.frequency}</td>
-        <td>${prescription.duration}</td>
-        <td><span class="badge bg-${getStatusBadgeColor(prescription.status)}">${prescription.status}</span></td>
-        <td>${new Date(prescription.created_at).toLocaleDateString()}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-primary me-1" onclick="editPrescription(${prescription.prescription_id})">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deletePrescription(${prescription.prescription_id})">
-            <i class="fas fa-trash"></i>
-          </button>
-        </td>
-      `;
+             // Calculate cost on-the-fly for display
+       const unitPrice = parseFloat(prescription.price || 0);
+       const quantity = parseInt(prescription.quantity || 1);
+       let totalCost = unitPrice * quantity;
+
+       // Apply packaging unit multiplier if needed
+       const packagingUnit = prescription.packaging_unit || 'tablet';
+       switch (packagingUnit) {
+           case 'box':
+               totalCost = totalCost * 1.2; // 20% markup
+               break;
+           case 'bottle':
+               totalCost = totalCost * 1.15; // 15% markup
+               break;
+           case 'blister pack':
+               totalCost = totalCost * 1.1; // 10% markup
+               break;
+       }
+
+                row.innerHTML = `
+           <td>${prescription.prescription_id}</td>
+           <td>${prescription.patient_name}</td>
+           <td>${prescription.generic_name}</td>
+           <td>${prescription.quantity} ${prescription.packaging_unit || 'units'}</td>
+           <td>${prescription.frequency}</td>
+           <td>${prescription.duration}</td>
+           <td><span class="badge bg-${getStatusBadgeColor(prescription.status)}">${prescription.status}</span></td>
+           <td>₱${totalCost.toFixed(2)}</td>
+           <td>${new Date(prescription.created_at).toLocaleDateString()}</td>
+         <td>
+           <button class="btn btn-sm btn-outline-primary me-1" onclick="editPrescription(${prescription.prescription_id})">
+             <i class="fas fa-edit"></i>
+           </button>
+           <button class="btn btn-sm btn-outline-danger" onclick="deletePrescription(${prescription.prescription_id})">
+             <i class="fas fa-trash"></i>
+           </button>
+         </td>
+       `;
       prescriptionsTableBody.appendChild(row);
     });
   }
@@ -136,7 +288,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const jsonPayload = JSON.stringify({
       patient_id: formData.get("patient_id"),
       medicine_id: formData.get("medicine_id"),
-      dosage: formData.get("dosage"),
+      quantity: formData.get("quantity"),
+      packaging_unit: formData.get("packaging_unit"),
       frequency: formData.get("frequency"),
       duration: formData.get("duration"),
       instructions: formData.get("instructions"),
@@ -173,7 +326,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("edit_prescription_id").value = prescription.prescription_id;
         document.getElementById("edit_patient_id").value = prescription.patient_id;
         document.getElementById("edit_medicine_id").value = prescription.medicine_id;
-        document.getElementById("edit_dosage").value = prescription.dosage;
+        document.getElementById("edit_quantity").value = prescription.quantity || 1;
+        document.getElementById("edit_packaging_unit").value = prescription.packaging_unit || 'tablet';
         document.getElementById("edit_frequency").value = prescription.frequency;
         document.getElementById("edit_duration").value = prescription.duration;
         document.getElementById("edit_status").value = prescription.status;
@@ -198,7 +352,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       prescription_id: formData.get("prescription_id"),
       patient_id: formData.get("patient_id"),
       medicine_id: formData.get("medicine_id"),
-      dosage: formData.get("dosage"),
+      quantity: formData.get("quantity"),
+      packaging_unit: formData.get("packaging_unit"),
       frequency: formData.get("frequency"),
       duration: formData.get("duration"),
       status: formData.get("status"),
@@ -260,5 +415,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadPrescriptions();
   await loadPatients();
   await loadMedicines();
-  await loadDosages();
+  setupQuantityListeners();
 });

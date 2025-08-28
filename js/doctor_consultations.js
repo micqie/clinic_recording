@@ -212,36 +212,64 @@ document.addEventListener('DOMContentLoaded', () => {
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
+                                         <div class="row g-2">
+                         <div class="col-md-12">
+                             <label class="form-label">Medicine</label>
+                             <div class="position-relative">
+                                 <input type="text" class="form-control" id="medicineSearch_${prescriptionId}" placeholder="Type to search medicines..." autocomplete="off" required>
+                                 <input type="hidden" name="prescriptions[${prescriptionCounter-1}][medicine_id]" id="medicineId_${prescriptionId}" required>
+                                 <div class="dropdown-menu w-100" id="medicineDropdown_${prescriptionId}" style="display: none; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                     <!-- Medicine options will be populated here -->
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+
+                    <!-- Medicine Details Display -->
+                    <div class="row g-2 mt-2" id="medicineDetails_${prescriptionId}" style="display: none;">
+                        <div class="col-12">
+                            <div class="card bg-light">
+                                <div class="card-body py-2">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <strong>Generic Name:</strong><br>
+                                            <span id="genericName_${prescriptionId}">-</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Strength:</strong><br>
+                                            <span id="strength_${prescriptionId}">-</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Form:</strong><br>
+                                            <span id="form_${prescriptionId}">-</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <strong>Unit Price:</strong><br>
+                                            <span id="price_${prescriptionId}" class="text-primary fw-bold">₱0.00</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="form-label">Medicine</label>
-                            <select class="form-select" name="prescriptions[${prescriptionCounter-1}][medicine_id]" required>
-                                <option value="">Select medicine</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Dosage</label>
-                            <select class="form-select" name="prescriptions[${prescriptionCounter-1}][dosage]" required>
-                                <option value="">Select dosage</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Frequency</label>
-                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][frequency]" placeholder="e.g., Every 8 hours" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Duration</label>
-                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][duration]" placeholder="e.g., 7 days" required>
-                        </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <label class="form-label">Quantity</label>
-                            <input type="number" class="form-control" name="prescriptions[${prescriptionCounter-1}][quantity]" placeholder="e.g., 20" min="1" required>
+                            <input type="number" class="form-control" name="prescriptions[${prescriptionCounter-1}][quantity]" id="quantity_${prescriptionId}" placeholder="e.g., 20" min="1" value="1" required>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Unit</label>
-                            <select class="form-select" name="prescriptions[${prescriptionCounter-1}][packaging_unit]" required>
+                        <div class="col-md-3">
+                            <label class="form-label">Total Cost</label>
+                            <input type="text" class="form-control" id="totalCost_${prescriptionId}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Packaging Unit</label>
+                            <select class="form-select" name="prescriptions[${prescriptionCounter-1}][packaging_unit]" id="packaging_${prescriptionId}" required>
                                 <option value="tablet">Tablet</option>
                                 <option value="capsule">Capsule</option>
+                                <option value="ml">ml (Liquid)</option>
+                                <option value="mg">mg (Powder)</option>
+                                <option value="piece">Piece</option>
                                 <option value="blister pack">Blister Pack</option>
                                 <option value="box">Box</option>
                                 <option value="bottle">Bottle</option>
@@ -251,9 +279,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <option value="strip">Strip</option>
                             </select>
                         </div>
-                        <div class="col-md-12">
+                        <div class="col-md-3">
+                            <label class="form-label">Frequency</label>
+                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][frequency]" id="frequency_${prescriptionId}" placeholder="e.g., Every 8 hours" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Duration</label>
+                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][duration]" id="duration_${prescriptionId}" placeholder="e.g., 7 days" required>
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label">Instructions</label>
-                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][instructions]" placeholder="e.g., Take with food">
+                            <input type="text" class="form-control" name="prescriptions[${prescriptionCounter-1}][instructions]" id="instructions_${prescriptionId}" placeholder="e.g., Take with food">
                         </div>
                     </div>
                 </div>
@@ -261,9 +297,11 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         prescriptionsContainer.insertAdjacentHTML('beforeend', prescriptionHtml);
 
-        // Load medicines and dosages for this prescription
+        // Load medicines for this prescription with search functionality
         loadMedicinesForPrescription(prescriptionId);
-        loadDosagesForPrescription(prescriptionId);
+
+                // Setup quantity listener for cost calculation
+        setupQuantityListener(prescriptionId);
     }
 
     // Add lab request field
@@ -299,38 +337,278 @@ document.addEventListener('DOMContentLoaded', () => {
         loadLabTestTypesForRequest(labRequestId);
     }
 
-    // Load medicines for prescription dropdown
+            // Load medicines for prescription searchable input
     async function loadMedicinesForPrescription(prescriptionId) {
         try {
             const res = await axios.get(`${medicinesApi}?operation=getAll`);
             if (res.data && (res.data.success || Array.isArray(res.data.data) || Array.isArray(res.data.medicines))) {
-                const select = document.querySelector(`#${prescriptionId} select[name*="[medicine_id]"]`);
                 const list = res.data.medicines || res.data.data || [];
-                list.forEach(medicine => {
-                    const opt = document.createElement('option');
-                    opt.value = medicine.medicine_id;
-                    opt.textContent = `${medicine.medicine_name}`;
-                    select.appendChild(opt);
-                });
+
+                // Store medicines globally for search functionality
+                if (!window.availableMedicines) {
+                    window.availableMedicines = list;
+                }
+
+                // Setup searchable medicine input
+                setupSearchableMedicineInput(prescriptionId, list);
             }
         } catch (e) { console.error(e); }
     }
 
-    async function loadDosagesForPrescription(prescriptionId) {
-        try {
-            const res = await axios.get(`${medicinesApi}?operation=getMedicineWeights`);
-            const list = res.data?.weights || [];
-            const select = document.querySelector(`#${prescriptionId} select[name*="[dosage]"]`);
-            if (!select) return;
-            select.innerHTML = '<option value="">Select dosage</option>';
-            list.forEach(w => {
-                const opt = document.createElement('option');
-                opt.value = w.weight_value;
-                opt.textContent = w.weight_value;
-                select.appendChild(opt);
-            });
-        } catch (e) { console.error(e); }
+            // Function to setup searchable medicine input
+    function setupSearchableMedicineInput(prescriptionId, medicines) {
+        const searchInput = document.getElementById(`medicineSearch_${prescriptionId}`);
+        const hiddenInput = document.getElementById(`medicineId_${prescriptionId}`);
+        const dropdown = document.getElementById(`medicineDropdown_${prescriptionId}`);
+
+        if (!searchInput || !hiddenInput || !dropdown) return;
+
+        // Show dropdown on focus
+        searchInput.addEventListener('focus', function() {
+            if (this.value.length > 0) {
+                showMedicineDropdown(prescriptionId, medicines, this.value);
+            }
+        });
+
+        // Handle input changes
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.trim();
+            if (searchTerm.length > 0) {
+                showMedicineDropdown(prescriptionId, medicines, searchTerm);
+            } else {
+                hideMedicineDropdown(prescriptionId);
+                hiddenInput.value = '';
+                hideMedicineDetails(prescriptionId);
+                // Clear the search input if it's empty
+                this.value = '';
+            }
+        });
+
+        // Handle clicks outside to close dropdown
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                hideMedicineDropdown(prescriptionId);
+            }
+        });
+
+        // Handle keyboard navigation
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                hideMedicineDropdown(prescriptionId);
+                this.blur();
+            }
+        });
     }
+
+    // Function to show medicine dropdown with filtered results
+    function showMedicineDropdown(prescriptionId, medicines, searchTerm) {
+        const dropdown = document.getElementById(`medicineDropdown_${prescriptionId}`);
+        const searchInput = document.getElementById(`medicineSearch_${prescriptionId}`);
+
+        if (!dropdown || !searchInput) return;
+
+        // Filter medicines based on search term
+        const filteredMedicines = medicines.filter(medicine =>
+            medicine.generic_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            medicine.strength.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            medicine.form_name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        // Populate dropdown
+        dropdown.innerHTML = '';
+
+        if (filteredMedicines.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'dropdown-item text-muted';
+            noResults.style.padding = '8px 12px';
+            noResults.style.fontStyle = 'italic';
+            noResults.textContent = 'No medicines found';
+            dropdown.appendChild(noResults);
+            return;
+        }
+
+        filteredMedicines.forEach(medicine => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.style.cursor = 'pointer';
+            item.style.padding = '8px 12px';
+            item.style.borderBottom = '1px solid #f0f0f0';
+            item.innerHTML = `${medicine.generic_name} - ${medicine.strength} ${medicine.form_name}`;
+
+            // Add hover effect
+            item.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = '#f8f9fa';
+            });
+
+            item.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = 'transparent';
+            });
+
+            item.addEventListener('click', function() {
+                selectMedicine(prescriptionId, medicine);
+            });
+
+            dropdown.appendChild(item);
+        });
+
+        // Show dropdown
+        dropdown.style.display = 'block';
+        dropdown.style.position = 'absolute';
+        dropdown.style.top = '100%';
+        dropdown.style.left = '0';
+        dropdown.style.zIndex = '1000';
+    }
+
+    // Function to hide medicine dropdown
+    function hideMedicineDropdown(prescriptionId) {
+        const dropdown = document.getElementById(`medicineDropdown_${prescriptionId}`);
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    }
+
+    // Function to select a medicine
+    function selectMedicine(prescriptionId, medicine) {
+        const searchInput = document.getElementById(`medicineSearch_${prescriptionId}`);
+        const hiddenInput = document.getElementById(`medicineId_${prescriptionId}`);
+
+        if (searchInput && hiddenInput) {
+            searchInput.value = `${medicine.generic_name} - ${medicine.strength} ${medicine.form_name}`;
+            hiddenInput.value = medicine.medicine_id;
+
+            // Hide dropdown
+            hideMedicineDropdown(prescriptionId);
+
+            // Show medicine details
+            showMedicineDetails(prescriptionId, medicine);
+        }
+    }
+
+    // Function to filter medicine options based on search term
+    function filterMedicineOptions(selectElement, medicines, searchTerm) {
+        if (!selectElement) return;
+
+        const filteredMedicines = medicines.filter(medicine =>
+            medicine.generic_name.toLowerCase().includes(searchTerm) ||
+            medicine.strength.toLowerCase().includes(searchTerm) ||
+            medicine.form_name.toLowerCase().includes(searchTerm)
+        );
+
+        populateMedicineOptions(selectElement, filteredMedicines);
+    }
+
+    // Function to show medicine details
+    function showMedicineDetails(prescriptionId, medicine) {
+        const detailsDiv = document.getElementById(`medicineDetails_${prescriptionId}`);
+        const genericNameSpan = document.getElementById(`genericName_${prescriptionId}`);
+        const strengthSpan = document.getElementById(`strength_${prescriptionId}`);
+        const formSpan = document.getElementById(`form_${prescriptionId}`);
+        const priceSpan = document.getElementById(`price_${prescriptionId}`);
+
+        if (detailsDiv && genericNameSpan && strengthSpan && formSpan && priceSpan) {
+            genericNameSpan.textContent = medicine.generic_name || '-';
+            strengthSpan.textContent = medicine.strength || '-';
+            formSpan.textContent = medicine.form_name || '-';
+            priceSpan.textContent = `₱${parseFloat(medicine.price || 0).toFixed(2)}`;
+
+            detailsDiv.style.display = 'block';
+
+            // Update total cost calculation
+            updateTotalCost(prescriptionId);
+        }
+    }
+
+    // Function to hide medicine details
+    function hideMedicineDetails(prescriptionId) {
+        const detailsDiv = document.getElementById(`medicineDetails_${prescriptionId}`);
+        if (detailsDiv) {
+            detailsDiv.style.display = 'none';
+        }
+    }
+
+            // Function to update total cost
+    function updateTotalCost(prescriptionId) {
+        const quantityInput = document.getElementById(`quantity_${prescriptionId}`);
+        const totalCostDisplay = document.getElementById(`totalCost_${prescriptionId}`);
+        const hiddenInput = document.getElementById(`medicineId_${prescriptionId}`);
+        const packagingUnitSelect = document.getElementById(`packaging_${prescriptionId}`);
+
+        if (quantityInput && totalCostDisplay && hiddenInput && hiddenInput.value) {
+            const quantity = parseInt(quantityInput.value) || 1;
+
+            // Find the selected medicine from available medicines
+            const selectedMedicine = window.availableMedicines.find(m => m.medicine_id == hiddenInput.value);
+
+            if (selectedMedicine) {
+                const unitPrice = parseFloat(selectedMedicine.price || 0);
+
+                // Calculate total cost based on quantity and packaging unit
+                let totalCost = quantity * unitPrice;
+
+                // Apply packaging unit multiplier if needed
+                if (packagingUnitSelect) {
+                    const packagingUnit = packagingUnitSelect.value;
+                    switch (packagingUnit) {
+                        case 'box':
+                            totalCost = totalCost * 1.2; // 20% markup for box packaging
+                            break;
+                        case 'bottle':
+                            totalCost = totalCost * 1.15; // 15% markup for bottle packaging
+                            break;
+                        case 'blister pack':
+                            totalCost = totalCost * 1.1; // 10% markup for blister pack
+                            break;
+                        default:
+                            // No additional markup for other units
+                            break;
+                    }
+                }
+
+                totalCostDisplay.value = `₱${totalCost.toFixed(2)}`;
+            } else {
+                totalCostDisplay.value = '₱0.00';
+            }
+        } else {
+            totalCostDisplay.value = '₱0.00';
+        }
+    }
+
+
+
+    // Setup quantity and packaging unit listeners for cost calculation
+    function setupQuantityListener(prescriptionId) {
+        const quantityInput = document.getElementById(`quantity_${prescriptionId}`);
+        const packagingUnitSelect = document.getElementById(`packaging_${prescriptionId}`);
+
+        if (quantityInput) {
+            quantityInput.addEventListener('input', function() {
+                updateTotalCost(prescriptionId);
+            });
+        }
+
+        if (packagingUnitSelect) {
+            packagingUnitSelect.addEventListener('change', function() {
+                updateTotalCost(prescriptionId);
+            });
+        }
+    }
+
+    // This function is no longer needed as dosage field has been removed
+    // async function loadDosagesForPrescription(prescriptionId) {
+    //     try {
+    //         const res = await axios.get(`${medicinesApi}?operation=getMedicineWeights`);
+    //         const list = res.data?.weights || [];
+    //         const select = document.querySelector(`#${prescriptionId} select[name*="[dosage]"]`);
+    //         if (!select) return;
+    //         select.innerHTML = '<option value="">Select dosage</option>';
+    //         list.forEach(w => {
+    //         const opt = document.createElement('option');
+    //         opt.value = w.weight_value;
+    //         opt.textContent = w.weight_value;
+    //         select.appendChild(opt);
+    //         });
+    //     } catch (e) { console.error(e); }
+    // }
 
     // Load lab test types for lab request dropdown
     async function loadLabTestTypesForRequest(labRequestId) {
@@ -544,7 +822,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.prescriptions && data.prescriptions.length > 0) {
                     prescriptionsHtml = '<h6>Prescriptions:</h6><ul>';
                     data.prescriptions.forEach(p => {
-                        prescriptionsHtml += `<li><strong>${p.medicine_name}</strong> - ${p.dosage}, ${p.frequency}, ${p.duration}</li>`;
+                        // Calculate cost on-the-fly for display
+                        const unitPrice = parseFloat(p.price || 0);
+                        const quantity = parseInt(p.quantity || 1);
+                        let totalCost = unitPrice * quantity;
+
+                        // Apply packaging unit multiplier if needed
+                        const packagingUnit = p.packaging_unit || 'tablet';
+                        switch (packagingUnit) {
+                            case 'box':
+                                totalCost = totalCost * 1.2; // 20% markup
+                                break;
+                            case 'bottle':
+                                totalCost = totalCost * 1.15; // 15% markup
+                                break;
+                            case 'blister pack':
+                                totalCost = totalCost * 1.1; // 10% markup
+                                break;
+                        }
+
+                        prescriptionsHtml += `<li><strong>${p.generic_name}</strong> - ${p.quantity || 'N/A'} ${p.packaging_unit || 'units'}, ${p.frequency}, ${p.duration} (Estimated Cost: ₱${totalCost.toFixed(2)})</li>`;
                     });
                     prescriptionsHtml += '</ul>';
                 }
@@ -627,23 +924,76 @@ document.addEventListener('DOMContentLoaded', () => {
         // Collect prescriptions
         const prescriptions = [];
         const prescriptionElements = prescriptionsContainer.querySelectorAll('.card');
-        prescriptionElements.forEach((element, index) => {
-            const medicineId = element.querySelector('select[name*="[medicine_id]"]').value;
-            const dosage = element.querySelector('input[name*="[dosage]"]').value;
-            const frequency = element.querySelector('input[name*="[frequency]"]').value;
-            const duration = element.querySelector('input[name*="[duration]"]').value;
-            const instructions = element.querySelector('input[name*="[instructions]"]').value;
 
-            if (medicineId && dosage && frequency && duration) {
+        console.log('Found prescription elements:', prescriptionElements.length);
+
+        for (let i = 0; i < prescriptionElements.length; i++) {
+            const element = prescriptionElements[i];
+            console.log(`Processing prescription element ${i}:`, element.id);
+
+            // Get all required elements with null checks
+            const medicineIdElement = element.querySelector('input[id*="medicineId"]');
+            const quantityElement = element.querySelector('input[id*="quantity"]');
+            const packagingUnitElement = element.querySelector('select[id*="packaging"]');
+            const frequencyElement = element.querySelector('input[id*="frequency"]');
+            const durationElement = element.querySelector('input[id*="duration"]');
+            const instructionsElement = element.querySelector('input[id*="instructions"]');
+            const searchInputElement = element.querySelector('input[id*="medicineSearch"]');
+            const totalCostElement = element.querySelector('input[id*="totalCost"]');
+
+            // Check if all required elements exist
+            if (!medicineIdElement || !quantityElement || !packagingUnitElement ||
+                !frequencyElement || !durationElement || !searchInputElement) {
+                console.error('Missing required elements in prescription form', {
+                    medicineIdElement: !!medicineIdElement,
+                    quantityElement: !!quantityElement,
+                    packagingUnitElement: !!packagingUnitElement,
+                    frequencyElement: !!frequencyElement,
+                    durationElement: !!durationElement,
+                    searchInputElement: !!searchInputElement
+                });
+                continue;
+            }
+
+            // Get values
+            const medicineId = medicineIdElement.value;
+            const quantity = quantityElement.value;
+            const packagingUnit = packagingUnitElement.value;
+            const frequency = frequencyElement.value;
+            const duration = durationElement.value;
+            const instructions = instructionsElement ? instructionsElement.value : '';
+
+            console.log(`Prescription ${i} values:`, {
+                medicineId,
+                quantity,
+                packagingUnit,
+                frequency,
+                duration,
+                instructions
+            });
+
+            // Validate that medicine is actually selected
+            if (!searchInputElement.value || searchInputElement.value === 'Type to search medicines...') {
+                Swal.fire('Error', 'Please select a valid medicine for all prescriptions.', 'error');
+                return;
+            }
+
+                        // Check if all required fields have values
+            if (medicineId && quantity && packagingUnit && frequency && duration) {
                 prescriptions.push({
                     medicine_id: medicineId,
-                    dosage: dosage,
+                    dosage: 'N/A', // Default value since database still requires this field
+                    quantity: quantity,
+                    packaging_unit: packagingUnit,
                     frequency: frequency,
                     duration: duration,
                     instructions: instructions
                 });
+            } else {
+                Swal.fire('Error', 'Please fill in all required fields for all prescriptions.', 'error');
+                return;
             }
-        });
+        }
 
         // Require at least one prescription
         if (prescriptions.length === 0) {
@@ -654,9 +1004,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Collect lab requests
         const labRequests = [];
         const labRequestElements = labRequestsContainer.querySelectorAll('.card');
-        labRequestElements.forEach((element, index) => {
-            const labTestTypeId = element.querySelector('select[name*="[lab_test_type_id]"]').value;
-            const requestText = element.querySelector('input[name*="[request_text]"]').value;
+
+        for (let i = 0; i < labRequestElements.length; i++) {
+            const element = labRequestElements[i];
+
+            // Get lab request elements with null checks
+            const labTestTypeElement = element.querySelector('select[name*="[lab_test_type_id]"]');
+            const requestTextElement = element.querySelector('input[name*="[request_text]"]');
+
+            // Check if elements exist
+            if (!labTestTypeElement || !requestTextElement) {
+                console.error('Missing required elements in lab request form');
+                continue;
+            }
+
+            const labTestTypeId = labTestTypeElement.value;
+            const requestText = requestTextElement.value;
 
             if (labTestTypeId && requestText) {
                 labRequests.push({
@@ -664,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     request_text: requestText
                 });
             }
-        });
+        }
 
         // Always include prescriptions (required)
         data.prescriptions = prescriptions;
