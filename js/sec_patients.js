@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
         patientTableBody.innerHTML = "";
 
         response.data.data.forEach((patient) => {
+          const isActive = patient.is_active === undefined ? true : (Number(patient.is_active) === 1);
           const row = document.createElement("tr");
       row.innerHTML = `
   <td>${patient.full_name}</td>
@@ -35,29 +36,9 @@ document.addEventListener("DOMContentLoaded", () => {
   <td>${patient.created_at}</td>
   <td>${patient.updated_at}</td>
   <td class="text-nowrap">
-    <button
-      class="btn btn-sm btn-info me-1 action-btn"
-      onclick="viewPatient(${patient.patient_id})"
-      title="View Patient"
-      aria-label="View Patient"
-    >
-      <i class="fas fa-eye"></i>
-    </button>
-    <button
-      class="btn btn-sm btn-warning me-1 action-btn"
-      onclick="editPatient(${patient.patient_id})"
-      title="Edit Patient"
-      aria-label="Edit Patient"
-    >
-      <i class="fas fa-edit"></i>
-    </button>
-    <button
-      class="btn btn-sm btn-danger action-btn"
-      onclick="deletePatient(${patient.patient_id})"
-      title="Delete Patient"
-      aria-label="Delete Patient"
-    >
-      <i class="fas fa-trash-alt"></i>
+    <span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${isActive ? 'Active' : 'Inactive'}</span>
+    <button class="btn btn-sm ${isActive ? 'btn-outline-warning' : 'btn-outline-success'} action-btn ms-2" onclick="togglePatient(${patient.patient_id}, ${isActive ? 1 : 0})" title="${isActive ? 'Deactivate' : 'Activate'}" aria-label="${isActive ? 'Deactivate' : 'Activate'}">
+      <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
     </button>
   </td>
 `;
@@ -121,33 +102,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Delete patient
-  window.deletePatient = async (patientId) => {
+  // Toggle patient active
+  window.togglePatient = async (patientId, currentlyActive) => {
+    const action = currentlyActive ? 'Deactivate' : 'Activate';
     const confirm = await Swal.fire({
-      icon: "warning",
-      title: "Are you sure?",
-      text: "This will permanently delete the patient record.",
+      title: `${action} account?`,
+      text: `This will ${action.toLowerCase()} the patient's account.`,
+      icon: currentlyActive ? 'warning' : 'question',
       showCancelButton: true,
-      confirmButtonText: "Yes, delete it!",
+      confirmButtonText: action,
+      cancelButtonText: 'Cancel'
     });
-
-    if (confirm.isConfirmed) {
-      const payload = new FormData();
-      payload.append("operation", "delete");
-      payload.append("json", JSON.stringify({ patient_id: patientId }));
-
-      try {
-        const response = await axios.post(patientApiUrl, payload);
-        if (response.data.success) {
-          Swal.fire("Deleted", response.data.message, "success");
-          loadPatients();
-        } else {
-          Swal.fire("Error", response.data.message, "error");
-        }
-      } catch (error) {
-        console.error("Delete error", error);
-        Swal.fire("Error", "Could not delete patient.", "error");
+    if (!confirm.isConfirmed) return;
+    const payload = new FormData();
+    payload.append("operation", "toggle_active");
+    payload.append("json", JSON.stringify({ patient_id: patientId }));
+    try {
+      const response = await axios.post(patientApiUrl, payload);
+      if (response.data.success) {
+        await Swal.fire({ icon: 'success', title: `Account ${currentlyActive ? 'deactivated' : 'activated'}` });
+        loadPatients();
+      } else {
+        Swal.fire("Error", response.data.message, "error");
       }
+    } catch (error) {
+      console.error("Toggle active error", error);
+      Swal.fire("Error", "Could not update status.", "error");
     }
   };
 

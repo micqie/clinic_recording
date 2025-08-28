@@ -14,11 +14,22 @@ class Patient
         return $cached;
     }
 
+    private function hasActiveColumn($conn)
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+        $sql = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'is_active'";
+        $stmt = $conn->query($sql);
+        $cached = (bool)$stmt->fetchColumn();
+        return $cached;
+    }
+
     function get_all()
     {
         include "connection.php";
 
-        $stmt = $conn->prepare("
+        $hasActive = $this->hasActiveColumn($conn);
+        $sql = "
             SELECT
                 p.patient_id,
                 p.sex,
@@ -29,14 +40,14 @@ class Patient
                 p.updated_at,
                 u.user_id,
                 u.name AS full_name,
-                u.email
+                u.email" . ($hasActive ? ", u.is_active" : "") . "
             FROM tbl_patients p
             JOIN tbl_users u ON p.user_id = u.user_id
             JOIN tbl_roles r ON u.role_id = r.role_id
             WHERE LOWER(r.role_name) = 'patient'
             ORDER BY p.created_at DESC
-        ");
-
+        ";
+        $stmt = $conn->prepare($sql);
         $stmt->execute();
         return ['success' => true, 'data' => $stmt->fetchAll(PDO::FETCH_ASSOC)];
     }
@@ -45,6 +56,7 @@ class Patient
     {
         include "connection.php";
 
+        $hasActive = $this->hasActiveColumn($conn);
         $query = "
             SELECT
                 p.patient_id,
@@ -56,7 +68,7 @@ class Patient
                 p.updated_at,
                 u.user_id,
                 u.name AS full_name,
-                u.email
+                u.email" . ($hasActive ? ", u.is_active" : "") . "
             FROM tbl_patients p
             JOIN tbl_users u ON p.user_id = u.user_id
             JOIN tbl_roles r ON u.role_id = r.role_id
@@ -258,6 +270,32 @@ class Patient
         }
     }
 
+    function toggle_active($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+        if (empty($data['patient_id'])) {
+            return ['success' => false, 'message' => 'Patient ID is required.'];
+        }
+        if (!$this->hasActiveColumn($conn)) {
+            return ['success' => false, 'message' => 'is_active column not found. Run migration.'];
+        }
+        try {
+            $stmt = $conn->prepare("SELECT user_id FROM tbl_patients WHERE patient_id = :pid LIMIT 1");
+            $stmt->bindParam(":pid", $data['patient_id']);
+            $stmt->execute();
+            $userId = $stmt->fetchColumn();
+            if (!$userId) return ['success' => false, 'message' => 'Patient not found.'];
+
+            $stmt = $conn->prepare("UPDATE tbl_users SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE user_id = :uid");
+            $stmt->bindParam(":uid", $userId);
+            $stmt->execute();
+            return ['success' => true, 'message' => 'Status updated.'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update status: ' . $e->getMessage()];
+        }
+    }
+
     function delete($json)
     {
         include "connection.php";
@@ -351,6 +389,9 @@ switch ($operation) {
         break;
     case "cleanup":
         echo json_encode($patient->cleanup_orphaned_patients());
+        break;
+    case "toggle_active":
+        echo json_encode($patient->toggle_active($json));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

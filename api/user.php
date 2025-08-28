@@ -343,9 +343,12 @@ function registerPatient($json)
             return ['success' => false, 'message' => 'Email and password are required.'];
         }
 
+        // Detect is_active column
+        $hasActive = (bool)$conn->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'is_active'")->fetchColumn();
+
         // Join with tbl_roles to get role_name
         $stmt = $conn->prepare("
-            SELECT u.user_id, u.name, u.email, u.password, u.must_change_password, r.role_name
+            SELECT u.user_id, u.name, u.email, u.password, u.must_change_password, r.role_name" . ($hasActive ? ", u.is_active" : "") . "
             FROM tbl_users u
             JOIN tbl_roles r ON u.role_id = r.role_id
             WHERE u.email = :email
@@ -356,6 +359,9 @@ function registerPatient($json)
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($data['password'], $user['password'])) {
+            if ($hasActive && isset($user['is_active']) && (int)$user['is_active'] === 0) {
+                return ['success' => false, 'message' => 'Account is deactivated. Please contact the administrator.'];
+            }
             return [
                 'success' => true,
                 'message' => 'Login successful!',

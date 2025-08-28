@@ -4,13 +4,24 @@ header("Access-Control-Allow-Origin: *");
 
 class Doctors
 {
+    private function hasActiveColumn($conn)
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+        $sql = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_users' AND COLUMN_NAME = 'is_active'";
+        $stmt = $conn->query($sql);
+        $cached = (bool)$stmt->fetchColumn();
+        return $cached;
+    }
+
     function getAllDoctors()
     {
         include "connection.php";
 
         try {
+            $hasActive = $this->hasActiveColumn($conn);
             $stmt = $conn->prepare("
-                SELECT d.*, u.name, u.email, u.created_at, s.name AS specialization_name
+                SELECT d.*, u.name, u.email, u.created_at" . ($hasActive ? ", u.is_active" : "") . ", s.name AS specialization_name
                 FROM tbl_doctors d
                 JOIN tbl_users u ON d.user_id = u.user_id
                 LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
@@ -30,8 +41,9 @@ class Doctors
         include "connection.php";
 
         try {
+            $hasActive = $this->hasActiveColumn($conn);
             $stmt = $conn->prepare("
-                SELECT d.*, u.name, u.email, u.created_at, s.name AS specialization_name
+                SELECT d.*, u.name, u.email, u.created_at" . ($hasActive ? ", u.is_active" : "") . ", s.name AS specialization_name
                 FROM tbl_doctors d
                 JOIN tbl_users u ON d.user_id = u.user_id
                 LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
@@ -57,8 +69,9 @@ class Doctors
         include "connection.php";
 
         try {
+            $hasActive = $this->hasActiveColumn($conn);
             $stmt = $conn->prepare("
-                SELECT d.*, u.name, u.email, u.created_at, s.name AS specialization_name
+                SELECT d.*, u.name, u.email, u.created_at" . ($hasActive ? ", u.is_active" : "") . ", s.name AS specialization_name
                 FROM tbl_doctors d
                 JOIN tbl_users u ON d.user_id = u.user_id
                 LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
@@ -436,6 +449,30 @@ class Doctors
         }
     }
 
+    function toggle_active($doctor_id)
+    {
+        include "connection.php";
+        if (empty($doctor_id)) {
+            return ['success' => false, 'message' => 'Doctor ID is required.'];
+        }
+        if (!$this->hasActiveColumn($conn)) {
+            return ['success' => false, 'message' => 'is_active column not found. Run migration.'];
+        }
+        try {
+            $stmt = $conn->prepare("SELECT user_id FROM tbl_doctors WHERE doctor_id = :id LIMIT 1");
+            $stmt->bindParam(":id", $doctor_id);
+            $stmt->execute();
+            $userId = $stmt->fetchColumn();
+            if (!$userId) return ['success' => false, 'message' => 'Doctor not found.'];
+
+            $stmt = $conn->prepare("UPDATE tbl_users SET is_active = CASE WHEN is_active = 1 THEN 0 ELSE 1 END WHERE user_id = :uid");
+            $stmt->bindParam(":uid", $userId);
+            $stmt->execute();
+            return ['success' => true, 'message' => 'Status updated.'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to update status: ' . $e->getMessage()];
+        }
+    }
 }
 
 
@@ -467,6 +504,9 @@ switch ($operation) {
         break;
     case "delete":
         echo json_encode($doctors->deleteDoctor($doctor_id));
+        break;
+    case "toggle_active":
+        echo json_encode($doctors->toggle_active($doctor_id));
         break;
     case "getStatistics":
         echo json_encode($doctors->getDoctorStatistics());

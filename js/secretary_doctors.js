@@ -165,6 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         doctors.forEach((doctor) => {
+            const isActive = doctor.is_active === undefined ? true : (Number(doctor.is_active) === 1);
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>
@@ -182,14 +183,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><span class="badge bg-info">${doctor.license_number || "N/A"}</span></td>
                 <td>${doctor.specialization_name || "Not specified"}</td>
                 <td>${doctor.years_experience ? doctor.years_experience + " years" : "Not specified"}</td>
-                <td><span class="badge bg-success">Active</span></td>
+                <td><span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${isActive ? 'Active' : 'Inactive'}</span></td>
                 <td>
                     <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editDoctor(${doctor.doctor_id})">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteDoctor(${doctor.doctor_id})">
-                            <i class="fas fa-trash"></i>
+                        <button type="button" class="btn btn-sm ${isActive ? 'btn-outline-warning' : 'btn-outline-success'}" onclick="toggleDoctor(${doctor.doctor_id}, ${isActive ? 1 : 0})">
+                            <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
                         </button>
                     </div>
                 </td>
@@ -281,35 +279,32 @@ document.addEventListener("DOMContentLoaded", () => {
     const updateDoctorBtn = document.getElementById("updateDoctorBtn");
     updateDoctorBtn?.addEventListener("click", updateDoctor);
 
-    // ======================== Delete Doctor ========================
-    window.deleteDoctor = async function (doctorId) {
-        const result = await Swal.fire({
-            title: "Are you sure?",
-            text: "This action cannot be undone!",
-            icon: "warning",
+    // ======================== Toggle Active Doctor ========================
+    window.toggleDoctor = async function (doctorId, currentlyActive) {
+        const action = currentlyActive ? 'Deactivate' : 'Activate';
+        const confirm = await Swal.fire({
+            title: `${action} account?`,
+            text: `This will ${action.toLowerCase()} the doctor's account.`,
+            icon: currentlyActive ? 'warning' : 'question',
             showCancelButton: true,
-            confirmButtonColor: "#d33",
-            cancelButtonColor: "#3085d6",
-            confirmButtonText: "Yes, delete it!"
+            confirmButtonText: action,
+            cancelButtonText: 'Cancel'
         });
-
-        if (result.isConfirmed) {
-            try {
-                const payload = new FormData();
-                payload.append("operation", "delete");
-                payload.append("doctor_id", doctorId);
-                const response = await axios.post(`${baseApiUrl}/doctors.php`, payload);
-
-                if (response.data.success) {
-                    showAlert("success", "Doctor deleted successfully!");
-                    loadDoctors();
-                } else {
-                    showAlert("error", response.data.message);
-                }
-            } catch (error) {
-                console.error("Error deleting doctor:", error);
-                showAlert("error", "Failed to delete doctor. Please try again.");
+        if (!confirm.isConfirmed) return;
+        try {
+            const payload = new FormData();
+            payload.append("operation", "toggle_active");
+            payload.append("doctor_id", doctorId);
+            const response = await axios.post(`${baseApiUrl}/doctors.php`, payload);
+            if (response.data.success) {
+                await Swal.fire({ icon: 'success', title: `Account ${currentlyActive ? 'deactivated' : 'activated'}` });
+                loadDoctors();
+            } else {
+                showAlert("error", response.data.message);
             }
+        } catch (error) {
+            console.error("Error toggling doctor:", error);
+            showAlert("error", "Failed to update status. Please try again.");
         }
     };
 

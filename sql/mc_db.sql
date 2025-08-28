@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 28, 2025 at 01:25 PM
+-- Generation Time: Aug 28, 2025 at 02:07 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -46,7 +46,6 @@ INSERT INTO `tbl_appointments` (`appointment_id`, `patient_id`, `doctor_id`, `se
 (15, 9, 1, 1, '2025-08-20', 3, 7),
 (16, 13, 1, 1, '2025-08-26', 4, 9),
 (17, 10, 2, 1, '2025-08-25', 1, 6),
-(18, 3, 3, 2, '2025-08-27', 2, 9),
 (19, 9, 2, NULL, '2025-08-16', 1, 7),
 (20, 9, 3, NULL, '2025-08-08', 1, 7),
 (21, 9, 2, NULL, '2025-08-21', 1, 7),
@@ -87,8 +86,7 @@ INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id
 (3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed. Patient needs regular monitoring.', '2025-08-30', 'Blood sugar check and medication adjustment', 'Follow-up Required', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
 (4, 23, 1, 9, 'Common Cold', 'Mild symptoms, rest and fluids recommended', NULL, NULL, 'Completed', '2025-08-23 15:14:44', '2025-08-23 15:14:44'),
 (7, 16, 1, 13, 'Cough', 'asd', NULL, '', 'Completed', '2025-08-26 15:32:03', '2025-08-26 15:32:03'),
-(8, 28, 3, 12, 'Fever', 'fevah', NULL, '', 'Completed', '2025-08-26 21:28:57', '2025-08-26 21:28:57'),
-(9, 18, 3, 3, 'AGAY', 'kmkm', NULL, '', 'Completed', '2025-08-27 10:14:35', '2025-08-27 10:14:35');
+(8, 28, 3, 12, 'Fever', 'fevah', NULL, '', 'Completed', '2025-08-26 21:28:57', '2025-08-26 21:28:57');
 
 -- --------------------------------------------------------
 
@@ -111,7 +109,7 @@ CREATE TABLE `tbl_current_queue` (
 
 INSERT INTO `tbl_current_queue` (`queue_id`, `date`, `current_appointment_id`, `next_appointment_id`, `last_updated_by`, `last_updated_at`) VALUES
 (1, '2025-08-26', 28, NULL, 11, '2025-08-26 21:28:01'),
-(3, '2025-08-27', 18, NULL, 11, '2025-08-27 10:13:45');
+(3, '2025-08-27', NULL, NULL, 11, '2025-08-27 10:13:45');
 
 -- --------------------------------------------------------
 
@@ -237,8 +235,7 @@ CREATE TABLE `tbl_lab_requests` (
 INSERT INTO `tbl_lab_requests` (`lab_request_id`, `consultation_id`, `doctor_id`, `secretary_id`, `patient_id`, `appointment_id`, `lab_test_type_id`, `request_text`, `status_id`, `created_at`, `updated_at`) VALUES
 (1, NULL, 1, 1, 9, 12, 1, 'Complete Blood Count (CBC) - Patient experiencing fatigue and weakness', 14, '2025-08-15 10:30:00', '2025-08-17 02:11:36'),
 (5, NULL, 1, 1, 10, NULL, 5, 'Liver Function Test - Pre-surgery requirement', 16, '2025-08-19 16:30:00', '2025-08-17 02:11:36'),
-(6, NULL, 3, NULL, 12, 28, 3, 'asd', 14, '2025-08-26 21:28:57', '2025-08-26 21:28:57'),
-(7, NULL, 3, NULL, 3, 18, 2, 'bh', 14, '2025-08-27 10:14:35', '2025-08-27 10:14:35');
+(6, NULL, 3, NULL, 12, 28, 3, 'asd', 14, '2025-08-26 21:28:57', '2025-08-26 21:28:57');
 
 -- --------------------------------------------------------
 
@@ -420,9 +417,6 @@ CREATE TABLE `tbl_patients` (
 --
 
 INSERT INTO `tbl_patients` (`patient_id`, `user_id`, `sex`, `contact_num`, `birthdate`, `age`, `address`, `created_at`, `updated_at`) VALUES
-(2, 9, 'Female', '12312', '2025-08-19', 0, 'asdasdasdasdasd', '2025-08-08 18:34:23', '2025-08-28 11:22:22'),
-(3, 10, 'Male', '213219090909090', '2025-08-19', 0, '213123', '2025-08-09 03:37:56', '2025-08-28 11:22:22'),
-(4, 15, 'Female', '3223', '2025-08-15', 0, 'qweqeasdasdas', '2025-08-09 10:00:37', '2025-08-28 11:22:22'),
 (6, 18, 'Male', '123123123', '2025-08-21', 0, 'asdasdasdasd', '2025-08-09 10:31:52', '2025-08-28 11:22:22'),
 (9, 21, 'Male', '0921093012903123', '2025-08-21', 0, 'wqeqweq', '2025-08-11 20:53:30', '2025-08-28 11:22:22'),
 (10, 22, 'Female', '123123123', '2025-09-04', 0, 'bulua', '2025-08-11 22:28:51', '2025-08-28 11:22:22'),
@@ -430,7 +424,8 @@ INSERT INTO `tbl_patients` (`patient_id`, `user_id`, `sex`, `contact_num`, `birt
 (13, 24, 'Female', '09998887777', '1992-08-20', 33, 'Sample Address 3', '2025-08-16 19:29:08', '2025-08-28 11:22:22'),
 (14, 25, 'Female', '09111222333', '1988-03-10', 37, 'Sample Address 4', '2025-08-16 20:00:10', '2025-08-28 11:22:22'),
 (15, 27, 'Male', '12312334', '2025-08-06', 0, 'Tablon', '2025-08-17 01:38:02', '2025-08-28 11:22:22'),
-(16, 45, NULL, NULL, NULL, NULL, NULL, '2025-08-27 07:50:20', '2025-08-27 07:50:20');
+(18, 51, 'Female', '1234212', '2025-08-05', 32, 'hahays ', '2025-08-28 11:41:37', '2025-08-28 11:41:37'),
+(19, 55, 'Male', '45345345', '2025-07-29', 34, 'muli', '2025-08-28 11:53:59', '2025-08-28 11:53:59');
 
 -- --------------------------------------------------------
 
@@ -545,8 +540,7 @@ INSERT INTO `tbl_prescriptions` (`prescription_id`, `consultation_id`, `diagnosi
 (2, NULL, 1, 12, 1, 9, 1, '500mg', 'Every 6 hours', '3 days', 12, 'tablet', 'Take for fever and pain relief. Do not exceed 4 doses per day.', 'Active', '2025-08-15 11:00:00', '2025-08-26 14:38:15'),
 (4, NULL, 3, 15, 1, 9, 9, '20mg', 'Once daily', '90 days', 90, 'capsule', 'Take with meals. Regular blood sugar monitoring required.', 'Active', '2025-08-20 12:00:00', '2025-08-26 14:38:15'),
 (5, 7, NULL, 16, 1, 13, 8, '500mg', '8 hours', '7 days', 1, 'tablet', 'asd', 'Active', '2025-08-26 15:32:03', '2025-08-26 15:32:03'),
-(6, 8, NULL, 28, 3, 12, 5, '500 mg', '4 hours', '4 days ', 1, 'tablet', 'before bed ', 'Active', '2025-08-26 21:28:57', '2025-08-26 21:28:57'),
-(7, 9, NULL, 18, 3, 3, 2, '500', '6', '5', 1, 'tablet', 'hhb', 'Active', '2025-08-27 10:14:35', '2025-08-27 10:14:35');
+(6, 8, NULL, 28, 3, 12, 5, '500 mg', '4 hours', '4 days ', 1, 'tablet', 'before bed ', 'Active', '2025-08-26 21:28:57', '2025-08-26 21:28:57');
 
 -- --------------------------------------------------------
 
@@ -682,6 +676,7 @@ CREATE TABLE `tbl_users` (
   `password` varchar(255) NOT NULL,
   `role_id` int(11) NOT NULL,
   `must_change_password` tinyint(1) NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -689,33 +684,30 @@ CREATE TABLE `tbl_users` (
 -- Dumping data for table `tbl_users`
 --
 
-INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `must_change_password`, `created_at`) VALUES
-(1, 'micah', 'micah@gmail.com', '$2y$10$8FWI3m/9qrJpvUxAdHPZEO7wP9xx5HC.GEl/Ft3FkPGloUzzqBMQ.', 2, 0, '2025-08-08 18:19:33'),
-(2, 'John', 'john@gmail.com', '$2y$10$Zc4MZ7gMJ9sfwgpO4Kp66O/L5TcnaUceSv5fFiyrfpSPePR5rtaDO', 3, 0, '2025-08-08 18:23:47'),
-(3, 'roberth', 'rob@gmail.com', '$2y$10$QPuk6MjWCBjbpWHCdI354OT3B/jottSnHN2r0P73qq3y54DEUH5UG', 3, 0, '2025-08-08 18:24:39'),
-(4, 'yumi', 'yumi@gmail.com', '$2y$10$Zqlmv82NuXUFKCYgVJbnDeA4MLjUNb8zkSVmwKCJ6jNM9OrEYEulO', 3, 0, '2025-08-08 18:27:06'),
-(5, 'secretary', 'secretary@gmail.com', '$2y$10$fzr/ZTmgUc/IfpzPcwXh3.uL.JggbyjTVTy9t5BNCi71IpE6.Z89a', 1, 0, '2025-08-08 18:28:42'),
-(6, 'nor', 'nor@gmail.com', '$2y$10$O2kWQGzF5ivICBBZ6N1Bie2QX.hsczgOAXjlZiOu714Of8H6MtO.K', 3, 0, '2025-08-08 18:29:03'),
-(7, '1234', '123@gmail.com', '$2y$10$SKWHlInXt9DtUAvaEGYqt.4lSiV.hto8rF93Bf84kgAlSGo6AZaAW', 3, 0, '2025-08-08 18:31:46'),
-(8, 'huhu', 'huhu@gmail.com', '$2y$10$3qSuvL.MVFED5YeqKmht7etUepcKPtPAMaRc.8af2JYn8DMZ4emha', 3, 0, '2025-08-08 18:33:12'),
-(9, 'haha', 'haha@gmail.com', '$2y$10$NvlynSBdXCwiaaF2YbE1p.XS0iLhsBiWGpebr7CXxiAOOJJ/oALVa', 3, 0, '2025-08-08 18:34:23'),
-(10, 'asd', 'asd@gmail.com', '$2y$10$X1ko3vb/3ERZFuV0tO817OYLtEk4/DKUWPwd90w26YsqEtLMKt.iS', 3, 0, '2025-08-09 03:37:56'),
-(11, 'miya ', 'miya@gmail.com', '$2y$10$K9N/NsZ6U3/YDt6e0AtYteKv7GloY95ykAvKPUBzkM3RYHKFnVsT.', 1, 0, '2025-08-09 03:38:12'),
-(15, 'asdd', 'inzie@gmail.com', '', 3, 0, '2025-08-09 10:00:37'),
-(16, 'asdasdasd', 'asdasdsasdasdasd@gmail.com', '', 3, 0, '2025-08-09 10:07:09'),
-(18, 'Norelyn', 'norelyn@gmail.com', '$2y$10$9fgMutwHEJuCobqxEsfrHO01xggOwClk2bswm.6NAc8fgKvolAtbW', 3, 0, '2025-08-09 10:31:52'),
-(19, 'Norelyn', 'asdasdSdasdasd@gmail.com', '$2y$10$oyotCJlUMnWnkCOsEuCON.eB2VNBKZQaqIljOaOPko2dG0eKWPUlq', 3, 0, '2025-08-09 10:31:52'),
-(20, '', '', '$2y$10$pzsofR1PztfUbYBFLEquwO/fYExlcFrRue.i1OkerSVPYiAZLyAPC', 3, 0, '2025-08-09 10:31:52'),
-(21, 'Jannah Macarambon', 'jannah@gmail.com', '$2y$10$IJtGgJbdPPt.xSxmCT0W8ugiC6JjDzb762OYJS7uBgaRn1PkveBEG', 3, 0, '2025-08-11 20:53:30'),
-(22, 'shandi', 'shandi@gmail.com', '$2y$10$yDuVvcDuwtfRq5iZzz.8JOE6GwOSTZURsNtlv/EiPDEIgqdUkkD7y', 3, 0, '2025-08-11 22:28:51'),
-(23, 'Sean ', 'sean@gmail.com', '$2y$10$DsLyM1L3/k2iMduqW2ZegOA5gbcbLv1xBngj/2HndmK4QlAU4Gvy6', 3, 0, '2025-08-16 00:53:24'),
-(24, 'Mckenzie', 'mckenzie@gmail.com', '$2y$10$OFSl/JnOcUsxmNg.q60CoOjEGd2iRNIb0jofBJfEzCjTKa71vFVsa', 3, 0, '2025-08-16 19:29:08'),
-(25, 'Laurice', 'laurice@gmail.com', '$2y$10$aQMsjAzelO6rpPbZuiJbU.2PRLnxHMjpk5MP57ia0ze2us8h/6RZm', 3, 0, '2025-08-16 20:00:10'),
-(26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, 0, '2025-08-16 20:01:53'),
-(27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, 0, '2025-08-17 01:38:02'),
-(39, 'HENRY KING', 'henry@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, 0, '2025-08-17 03:04:26'),
-(44, 'ethel', 'ethel@gmail.com', '$2y$10$wMF82UcEGXeu.nnn0CNw7ePi2jr/Kk264pY2HG/GMZtHKO5hHtg2W', 2, 0, '2025-08-25 06:59:12'),
-(45, 'hey', 'hey@gmail.com', '$2y$10$a/DhH.uhmMPLKsiW9gulWOrSdizLCwSiDwBHToJKwiKS8TpdYfoVa', 3, 1, '2025-08-27 07:50:20');
+INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `must_change_password`, `is_active`, `created_at`) VALUES
+(1, 'micah', 'micah@gmail.com', '$2y$10$8FWI3m/9qrJpvUxAdHPZEO7wP9xx5HC.GEl/Ft3FkPGloUzzqBMQ.', 2, 0, 1, '2025-08-08 18:19:33'),
+(2, 'John', 'john@gmail.com', '$2y$10$Zc4MZ7gMJ9sfwgpO4Kp66O/L5TcnaUceSv5fFiyrfpSPePR5rtaDO', 3, 0, 1, '2025-08-08 18:23:47'),
+(3, 'roberth', 'rob@gmail.com', '$2y$10$QPuk6MjWCBjbpWHCdI354OT3B/jottSnHN2r0P73qq3y54DEUH5UG', 3, 0, 1, '2025-08-08 18:24:39'),
+(4, 'yumi', 'yumi@gmail.com', '$2y$10$Zqlmv82NuXUFKCYgVJbnDeA4MLjUNb8zkSVmwKCJ6jNM9OrEYEulO', 3, 0, 1, '2025-08-08 18:27:06'),
+(5, 'secretary', 'secretary@gmail.com', '$2y$10$fzr/ZTmgUc/IfpzPcwXh3.uL.JggbyjTVTy9t5BNCi71IpE6.Z89a', 1, 0, 1, '2025-08-08 18:28:42'),
+(11, 'miya ', 'miya@gmail.com', '$2y$10$K9N/NsZ6U3/YDt6e0AtYteKv7GloY95ykAvKPUBzkM3RYHKFnVsT.', 1, 0, 1, '2025-08-09 03:38:12'),
+(18, 'Norelyn', 'norelyn@gmail.com', '$2y$10$9fgMutwHEJuCobqxEsfrHO01xggOwClk2bswm.6NAc8fgKvolAtbW', 3, 0, 1, '2025-08-09 10:31:52'),
+(21, 'Jannah Macarambon', 'jannah@gmail.com', '$2y$10$IJtGgJbdPPt.xSxmCT0W8ugiC6JjDzb762OYJS7uBgaRn1PkveBEG', 3, 0, 1, '2025-08-11 20:53:30'),
+(22, 'shandi', 'shandi@gmail.com', '$2y$10$yDuVvcDuwtfRq5iZzz.8JOE6GwOSTZURsNtlv/EiPDEIgqdUkkD7y', 3, 0, 1, '2025-08-11 22:28:51'),
+(23, 'Sean ', 'sean@gmail.com', '$2y$10$DsLyM1L3/k2iMduqW2ZegOA5gbcbLv1xBngj/2HndmK4QlAU4Gvy6', 3, 0, 1, '2025-08-16 00:53:24'),
+(24, 'Mckenzie', 'mckenzie@gmail.com', '$2y$10$OFSl/JnOcUsxmNg.q60CoOjEGd2iRNIb0jofBJfEzCjTKa71vFVsa', 3, 0, 1, '2025-08-16 19:29:08'),
+(25, 'Laurice', 'laurice@gmail.com', '$2y$10$aQMsjAzelO6rpPbZuiJbU.2PRLnxHMjpk5MP57ia0ze2us8h/6RZm', 3, 0, 1, '2025-08-16 20:00:10'),
+(26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, 0, 1, '2025-08-16 20:01:53'),
+(27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, 0, 1, '2025-08-17 01:38:02'),
+(39, 'HENRY KING', 'henry@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, 0, 1, '2025-08-17 03:04:26'),
+(44, 'ethel', 'ethel@gmail.com', '$2y$10$wMF82UcEGXeu.nnn0CNw7ePi2jr/Kk264pY2HG/GMZtHKO5hHtg2W', 2, 0, 1, '2025-08-25 06:59:12'),
+(45, 'hey', 'hey@gmail.com', '$2y$10$a/DhH.uhmMPLKsiW9gulWOrSdizLCwSiDwBHToJKwiKS8TpdYfoVa', 3, 1, 1, '2025-08-27 07:50:20'),
+(46, 'moana', 'moana@gmail.com', '$2y$10$Tf1/5y5EIAWBrlphtX9cae3QZoa1wiZgQcq.7x6HJs/bRZdDOTEUe', 3, 1, 1, '2025-08-28 11:27:26'),
+(49, 'moana', 'moana4@gmail.com', '$2y$10$AS6HJCOneASTy3vL767.MuE5MOWVjkLSPp55D01sLkanTMiN8h7sC', 3, 1, 1, '2025-08-28 11:29:02'),
+(50, 'moana', 'moana23@gmail.com', '$2y$10$acsm.7Uy/LGDdWxD8YDm7uJK5W1zo.pTwFcC4SRtORPVZB0E67n1a', 3, 1, 1, '2025-08-28 11:35:17'),
+(51, 'hehe', 'hehe@gmail.com', '$2y$10$PNgmcpiGw5GtK/qdhf./vu7nRzc8D5dVx8po/RWoJJ5hfBN6ZECMq', 3, 1, 1, '2025-08-28 11:41:37'),
+(52, 'mika', 'mika@gmail.com', '$2y$10$2U1bmiLKBLHXTmkSqgl5.OxYqWOp8Dpt1Y6qBTebmsstiZAK3ALiy', 3, 1, 1, '2025-08-28 11:45:07'),
+(55, 'ace', 'ace@gmail.com', '$2y$10$5BUA46lo.j/VfzF/uX8JyuDbULN9Rzv9946SKcgy39iMT.BBIISvO', 3, 1, 1, '2025-08-28 11:53:59');
 
 --
 -- Indexes for dumped tables
@@ -1015,7 +1007,7 @@ ALTER TABLE `tbl_medicine_weights`
 -- AUTO_INCREMENT for table `tbl_patients`
 --
 ALTER TABLE `tbl_patients`
-  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
+  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
 
 --
 -- AUTO_INCREMENT for table `tbl_payments`
@@ -1075,7 +1067,7 @@ ALTER TABLE `tbl_status_type`
 -- AUTO_INCREMENT for table `tbl_users`
 --
 ALTER TABLE `tbl_users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=56;
 
 --
 -- Constraints for dumped tables
