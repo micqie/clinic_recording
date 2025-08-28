@@ -2,7 +2,7 @@
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 
-class DiagnosisLookup
+class Conditions
 {
     function getAll()
     {
@@ -25,7 +25,6 @@ class DiagnosisLookup
             return ['success' => false, 'message' => 'Condition name is required.'];
         }
         try {
-            // unique (case-insensitive)
             $name = trim($data['condition_name']);
             $stmt = $conn->prepare("SELECT condition_id FROM tbl_conditions WHERE LOWER(TRIM(condition_name)) = LOWER(TRIM(:name))");
             $stmt->bindParam(":name", $name);
@@ -71,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $id = $_POST['condition_id'] ?? '';
 }
 
-$api = new DiagnosisLookup();
+$api = new Conditions();
 switch ($operation) {
     case 'getAll':
         echo json_encode($api->getAll());

@@ -141,21 +141,17 @@ INSERT INTO `tbl_diagnoses` (`diagnosis_id`, `appointment_id`, `doctor_id`, `pat
 
 -- --------------------------------------------------------
 
---
--- Table structure for table `tbl_diagnosis_lookup`
---
+-- Table structure for table `tbl_conditions`
 
-CREATE TABLE `tbl_diagnosis_lookup` (
+CREATE TABLE `tbl_conditions` (
   `condition_id` int(11) NOT NULL,
   `condition_name` varchar(150) NOT NULL,
   `created_at` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `tbl_diagnosis_lookup`
---
+-- Dumping data for table `tbl_conditions`
 
-INSERT INTO `tbl_diagnosis_lookup` (`condition_id`, `condition_name`, `created_at`) VALUES
+INSERT INTO `tbl_conditions` (`condition_id`, `condition_name`, `created_at`) VALUES
 (1, 'Cough', '2025-08-22 09:13:31'),
 (2, 'Common Cold', '2025-08-22 09:13:31'),
 (3, 'Fever', '2025-08-22 09:13:31'),
@@ -751,10 +747,8 @@ ALTER TABLE `tbl_diagnoses`
   ADD KEY `doctor_id` (`doctor_id`),
   ADD KEY `patient_id` (`patient_id`);
 
---
--- Indexes for table `tbl_diagnosis_lookup`
---
-ALTER TABLE `tbl_diagnosis_lookup`
+-- Indexes for table `tbl_conditions`
+ALTER TABLE `tbl_conditions`
   ADD PRIMARY KEY (`condition_id`),
   ADD UNIQUE KEY `uq_condition_name` (`condition_name`);
 
@@ -943,10 +937,8 @@ ALTER TABLE `tbl_current_queue`
 ALTER TABLE `tbl_diagnoses`
   MODIFY `diagnosis_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
---
--- AUTO_INCREMENT for table `tbl_diagnosis_lookup`
---
-ALTER TABLE `tbl_diagnosis_lookup`
+-- AUTO_INCREMENT for table `tbl_conditions`
+ALTER TABLE `tbl_conditions`
   MODIFY `condition_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --

@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const userApi = `${baseApiUrl}/user.php`;
   const apptApi = `${baseApiUrl}/appointments.php`;
   const diagApi = `${baseApiUrl}/diagnoses.php`;
-  const lookupApi = `${baseApiUrl}/diagnosis_lookup.php`;
+  const lookupApi = `${baseApiUrl}/conditions.php`;
 
   // Auth check
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
