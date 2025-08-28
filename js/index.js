@@ -2,6 +2,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
   const loginForm = document.getElementById("login-form");
   const registerForm = document.getElementById("register-form");
+  const registerBirthdate = document.getElementById("register-birthdate");
+  const registerAge = document.getElementById("register-age");
 
   // Registration form handling
   registerForm?.addEventListener("submit", async (e) => {
@@ -10,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData(registerForm);
 
     // Validate required fields
-    const requiredFields = ['name', 'email', 'password', 'sex', 'contact_num', 'birthdate', 'address'];
+    const requiredFields = ['name', 'email', 'password', 'sex', 'contact_num', 'birthdate', 'age', 'address'];
     for (let field of requiredFields) {
       if (!formData.get(field)) {
         Swal.fire("Error", `Please fill in the ${field.replace('_', ' ')} field.`, "error");
@@ -25,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sex: formData.get("sex"),
       contact_num: formData.get("contact_num"),
       birthdate: formData.get("birthdate"),
+      age: formData.get("age"),
       address: formData.get("address")
     });
 

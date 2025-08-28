@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 26, 2025 at 10:02 AM
+-- Generation Time: Aug 28, 2025 at 01:25 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -46,7 +46,7 @@ INSERT INTO `tbl_appointments` (`appointment_id`, `patient_id`, `doctor_id`, `se
 (15, 9, 1, 1, '2025-08-20', 3, 7),
 (16, 13, 1, 1, '2025-08-26', 4, 9),
 (17, 10, 2, 1, '2025-08-25', 1, 6),
-(18, 3, 3, 2, '2025-08-27', 2, 7),
+(18, 3, 3, 2, '2025-08-27', 2, 9),
 (19, 9, 2, NULL, '2025-08-16', 1, 7),
 (20, 9, 3, NULL, '2025-08-08', 1, 7),
 (21, 9, 2, NULL, '2025-08-21', 1, 7),
@@ -55,7 +55,8 @@ INSERT INTO `tbl_appointments` (`appointment_id`, `patient_id`, `doctor_id`, `se
 (24, 9, NULL, NULL, '2025-08-21', NULL, 6),
 (25, 9, NULL, NULL, '2025-08-01', NULL, 6),
 (26, 9, NULL, NULL, '2025-08-28', NULL, 6),
-(27, 9, 1, NULL, '2025-08-24', 1, 7);
+(27, 9, 1, NULL, '2025-08-24', 1, 7),
+(28, 12, 3, NULL, '2025-08-26', 5, 9);
 
 -- --------------------------------------------------------
 
@@ -85,7 +86,9 @@ INSERT INTO `tbl_consultations` (`consultation_id`, `appointment_id`, `doctor_id
 (1, 12, 1, 9, 'Upper Respiratory Tract Infection', 'Patient presents with cough, sore throat, and mild fever. Prescribed antibiotics and rest.', '2025-08-25', 'Follow-up to check if symptoms improved', 'Completed', '2025-08-15 10:45:00', '2025-08-15 10:45:00'),
 (3, 15, 1, 9, 'Type 2 Diabetes', 'Fasting blood sugar: 140 mg/dL. Diet and exercise plan prescribed. Patient needs regular monitoring.', '2025-08-30', 'Blood sugar check and medication adjustment', 'Follow-up Required', '2025-08-20 11:15:00', '2025-08-20 11:15:00'),
 (4, 23, 1, 9, 'Common Cold', 'Mild symptoms, rest and fluids recommended', NULL, NULL, 'Completed', '2025-08-23 15:14:44', '2025-08-23 15:14:44'),
-(7, 16, 1, 13, 'Cough', 'asd', NULL, '', 'Completed', '2025-08-26 15:32:03', '2025-08-26 15:32:03');
+(7, 16, 1, 13, 'Cough', 'asd', NULL, '', 'Completed', '2025-08-26 15:32:03', '2025-08-26 15:32:03'),
+(8, 28, 3, 12, 'Fever', 'fevah', NULL, '', 'Completed', '2025-08-26 21:28:57', '2025-08-26 21:28:57'),
+(9, 18, 3, 3, 'AGAY', 'kmkm', NULL, '', 'Completed', '2025-08-27 10:14:35', '2025-08-27 10:14:35');
 
 -- --------------------------------------------------------
 
@@ -107,7 +110,8 @@ CREATE TABLE `tbl_current_queue` (
 --
 
 INSERT INTO `tbl_current_queue` (`queue_id`, `date`, `current_appointment_id`, `next_appointment_id`, `last_updated_by`, `last_updated_at`) VALUES
-(1, '2025-08-26', 16, NULL, 11, '2025-08-26 14:38:46');
+(1, '2025-08-26', 28, NULL, 11, '2025-08-26 21:28:01'),
+(3, '2025-08-27', 18, NULL, 11, '2025-08-27 10:13:45');
 
 -- --------------------------------------------------------
 
@@ -232,7 +236,9 @@ CREATE TABLE `tbl_lab_requests` (
 
 INSERT INTO `tbl_lab_requests` (`lab_request_id`, `consultation_id`, `doctor_id`, `secretary_id`, `patient_id`, `appointment_id`, `lab_test_type_id`, `request_text`, `status_id`, `created_at`, `updated_at`) VALUES
 (1, NULL, 1, 1, 9, 12, 1, 'Complete Blood Count (CBC) - Patient experiencing fatigue and weakness', 14, '2025-08-15 10:30:00', '2025-08-17 02:11:36'),
-(5, NULL, 1, 1, 10, NULL, 5, 'Liver Function Test - Pre-surgery requirement', 16, '2025-08-19 16:30:00', '2025-08-17 02:11:36');
+(5, NULL, 1, 1, 10, NULL, 5, 'Liver Function Test - Pre-surgery requirement', 16, '2025-08-19 16:30:00', '2025-08-17 02:11:36'),
+(6, NULL, 3, NULL, 12, 28, 3, 'asd', 14, '2025-08-26 21:28:57', '2025-08-26 21:28:57'),
+(7, NULL, 3, NULL, 3, 18, 2, 'bh', 14, '2025-08-27 10:14:35', '2025-08-27 10:14:35');
 
 -- --------------------------------------------------------
 
@@ -279,11 +285,11 @@ CREATE TABLE `tbl_lab_test_types` (
 --
 
 INSERT INTO `tbl_lab_test_types` (`lab_test_type_id`, `type_name`, `description`, `price`, `created_at`, `updated_at`) VALUES
-(1, 'Complete Blood Count (CBC)', 'Measures red/white cells, hemoglobin, etc.', 500.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(2, 'Blood Sugar Test', 'Measures glucose levels for diabetes screening/monitoring', 300.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(3, 'Urinalysis', 'Checks urine components to detect disorders', 250.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(4, 'Lipid Profile', 'Measures cholesterol and triglycerides', 600.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40'),
-(5, 'Liver Function Test', 'Assesses liver enzymes and proteins', 800.00, '2025-08-10 15:35:40', '2025-08-10 15:35:40');
+(1, 'Complete Blood Count (CBC)', 'Measures red/white cells, hemoglobin, etc.', 500.00, '2025-08-10 15:35:40', '2025-08-27 10:34:11'),
+(2, 'Blood Sugar Test', 'Measures glucose levels for diabetes screening/monitoring', 300.00, '2025-08-10 15:35:40', '2025-08-27 10:34:11'),
+(3, 'Urinalysis', 'Checks urine components to detect disorders', 250.00, '2025-08-10 15:35:40', '2025-08-27 10:34:11'),
+(4, 'Lipid Profile', 'Measures cholesterol and triglycerides', 600.00, '2025-08-10 15:35:40', '2025-08-27 10:34:11'),
+(5, 'Liver Function Test', 'Assesses liver enzymes and proteins', 800.00, '2025-08-10 15:35:40', '2025-08-27 10:34:11');
 
 -- --------------------------------------------------------
 
@@ -403,6 +409,7 @@ CREATE TABLE `tbl_patients` (
   `sex` varchar(10) DEFAULT NULL,
   `contact_num` varchar(20) DEFAULT NULL,
   `birthdate` date DEFAULT NULL,
+  `age` int(11) DEFAULT NULL,
   `address` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -412,17 +419,18 @@ CREATE TABLE `tbl_patients` (
 -- Dumping data for table `tbl_patients`
 --
 
-INSERT INTO `tbl_patients` (`patient_id`, `user_id`, `sex`, `contact_num`, `birthdate`, `address`, `created_at`, `updated_at`) VALUES
-(2, 9, 'Female', '12312', '2025-08-19', 'asdasdasdasdasd', '2025-08-08 18:34:23', '2025-08-09 18:26:37'),
-(3, 10, 'Male', '213219090909090', '2025-08-19', '213123', '2025-08-09 03:37:56', '2025-08-11 17:45:59'),
-(4, 15, 'Female', '3223', '2025-08-15', 'qweqeasdasdas', '2025-08-09 10:00:37', '2025-08-09 10:24:46'),
-(6, 18, 'Male', '123123123', '2025-08-21', 'asdasdasdasd', '2025-08-09 10:31:52', '2025-08-11 22:27:07'),
-(9, 21, 'Male', '0921093012903123', '2025-08-21', 'wqeqweq', '2025-08-11 20:53:30', '2025-08-23 07:11:26'),
-(10, 22, 'Female', '123123123', '2025-09-04', 'bulua', '2025-08-11 22:28:51', '2025-08-11 22:28:51'),
-(12, 23, 'Male', '09187654321', '1985-12-03', 'Sample Address 2', '2025-08-16 00:53:24', '2025-08-16 00:53:24'),
-(13, 24, 'Female', '09998887777', '1992-08-20', 'Sample Address 3', '2025-08-16 19:29:08', '2025-08-16 19:29:08'),
-(14, 25, 'Female', '09111222333', '1988-03-10', 'Sample Address 4', '2025-08-16 20:00:10', '2025-08-16 20:00:10'),
-(15, 27, 'Male', '12312334', '2025-08-06', 'Tablon', '2025-08-17 01:38:02', '2025-08-17 01:38:02');
+INSERT INTO `tbl_patients` (`patient_id`, `user_id`, `sex`, `contact_num`, `birthdate`, `age`, `address`, `created_at`, `updated_at`) VALUES
+(2, 9, 'Female', '12312', '2025-08-19', 0, 'asdasdasdasdasd', '2025-08-08 18:34:23', '2025-08-28 11:22:22'),
+(3, 10, 'Male', '213219090909090', '2025-08-19', 0, '213123', '2025-08-09 03:37:56', '2025-08-28 11:22:22'),
+(4, 15, 'Female', '3223', '2025-08-15', 0, 'qweqeasdasdas', '2025-08-09 10:00:37', '2025-08-28 11:22:22'),
+(6, 18, 'Male', '123123123', '2025-08-21', 0, 'asdasdasdasd', '2025-08-09 10:31:52', '2025-08-28 11:22:22'),
+(9, 21, 'Male', '0921093012903123', '2025-08-21', 0, 'wqeqweq', '2025-08-11 20:53:30', '2025-08-28 11:22:22'),
+(10, 22, 'Female', '123123123', '2025-09-04', 0, 'bulua', '2025-08-11 22:28:51', '2025-08-28 11:22:22'),
+(12, 23, 'Male', '09187654321', '1985-12-03', 39, 'Sample Address 2', '2025-08-16 00:53:24', '2025-08-28 11:22:22'),
+(13, 24, 'Female', '09998887777', '1992-08-20', 33, 'Sample Address 3', '2025-08-16 19:29:08', '2025-08-28 11:22:22'),
+(14, 25, 'Female', '09111222333', '1988-03-10', 37, 'Sample Address 4', '2025-08-16 20:00:10', '2025-08-28 11:22:22'),
+(15, 27, 'Male', '12312334', '2025-08-06', 0, 'Tablon', '2025-08-17 01:38:02', '2025-08-28 11:22:22'),
+(16, 45, NULL, NULL, NULL, NULL, NULL, '2025-08-27 07:50:20', '2025-08-27 07:50:20');
 
 -- --------------------------------------------------------
 
@@ -450,7 +458,8 @@ INSERT INTO `tbl_payments` (`payment_id`, `appointment_id`, `patient_id`, `amoun
 (1, 12, 9, 500.00, 'Walk-in', 12, '2025-08-15 09:30:00', '2025-08-15 09:30:00', '2025-08-15 09:30:00'),
 (3, 15, 9, 600.00, 'Walk-in', 11, NULL, '2025-08-20 10:00:00', '2025-08-20 10:00:00'),
 (4, NULL, 10, 300.00, 'Online', 12, '2025-08-16 16:45:00', '2025-08-16 16:45:00', '2025-08-16 16:45:00'),
-(6, 16, 13, 13.00, '', 12, '2025-08-26 15:56:37', '2025-08-26 15:50:07', '2025-08-26 15:56:37');
+(6, 16, 13, 13.00, '', 12, '2025-08-26 15:56:37', '2025-08-26 15:50:07', '2025-08-26 15:56:37'),
+(7, 28, 12, 12.00, '', 12, '2025-08-26 21:29:17', '2025-08-26 21:29:17', '2025-08-26 21:29:17');
 
 -- --------------------------------------------------------
 
@@ -535,7 +544,9 @@ INSERT INTO `tbl_prescriptions` (`prescription_id`, `consultation_id`, `diagnosi
 (1, NULL, 1, 12, 1, 9, 3, '500mg', 'Every 8 hours', '7 days', 21, 'capsule', 'Take with food. Complete the full course even if symptoms improve.', 'Active', '2025-08-15 11:00:00', '2025-08-26 14:38:15'),
 (2, NULL, 1, 12, 1, 9, 1, '500mg', 'Every 6 hours', '3 days', 12, 'tablet', 'Take for fever and pain relief. Do not exceed 4 doses per day.', 'Active', '2025-08-15 11:00:00', '2025-08-26 14:38:15'),
 (4, NULL, 3, 15, 1, 9, 9, '20mg', 'Once daily', '90 days', 90, 'capsule', 'Take with meals. Regular blood sugar monitoring required.', 'Active', '2025-08-20 12:00:00', '2025-08-26 14:38:15'),
-(5, 7, NULL, 16, 1, 13, 8, '500mg', '8 hours', '7 days', 1, 'tablet', 'asd', 'Active', '2025-08-26 15:32:03', '2025-08-26 15:32:03');
+(5, 7, NULL, 16, 1, 13, 8, '500mg', '8 hours', '7 days', 1, 'tablet', 'asd', 'Active', '2025-08-26 15:32:03', '2025-08-26 15:32:03'),
+(6, 8, NULL, 28, 3, 12, 5, '500 mg', '4 hours', '4 days ', 1, 'tablet', 'before bed ', 'Active', '2025-08-26 21:28:57', '2025-08-26 21:28:57'),
+(7, 9, NULL, 18, 3, 3, 2, '500', '6', '5', 1, 'tablet', 'hhb', 'Active', '2025-08-27 10:14:35', '2025-08-27 10:14:35');
 
 -- --------------------------------------------------------
 
@@ -703,7 +714,8 @@ INSERT INTO `tbl_users` (`user_id`, `name`, `email`, `password`, `role_id`, `mus
 (26, 'John Smith', 'smith@gmail.com', '$2y$10$9bpJzjplifMlEo.AD5WxruKwTrhIC3l5/vhq44PHMJEyY2ojliwI2', 2, 0, '2025-08-16 20:01:53'),
 (27, 'Rel Lago', 'rel@gmail.com', '$2y$10$EmBpVbXvhXiomGHp225EXOY5tnw0PI90xBZKlZ3h5Q66juY77HuVq', 3, 0, '2025-08-17 01:38:02'),
 (39, 'HENRY KING', 'henry@gmail.com', '$2y$10$.KKUt0UGc1z6bICWAvGcJ.kXexRuTtdonr.SpJNOO3pIO5Xyj0u8e', 2, 0, '2025-08-17 03:04:26'),
-(44, 'ethel', 'ethel@gmail.com', '$2y$10$wMF82UcEGXeu.nnn0CNw7ePi2jr/Kk264pY2HG/GMZtHKO5hHtg2W', 2, 0, '2025-08-25 06:59:12');
+(44, 'ethel', 'ethel@gmail.com', '$2y$10$wMF82UcEGXeu.nnn0CNw7ePi2jr/Kk264pY2HG/GMZtHKO5hHtg2W', 2, 0, '2025-08-25 06:59:12'),
+(45, 'hey', 'hey@gmail.com', '$2y$10$a/DhH.uhmMPLKsiW9gulWOrSdizLCwSiDwBHToJKwiKS8TpdYfoVa', 3, 1, '2025-08-27 07:50:20');
 
 --
 -- Indexes for dumped tables
@@ -919,19 +931,19 @@ ALTER TABLE `tbl_users`
 -- AUTO_INCREMENT for table `tbl_appointments`
 --
 ALTER TABLE `tbl_appointments`
-  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `appointment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `tbl_consultations`
 --
 ALTER TABLE `tbl_consultations`
-  MODIFY `consultation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `consultation_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `tbl_current_queue`
 --
 ALTER TABLE `tbl_current_queue`
-  MODIFY `queue_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `queue_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `tbl_diagnoses`
@@ -961,7 +973,7 @@ ALTER TABLE `tbl_doctor_availability`
 -- AUTO_INCREMENT for table `tbl_lab_requests`
 --
 ALTER TABLE `tbl_lab_requests`
-  MODIFY `lab_request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `lab_request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `tbl_lab_results`
@@ -1003,13 +1015,13 @@ ALTER TABLE `tbl_medicine_weights`
 -- AUTO_INCREMENT for table `tbl_patients`
 --
 ALTER TABLE `tbl_patients`
-  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `patient_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `tbl_payments`
 --
 ALTER TABLE `tbl_payments`
-  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `payment_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `tbl_payment_methods`
@@ -1027,7 +1039,7 @@ ALTER TABLE `tbl_payment_references`
 -- AUTO_INCREMENT for table `tbl_prescriptions`
 --
 ALTER TABLE `tbl_prescriptions`
-  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `prescription_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `tbl_roles`
@@ -1063,7 +1075,7 @@ ALTER TABLE `tbl_status_type`
 -- AUTO_INCREMENT for table `tbl_users`
 --
 ALTER TABLE `tbl_users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=45;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- Constraints for dumped tables

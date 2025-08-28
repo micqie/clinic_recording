@@ -212,7 +212,7 @@
 
 <!-- Patient Register Modal -->
 <div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header border-0">
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -220,19 +220,19 @@
       <div class="modal-body p-5 pt-0">
         <h3 class="text-center fw-bold text-primary mb-4">Patient Registration</h3>
         <form id="register-form" class="row g-3">
-          <div class="col-12">
+          <div class="col-12 col-md-6">
             <label for="register-name" class="form-label fw-bold">Full Name</label>
             <input type="text" class="form-control" id="register-name" name="name" required>
           </div>
-          <div class="col-12">
+          <div class="col-12 col-md-6">
             <label for="register-email" class="form-label fw-bold">Email</label>
             <input type="email" class="form-control" id="register-email" name="email" required>
           </div>
-          <div class="col-12">
+          <div class="col-12 col-md-6">
             <label for="register-password" class="form-label fw-bold">Password</label>
             <input type="password" class="form-control" id="register-password" name="password" required>
           </div>
-          <div class="col-12">
+          <div class="col-12 col-md-6">
             <label for="register-sex" class="form-label fw-bold">Sex</label>
             <select class="form-select" id="register-sex" name="sex" required>
               <option value="">Select sex</option>
@@ -240,13 +240,17 @@
               <option value="Female">Female</option>
             </select>
           </div>
-          <div class="col-12">
+          <div class="col-12 col-md-6">
             <label for="register-contact" class="form-label fw-bold">Contact Number</label>
             <input type="tel" class="form-control" id="register-contact" name="contact_num" required>
           </div>
-          <div class="col-12">
+          <div class="col-12 col-md-3">
             <label for="register-birthdate" class="form-label fw-bold">Birth Date</label>
             <input type="date" class="form-control" id="register-birthdate" name="birthdate" required>
+          </div>
+          <div class="col-12 col-md-3">
+            <label for="register-age" class="form-label fw-bold">Age</label>
+            <input type="number" min="0" class="form-control" id="register-age" name="age" required>
           </div>
           <div class="col-12">
             <label for="register-address" class="form-label fw-bold">Address</label>

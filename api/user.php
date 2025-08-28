@@ -6,70 +6,107 @@ class User
 {
  function register($json)
 {
-    include "connection.php";
-    $data = json_decode($json, true);
+   include "connection.php";
+   $data = json_decode($json, true);
 
-    // 1. (debug logging removed)
+   // 1. (debug logging removed)
 
-    // 2. Basic validation
-    if (
-        empty($data['name']) ||
-        empty($data['email']) ||
-        empty($data['password'])
-    ) {
-        return ['success' => false, 'message' => 'All fields are required.'];
-    }
+   // 2. Basic validation
+   if (
+       empty($data['name']) ||
+       empty($data['email']) ||
+       empty($data['password'])
+   ) {
+       return ['success' => false, 'message' => 'All fields are required.'];
+   }
 
-    // 3. Restrict registration to patients only
-    $roleName = 'patient';
+   // 3. Restrict registration to patients only
+   $roleName = 'patient';
 
-    // 4. Get role_id from tbl_roles
-    $stmt = $conn->prepare("SELECT role_id FROM tbl_roles WHERE LOWER(role_name) = :role_name");
-    $stmt->bindParam(":role_name", $roleName);
-    $stmt->execute();
-    $role = $stmt->fetch(PDO::FETCH_ASSOC);
+   // 4. Get role_id from tbl_roles
+   $stmt = $conn->prepare("SELECT role_id FROM tbl_roles WHERE LOWER(role_name) = :role_name");
+   $stmt->bindParam(":role_name", $roleName);
+   $stmt->execute();
+   $role = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$role) {
-        return ['success' => false, 'message' => "Invalid role selected: {$roleName}"];
-    }
-    $role_id = $role['role_id'];
+   if (!$role) {
+       return ['success' => false, 'message' => "Invalid role selected: {$roleName}"];
+   }
+   $role_id = $role['role_id'];
 
-    // 5. Check if email exists
-    $stmt = $conn->prepare("SELECT user_id FROM tbl_users WHERE email = :email");
-    $stmt->bindParam(":email", $data['email']);
-    $stmt->execute();
-    if ($stmt->rowCount() > 0) {
-        return ['success' => false, 'message' => 'Email is already registered.'];
-    }
+   // 5. Check if email exists
+   $stmt = $conn->prepare("SELECT user_id FROM tbl_users WHERE email = :email");
+   $stmt->bindParam(":email", $data['email']);
+   $stmt->execute();
+   if ($stmt->rowCount() > 0) {
+       return ['success' => false, 'message' => 'Email is already registered.'];
+   }
 
-    // 6. Insert into tbl_users (force password change on first login)
-    $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-    $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
-            VALUES (:name, :email, :password, :role_id, 1)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(":name", $data['name']);
-    $stmt->bindParam(":email", $data['email']);
-    $stmt->bindParam(":password", $hashedPassword);
-    $stmt->bindParam(":role_id", $role_id);
+   try {
+       $conn->beginTransaction();
 
-    if (!$stmt->execute()) {
-        return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $stmt->errorInfo())];
-    }
+       // 6. Insert into tbl_users (force password change on first login)
+       $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+       $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
+               VALUES (:name, :email, :password, :role_id, 1)";
+       $stmt = $conn->prepare($sql);
+       $stmt->bindParam(":name", $data['name']);
+       $stmt->bindParam(":email", $data['email']);
+       $stmt->bindParam(":password", $hashedPassword);
+       $stmt->bindParam(":role_id", $role_id);
 
-    $user_id = $conn->lastInsertId();
+       if (!$stmt->execute()) {
+           $err = $stmt->errorInfo();
+           $conn->rollBack();
+           return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $err)];
+       }
 
-    // 7. Insert into tbl_patients
-    try {
-        $sqlPat = "INSERT INTO tbl_patients (user_id)
-                   VALUES (:user_id)";
-        $stmt = $conn->prepare($sqlPat);
-        $stmt->bindParam(":user_id", $user_id);
-        $stmt->execute();
-    } catch (PDOException $e) {
-        return ['success' => false, 'message' => 'Patient insert failed: ' . $e->getMessage()];
-    }
+       $user_id = $conn->lastInsertId();
 
-    return ['success' => true, 'message' => 'Registration successful!'];
+       // 7. Insert into tbl_patients (conditionally include age)
+       $hasAge = (bool)$conn->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_patients' AND COLUMN_NAME = 'age'")->fetchColumn();
+       if ($hasAge) {
+           $sqlPat = "INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, age, address)
+                      VALUES (:user_id, :sex, :contact_num, :birthdate, :age, :address)";
+       } else {
+           $sqlPat = "INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
+                      VALUES (:user_id, :sex, :contact_num, :birthdate, :address)";
+       }
+       $stmt = $conn->prepare($sqlPat);
+
+       $sex = $data['sex'] ?? null; if ($sex === '') $sex = null;
+       $contact = $data['contact_num'] ?? null; if ($contact === '') $contact = null;
+       $birthdate = $data['birthdate'] ?? null; if ($birthdate === '') $birthdate = null;
+       $age = $data['age'] ?? null; if ($age === '') $age = null; if ($age !== null) $age = (int)$age;
+       $address = $data['address'] ?? null; if ($address === '') $address = null;
+
+       $stmt->bindParam(":user_id", $user_id);
+       $stmt->bindParam(":sex", $sex);
+       $stmt->bindParam(":contact_num", $contact);
+       $stmt->bindParam(":birthdate", $birthdate);
+       if ($hasAge) {
+           if ($age === null) {
+               $stmt->bindValue(":age", null, PDO::PARAM_NULL);
+           } else {
+               $stmt->bindValue(":age", $age, PDO::PARAM_INT);
+           }
+       }
+       $stmt->bindParam(":address", $address);
+
+       if (!$stmt->execute()) {
+           $err = $stmt->errorInfo();
+           $conn->rollBack();
+           return ['success' => false, 'message' => 'Failed to insert patient: ' . implode(" | ", $err)];
+       }
+
+       $conn->commit();
+       return ['success' => true, 'message' => 'Registration successful!'];
+   } catch (PDOException $e) {
+       if ($conn->inTransaction()) {
+           $conn->rollBack();
+       }
+       return ['success' => false, 'message' => 'Registration failed: ' . $e->getMessage()];
+   }
 }
 
 function registerDoctor($json)
@@ -110,14 +147,6 @@ function registerDoctor($json)
         return ['success' => false, 'message' => 'Email is already registered.'];
     }
 
-    // 5. Check if license number exists
-    $stmt = $conn->prepare("SELECT doctor_id FROM tbl_doctors WHERE license_number = :license_number");
-    $stmt->bindParam(":license_number", $data['license_number']);
-    $stmt->execute();
-    if ($stmt->rowCount() > 0) {
-        return ['success' => false, 'message' => 'License number is already registered.'];
-    }
-
     try {
         $conn->beginTransaction();
 
@@ -133,7 +162,6 @@ function registerDoctor($json)
         if (!$stmt->execute()) {
             $conn->rollBack();
             $err = $stmt->errorInfo();
-            file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | USERS INSERT ERROR: " . implode(" | ", $err) . PHP_EOL, FILE_APPEND);
             return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $err)];
         }
 
@@ -156,7 +184,6 @@ function registerDoctor($json)
         if (!$stmt->execute()) {
             $conn->rollBack();
             $err = $stmt->errorInfo();
-            file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | DOCTORS INSERT ERROR: " . implode(" | ", $err) . PHP_EOL, FILE_APPEND);
             return ['success' => false, 'message' => 'Doctor insert failed: ' . implode(" | ", $err)];
         }
 
@@ -166,7 +193,6 @@ function registerDoctor($json)
         if ($conn->inTransaction()) {
             $conn->rollBack();
         }
-        file_put_contents("register_doctor_debug.log", date("Y-m-d H:i:s") . " | EXCEPTION: " . $e->getMessage() . PHP_EOL, FILE_APPEND);
         return ['success' => false, 'message' => 'Registration failed: ' . $e->getMessage()];
     }
 }
@@ -207,42 +233,72 @@ function registerPatient($json)
         return ['success' => false, 'message' => 'Email is already registered.'];
     }
 
-    // 5. Insert into tbl_users (force password change on first login)
-    $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-    $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
-            VALUES (:name, :email, :password, :role_id, 1)";
-    $stmt = $conn->prepare($sql);
-    $stmt->bindParam(":name", $data['name']);
-    $stmt->bindParam(":email", $data['email']);
-    $stmt->bindParam(":password", $hashedPassword);
-    $stmt->bindParam(":role_id", $role_id);
-
-    if (!$stmt->execute()) {
-        return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $stmt->errorInfo())];
-    }
-
-    $user_id = $conn->lastInsertId();
-
-    // 6. Insert into tbl_patients
     try {
-        $sqlPat = "INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
-                   VALUES (:user_id, :sex, :contact_num, :birthdate, :address)";
+        $conn->beginTransaction();
+
+        // 5. Insert into tbl_users (force password change on first login)
+        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+        $sql = "INSERT INTO tbl_users (name, email, password, role_id, must_change_password)
+                VALUES (:name, :email, :password, :role_id, 1)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(":name", $data['name']);
+        $stmt->bindParam(":email", $data['email']);
+        $stmt->bindParam(":password", $hashedPassword);
+        $stmt->bindParam(":role_id", $role_id);
+
+        if (!$stmt->execute()) {
+            $err = $stmt->errorInfo();
+            $conn->rollBack();
+            return ['success' => false, 'message' => 'Failed to insert user: ' . implode(" | ", $err)];
+        }
+
+        $user_id = $conn->lastInsertId();
+
+        // 6. Insert into tbl_patients (conditionally include age)
+        $hasAge = (bool)$conn->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_patients' AND COLUMN_NAME = 'age'")->fetchColumn();
+        if ($hasAge) {
+            $sqlPat = "INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, age, address)
+                       VALUES (:user_id, :sex, :contact_num, :birthdate, :age, :address)";
+        } else {
+            $sqlPat = "INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
+                       VALUES (:user_id, :sex, :contact_num, :birthdate, :address)";
+        }
         $stmt = $conn->prepare($sqlPat);
+
+        $sex = $data['sex'] ?? null; if ($sex === '') $sex = null;
+        $contact = $data['contact_num'] ?? null; if ($contact === '') $contact = null;
+        $birthdate = $data['birthdate'] ?? null; if ($birthdate === '') $birthdate = null;
+        $age = $data['age'] ?? null; if ($age === '') $age = null; if ($age !== null) $age = (int)$age;
+        $address = $data['address'] ?? null; if ($address === '') $address = null;
+
         $stmt->bindParam(":user_id", $user_id);
-        $stmt->bindParam(":sex", $data['sex'] ?? null);
-        $stmt->bindParam(":contact_num", $data['contact_num'] ?? null);
-        $stmt->bindParam(":birthdate", $data['birthdate'] ?? null);
-        $stmt->bindParam(":address", $data['address'] ?? null);
-        $stmt->execute();
+        $stmt->bindParam(":sex", $sex);
+        $stmt->bindParam(":contact_num", $contact);
+        $stmt->bindParam(":birthdate", $birthdate);
+        if ($hasAge) {
+            if ($age === null) {
+                $stmt->bindValue(":age", null, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindValue(":age", $age, PDO::PARAM_INT);
+            }
+        }
+        $stmt->bindParam(":address", $address);
+
+        if (!$stmt->execute()) {
+            $err = $stmt->errorInfo();
+            $conn->rollBack();
+            return ['success' => false, 'message' => 'Failed to insert patient: ' . implode(" | ", $err)];
+        }
+
+        $conn->commit();
+        return ['success' => true, 'message' => 'Patient registration successful!'];
     } catch (PDOException $e) {
-        return ['success' => false, 'message' => 'Patient insert failed: ' . $e->getMessage()];
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        return ['success' => false, 'message' => 'Registration failed: ' . $e->getMessage()];
     }
-
-    return ['success' => true, 'message' => 'Patient registration successful!'];
 }
-
-
-
 
     function profile($user_id)
     {

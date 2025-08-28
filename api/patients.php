@@ -4,6 +4,16 @@ header("Access-Control-Allow-Origin: *");
 
 class Patient
 {
+    private function hasAgeColumn($conn)
+    {
+        static $cached = null;
+        if ($cached !== null) return $cached;
+        $sql = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tbl_patients' AND COLUMN_NAME = 'age'";
+        $stmt = $conn->query($sql);
+        $cached = (bool)$stmt->fetchColumn();
+        return $cached;
+    }
+
     function get_all()
     {
         include "connection.php";
@@ -22,7 +32,8 @@ class Patient
                 u.email
             FROM tbl_patients p
             JOIN tbl_users u ON p.user_id = u.user_id
-            WHERE u.role_id = 3
+            JOIN tbl_roles r ON u.role_id = r.role_id
+            WHERE LOWER(r.role_name) = 'patient'
             ORDER BY p.created_at DESC
         ");
 
@@ -48,7 +59,8 @@ class Patient
                 u.email
             FROM tbl_patients p
             JOIN tbl_users u ON p.user_id = u.user_id
-            WHERE u.role_id = 3
+            JOIN tbl_roles r ON u.role_id = r.role_id
+            WHERE LOWER(r.role_name) = 'patient'
         ";
 
         if ($id === null) {
@@ -105,17 +117,36 @@ class Patient
 
             $userId = $conn->lastInsertId();
 
-            // Insert into patients
-            $stmtPatient = $conn->prepare("
-                INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
-                VALUES (:user_id, :sex, :contact_num, :birthdate, :address)
-            ");
-            $stmtPatient->bindParam(':user_id', $userId);
-            $stmtPatient->bindParam(':sex', $data['sex']);
-            $stmtPatient->bindParam(':contact_num', $data['contact_num']);
-            $stmtPatient->bindParam(':birthdate', $data['birthdate']);
-            $stmtPatient->bindParam(':address', $data['address']);
-            $stmtPatient->execute();
+            // Insert into patients (conditionally include age)
+            if ($this->hasAgeColumn($conn)) {
+                $stmtPatient = $conn->prepare("
+                    INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, age, address)
+                    VALUES (:user_id, :sex, :contact_num, :birthdate, :age, :address)
+                ");
+                $stmtPatient->bindParam(':user_id', $userId);
+                $stmtPatient->bindParam(':sex', $data['sex']);
+                $stmtPatient->bindParam(':contact_num', $data['contact_num']);
+                $stmtPatient->bindParam(':birthdate', $data['birthdate']);
+                $ageVal = isset($data['age']) && $data['age'] !== '' ? (int)$data['age'] : null;
+                if ($ageVal === null) {
+                    $stmtPatient->bindValue(':age', null, PDO::PARAM_NULL);
+                } else {
+                    $stmtPatient->bindValue(':age', $ageVal, PDO::PARAM_INT);
+                }
+                $stmtPatient->bindParam(':address', $data['address']);
+                $stmtPatient->execute();
+            } else {
+                $stmtPatient = $conn->prepare("
+                    INSERT INTO tbl_patients (user_id, sex, contact_num, birthdate, address)
+                    VALUES (:user_id, :sex, :contact_num, :birthdate, :address)
+                ");
+                $stmtPatient->bindParam(':user_id', $userId);
+                $stmtPatient->bindParam(':sex', $data['sex']);
+                $stmtPatient->bindParam(':contact_num', $data['contact_num']);
+                $stmtPatient->bindParam(':birthdate', $data['birthdate']);
+                $stmtPatient->bindParam(':address', $data['address']);
+                $stmtPatient->execute();
+            }
 
             $conn->commit();
 
@@ -138,21 +169,45 @@ class Patient
         $conn->beginTransaction();
 
         try {
-            // Update patient info
-            $stmtPatient = $conn->prepare("UPDATE tbl_patients SET
-                sex = :sex,
-                contact_num = :contact_num,
-                birthdate = :birthdate,
-                address = :address,
-                updated_at = NOW()
-                WHERE patient_id = :patient_id
-            ");
-            $stmtPatient->bindParam(":sex", $data['sex']);
-            $stmtPatient->bindParam(":contact_num", $data['contact_num']);
-            $stmtPatient->bindParam(":birthdate", $data['birthdate']);
-            $stmtPatient->bindParam(":address", $data['address']);
-            $stmtPatient->bindParam(":patient_id", $data['patient_id']);
-            $stmtPatient->execute();
+            // Update patient info (conditionally include age)
+            if ($this->hasAgeColumn($conn)) {
+                $stmtPatient = $conn->prepare("UPDATE tbl_patients SET
+                    sex = :sex,
+                    contact_num = :contact_num,
+                    birthdate = :birthdate,
+                    age = :age,
+                    address = :address,
+                    updated_at = NOW()
+                    WHERE patient_id = :patient_id
+                ");
+                $stmtPatient->bindParam(":sex", $data['sex']);
+                $stmtPatient->bindParam(":contact_num", $data['contact_num']);
+                $stmtPatient->bindParam(":birthdate", $data['birthdate']);
+                $ageVal = isset($data['age']) && $data['age'] !== '' ? (int)$data['age'] : null;
+                if ($ageVal === null) {
+                    $stmtPatient->bindValue(":age", null, PDO::PARAM_NULL);
+                } else {
+                    $stmtPatient->bindValue(":age", $ageVal, PDO::PARAM_INT);
+                }
+                $stmtPatient->bindParam(":address", $data['address']);
+                $stmtPatient->bindParam(":patient_id", $data['patient_id']);
+                $stmtPatient->execute();
+            } else {
+                $stmtPatient = $conn->prepare("UPDATE tbl_patients SET
+                    sex = :sex,
+                    contact_num = :contact_num,
+                    birthdate = :birthdate,
+                    address = :address,
+                    updated_at = NOW()
+                    WHERE patient_id = :patient_id
+                ");
+                $stmtPatient->bindParam(":sex", $data['sex']);
+                $stmtPatient->bindParam(":contact_num", $data['contact_num']);
+                $stmtPatient->bindParam(":birthdate", $data['birthdate']);
+                $stmtPatient->bindParam(":address", $data['address']);
+                $stmtPatient->bindParam(":patient_id", $data['patient_id']);
+                $stmtPatient->execute();
+            }
 
             // Update user info if provided
             if (!empty($data['full_name']) || !empty($data['email'])) {

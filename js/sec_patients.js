@@ -5,11 +5,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const patientTableBody = document.getElementById("patientTableBody");
   const addPatientForm = document.getElementById("addPatientForm");
   const editPatientForm = document.getElementById("editPatientForm");
+  const addBirthdateInput = document.getElementById("add_birthdate");
+  const addAgeInput = document.getElementById("add_age");
+  const editBirthdateInput = document.getElementById("edit_birthdate");
+  const editAgeInput = document.getElementById("edit_age");
 
   // Bootstrap modal instances
   const viewPatientModal = new bootstrap.Modal(document.getElementById('viewPatientModal'));
   const editPatientModal = new bootstrap.Modal(document.getElementById('editPatientModal'));
   const addPatientModal = new bootstrap.Modal(document.getElementById('addPatientModal'));
+  // No auto age calculation; age will be entered manually
 
   // Load patients list and populate table
   async function loadPatients() {
@@ -90,6 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sex: formData.get("sex"),
       contact_num: formData.get("contact_num"),
       birthdate: formData.get("birthdate"),
+      age: formData.get("age"),
       address: formData.get("address"),
       password: password
     });
@@ -185,6 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('edit_sex').value = p.sex || '';
         document.getElementById('edit_contact_num').value = p.contact_num || '';
         document.getElementById('edit_birthdate').value = p.birthdate || '';
+        if (editAgeInput) editAgeInput.value = (p.age ?? '')
         document.getElementById('edit_address').value = p.address || '';
 
         editPatientModal.show();
@@ -215,6 +222,7 @@ document.addEventListener("DOMContentLoaded", () => {
       sex: formData.get('sex'),
       contact_num: formData.get('contact_num'),
       birthdate: formData.get('birthdate'),
+      age: formData.get('age'),
       address: formData.get('address'),
     });
 
