@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
   <td>${patient.full_name}</td>
   <td>${patient.email}</td>
   <td>${patient.sex || ""}</td>
+  <td>${patient.age || ""}</td>
   <td>${patient.contact_num || ""}</td>
   <td>${patient.birthdate || ""}</td>
   <td>${patient.address || ""}</td>

@@ -29,12 +29,14 @@ class Patient
         include "connection.php";
 
         $hasActive = $this->hasActiveColumn($conn);
+        $hasAge = $this->hasAgeColumn($conn);
         $sql = "
             SELECT
                 p.patient_id,
                 p.sex,
                 p.contact_num,
                 p.birthdate,
+                " . ($hasAge ? "p.age,\n                " : "") . "
                 p.address,
                 p.created_at,
                 p.updated_at,
@@ -57,12 +59,14 @@ class Patient
         include "connection.php";
 
         $hasActive = $this->hasActiveColumn($conn);
+        $hasAge = $this->hasAgeColumn($conn);
         $query = "
             SELECT
                 p.patient_id,
                 p.sex,
                 p.contact_num,
                 p.birthdate,
+                " . ($hasAge ? "p.age,\n                " : "") . "
                 p.address,
                 p.created_at,
                 p.updated_at,
