@@ -481,6 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Show medicine details
             showMedicineDetails(prescriptionId, medicine);
+
+            // Use existing packaging options and apply unit multipliers client-side
         }
     }
 
@@ -542,28 +544,36 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectedMedicine) {
                 const unitPrice = parseFloat(selectedMedicine.price || 0);
 
-                // Calculate total cost based on quantity and packaging unit
-                let totalCost = quantity * unitPrice;
-
-                // Apply packaging unit multiplier if needed
+                // Apply packaging unit multiplier
+                let multiplier = 1.0;
                 if (packagingUnitSelect) {
-                    const packagingUnit = packagingUnitSelect.value;
-                    switch (packagingUnit) {
+                    const unit = packagingUnitSelect.value;
+                    switch (unit) {
                         case 'box':
-                            totalCost = totalCost * 1.2; // 20% markup for box packaging
+                            multiplier = 1.20; // 20% markup
                             break;
                         case 'bottle':
-                            totalCost = totalCost * 1.15; // 15% markup for bottle packaging
+                            multiplier = 1.15; // 15% markup
                             break;
                         case 'blister pack':
-                            totalCost = totalCost * 1.1; // 10% markup for blister pack
+                        case 'strip':
+                            multiplier = 1.10; // 10% markup
+                            break;
+                        case 'sachet':
+                            multiplier = 1.05; // 5% markup
+                            break;
+                        case 'vial':
+                            multiplier = 1.15; // 15% markup
+                            break;
+                        case 'tube':
+                            multiplier = 1.10; // 10% markup
                             break;
                         default:
-                            // No additional markup for other units
-                            break;
+                            multiplier = 1.0;
                     }
                 }
 
+                const totalCost = quantity * unitPrice * multiplier;
                 totalCostDisplay.value = `₱${totalCost.toFixed(2)}`;
             } else {
                 totalCostDisplay.value = '₱0.00';
@@ -592,6 +602,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+
+    // Note: No packaging config table available; using unit multipliers defined above
 
     // This function is no longer needed as dosage field has been removed
     // async function loadDosagesForPrescription(prescriptionId) {

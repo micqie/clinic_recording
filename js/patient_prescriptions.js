@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </span>
                         </td>
                         <td>
-                            <span class="fw-bold text-success">₱${calculateConsultationCost(consultation).toFixed(2)}</span>
+                            <span class="fw-bold text-success">₱${formatConsultationTotal(consultation)}</span>
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
@@ -240,37 +240,18 @@ document.addEventListener('DOMContentLoaded', () => {
         let prescriptionsHtml = '';
         if (receipt.prescriptions && receipt.prescriptions.length > 0) {
             prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
-            prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Specifications</th><th>Dosage</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
-                        receipt.prescriptions.forEach(p => {
-                const specs = `${p.strength || p.weight || 'N/A'}${p.form ? ' (' + p.form + ')' : ''}`;
+            prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
+            receipt.prescriptions.forEach(p => {
                 const packagingName = p.packaging_name || p.packaging_unit || 'unit';
-                const packagingDesc = p.packaging_description || '';
                 const quantityDisplay = `${p.quantity || 1} ${packagingName}`;
 
-                // Calculate total cost on-the-fly
-                const unitPrice = parseFloat(p.price || 0);
-                const quantity = parseInt(p.quantity || 1);
-                let totalCost = unitPrice * quantity;
-
-                // Apply packaging unit multiplier if needed
-                const packagingUnit = p.packaging_unit || 'tablet';
-                switch (packagingUnit) {
-                    case 'box':
-                        totalCost = totalCost * 1.2; // 20% markup
-                        break;
-                    case 'bottle':
-                        totalCost = totalCost * 1.15; // 15% markup
-                        break;
-                    case 'blister pack':
-                        totalCost = totalCost * 1.1; // 10% markup
-                        break;
-                }
+                // Prefer backend-provided unit and total
+                const unitPrice = parseFloat((p.unit_price !== undefined ? p.unit_price : p.price) || 0);
+                const totalCost = parseFloat((p.total_cost !== undefined ? p.total_cost : 0) || 0) || (unitPrice * (parseInt(p.quantity || 1)));
 
                 prescriptionsHtml += `<tr>
                     <td><strong>${p.generic_name}</strong></td>
-                    <td>${specs}</td>
-                    <td>${p.dosage}<br><small class="text-muted">${p.frequency}</small></td>
-                    <td>${quantityDisplay}<br><small class="text-muted">${packagingDesc}</small></td>
+                    <td>${quantityDisplay}</td>
                     <td>₱${unitPrice.toFixed(2)} per unit</td>
                     <td class="fw-bold">₱${totalCost.toFixed(2)}</td>
                 </tr>`;
@@ -344,21 +325,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="row justify-content-end">
                     <div class="col-md-6">
                         <table class="table table-sm table-borderless">
-                            ${receipt.prescriptions && receipt.prescriptions.length > 0 ? `
-                            <tr>
-                                <td class="text-end"><strong>Prescriptions Subtotal:</strong></td>
-                                <td class="text-end">₱${calculatePrescriptionSubtotal(receipt.prescriptions).toFixed(2)}</td>
-                            </tr>
-                            ` : ''}
-                            ${receipt.lab_requests && receipt.lab_requests.length > 0 ? `
-                            <tr>
-                                <td class="text-end"><strong>Lab Tests Subtotal:</strong></td>
-                                <td class="text-end">₱${calculateLabSubtotal(receipt.lab_requests).toFixed(2)}</td>
-                            </tr>
-                            ` : ''}
                             <tr class="border-top">
-                                <td class="text-end"><strong>Total Amount:</strong></td>
-                                <td class="text-end fw-bold text-success fs-5">₱${(calculatePrescriptionSubtotal(receipt.prescriptions) + calculateLabSubtotal(receipt.lab_requests)).toFixed(2)}</td>
+                                <td class="text-end"><strong>${
+                                  (receipt.prescriptions?.length && receipt.lab_requests?.length)
+                                    ? 'Total Amount (Medicines + Lab Tests)'
+                                    : (receipt.prescriptions?.length ? 'Total Amount (Medicines)' : 'Total Amount (Lab Tests)')
+                                }:</strong></td>
+                                <td class="text-end fw-bold text-success fs-5">₱${parseFloat(receipt.total_amount || 0).toFixed(2)}</td>
                             </tr>
                         </table>
                     </div>
@@ -469,6 +442,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return total + cost;
         }, 0);
+    }
+
+    // Prefer backend-provided estimated_total; fallback to client calc
+    function formatConsultationTotal(consultation) {
+        const fromServer = consultation.estimated_total;
+        if (fromServer !== undefined && fromServer !== null && !isNaN(parseFloat(fromServer))) {
+            return parseFloat(fromServer).toFixed(2);
+        }
+        return calculateConsultationCost(consultation).toFixed(2);
     }
 
     // Helper function to calculate prescription subtotal

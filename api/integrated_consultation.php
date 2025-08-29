@@ -324,31 +324,57 @@ class IntegratedConsultation
                 $rows = $pstmt->fetchAll(PDO::FETCH_ASSOC);
 
                 $prescriptionCount = count($rows);
-                $estimatedTotal = 0.0;
+                $prescriptionSubtotal = 0.0;
                 $unitToQty = [];
-                                foreach ($rows as $r) {
+                foreach ($rows as $r) {
                     $qty = isset($r['quantity']) && $r['quantity'] !== null ? (int)$r['quantity'] : 1;
                     $unit = $r['packaging_unit'] ?? 'unit';
                     $packagingName = $r['packaging_name'] ?? $unit;
-                    $baseCost = ((float)$r['price']) * $qty;
-
-                    // Apply packaging unit multiplier
+                    // Apply standardized multipliers by packaging unit (no config table)
                     $multiplier = 1.0;
                     switch ($unit) {
                         case 'box':
-                            $multiplier = 1.2; // 20% markup
-                            break;
+                            $multiplier = 1.20; break;
                         case 'bottle':
-                            $multiplier = 1.15; // 15% markup
-                            break;
+                            $multiplier = 1.15; break;
                         case 'blister pack':
-                            $multiplier = 1.1; // 10% markup
-                            break;
+                        case 'strip':
+                            $multiplier = 1.10; break;
+                        case 'sachet':
+                            $multiplier = 1.05; break;
+                        case 'vial':
+                            $multiplier = 1.15; break;
+                        case 'tube':
+                            $multiplier = 1.10; break;
+                        default:
+                            $multiplier = 1.0;
                     }
-
-                    $estimatedTotal += $baseCost * $multiplier;
+                    $prescriptionSubtotal += ((float)$r['price']) * $qty * $multiplier;
                     if (!isset($unitToQty[$packagingName])) $unitToQty[$packagingName] = 0;
                     $unitToQty[$packagingName] += $qty;
+                }
+
+                // Compute lab subtotal for this consultation (based on appointment)
+                $labSubtotal = 0.0;
+                $lstmt = $this->conn->prepare("
+                    SELECT COALESCE(ltt.price,
+                           CASE
+                               WHEN ltt.type_name LIKE '%Blood%' THEN 500.00
+                               WHEN ltt.type_name LIKE '%Urine%' THEN 300.00
+                               WHEN ltt.type_name LIKE '%Liver%' THEN 800.00
+                               WHEN ltt.type_name LIKE '%Lipid%' THEN 600.00
+                               ELSE 400.00
+                           END
+                       ) as price
+                    FROM tbl_lab_requests lr
+                    JOIN tbl_lab_test_types ltt ON lr.lab_test_type_id = ltt.lab_test_type_id
+                    WHERE lr.appointment_id = :aid
+                ");
+                $lstmt->bindParam(":aid", $c['appointment_id']);
+                $lstmt->execute();
+                $lrows = $lstmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($lrows as $lr) {
+                    $labSubtotal += (float)$lr['price'];
                 }
 
                 // Build packaging summary like: "2 tablets, 1 box"
@@ -361,7 +387,9 @@ class IntegratedConsultation
                 $packagingSummary = count($parts) ? implode(', ', $parts) : '0 medicines';
 
                 $c['prescription_count'] = $prescriptionCount;
-                $c['estimated_total'] = (float)number_format($estimatedTotal, 2, '.', '');
+                $c['prescription_subtotal'] = (float)number_format($prescriptionSubtotal, 2, '.', '');
+                $c['lab_subtotal'] = (float)number_format($labSubtotal, 2, '.', '');
+                $c['estimated_total'] = (float)number_format(($prescriptionSubtotal + $labSubtotal), 2, '.', '');
                 $c['packaging_summary'] = $packagingSummary;
             }
 

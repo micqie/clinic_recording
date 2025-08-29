@@ -102,26 +102,28 @@ class PrescriptionReceipt
             $prescriptionDetails = [];
 
             foreach ($prescriptions as $prescription) {
-                // Calculate cost based on quantity (how many medicines prescribed)
                 $quantity = $prescription['quantity'] ?? 1; // Default to 1 if not specified
-                $baseCost = $prescription['price'] * $quantity;
-
-                // Apply packaging unit multiplier
-                $packagingUnit = $prescription['packaging_unit'] ?? 'tablet';
+                // Apply standardized multipliers by packaging unit (no config table)
+                $unit = isset($prescription['packaging_unit']) ? $prescription['packaging_unit'] : 'unit';
                 $multiplier = 1.0;
-                switch ($packagingUnit) {
+                switch ($unit) {
                     case 'box':
-                        $multiplier = 1.2; // 20% markup
-                        break;
+                        $multiplier = 1.20; break;
                     case 'bottle':
-                        $multiplier = 1.15; // 15% markup
-                        break;
+                        $multiplier = 1.15; break;
                     case 'blister pack':
-                        $multiplier = 1.1; // 10% markup
-                        break;
+                    case 'strip':
+                        $multiplier = 1.10; break;
+                    case 'sachet':
+                        $multiplier = 1.05; break;
+                    case 'vial':
+                        $multiplier = 1.15; break;
+                    case 'tube':
+                        $multiplier = 1.10; break;
+                    default:
+                        $multiplier = 1.0;
                 }
-
-                $cost = $baseCost * $multiplier;
+                $cost = ((float)$prescription['price']) * (int)$quantity * $multiplier;
                 $totalPrescriptionCost += $cost;
 
                 $prescriptionDetails[] = [
