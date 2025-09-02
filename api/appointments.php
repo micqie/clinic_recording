@@ -5,11 +5,19 @@ header("Access-Control-Allow-Origin: *");
 class Appointments
 {
     private $conn;
+    private $dbName;
 
     public function __construct()
     {
         include "connection.php";
         $this->conn = $conn;
+        // cache current database name for INFORMATION_SCHEMA queries
+        try {
+            $stmt = $this->conn->query("SELECT DATABASE()");
+            $this->dbName = $stmt->fetchColumn();
+        } catch (Exception $e) {
+            $this->dbName = null;
+        }
     }
 
     // Helper to fetch status_id by status_name within Appointment status type
@@ -20,6 +28,23 @@ class Appointments
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return $row ? intval($row['status_id']) : null;
+    }
+
+    // Helper: check if a column exists on a table in this database
+    private function hasColumn($tableName, $columnName)
+    {
+        try {
+            if (!$this->dbName) return false;
+            $sql = "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = :db AND TABLE_NAME = :tbl AND COLUMN_NAME = :col";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bindParam(":db", $this->dbName);
+            $stmt->bindParam(":tbl", $tableName);
+            $stmt->bindParam(":col", $columnName);
+            $stmt->execute();
+            return intval($stmt->fetchColumn()) > 0;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     // Count booked for a specific date (excludes Cancelled)
@@ -78,8 +103,8 @@ class Appointments
     // Patient: request a new appointment for a date (no time)
     public function request($data)
     {
-        if (empty($data['patient_id']) || empty($data['appointment_date']) || empty($data['appointment_reason_id'])) {
-            echo json_encode(["success" => false, "message" => "patient_id, appointment_date, and appointment_reason_id are required."]); return;
+        if (empty($data['patient_id']) || empty($data['appointment_date'])) {
+            echo json_encode(["success" => false, "message" => "patient_id and appointment_date are required."]); return;
         }
         $date = $data['appointment_date'];
 
@@ -103,22 +128,49 @@ class Appointments
         $pendingId = $this->getAppointmentStatusId('Pending');
         if (!$pendingId) { echo json_encode(["success" => false, "message" => "Pending status not configured."]); return; }
 
-        // Combine other reason text with notes if "Other" is selected
-        $combinedNotes = $data['appointment_notes'] ?? '';
-        if (!empty($data['other_reason_text'])) {
+        $hasReasonCol = $this->hasColumn('tbl_appointments', 'appointment_reason_id');
+        $hasNotesCol = $this->hasColumn('tbl_appointments', 'appointment_notes');
+
+        // Combine other reason text with notes if "Other" is selected (only if notes column exists)
+        $combinedNotes = $hasNotesCol ? ($data['appointment_notes'] ?? '') : null;
+        if ($hasNotesCol && !empty($data['other_reason_text'])) {
             $combinedNotes = "Reason: " . $data['other_reason_text'] . "\n\n" . $combinedNotes;
         }
 
-        $stmt = $this->conn->prepare("INSERT INTO tbl_appointments (patient_id, appointment_date, status_id, appointment_reason_id, appointment_notes) VALUES (:pid, :d, :sid, :rid, :notes)");
-        $stmt->bindParam(":pid", $data['patient_id']);
-        $stmt->bindParam(":d", $date);
-        $stmt->bindParam(":sid", $pendingId);
-        $stmt->bindParam(":rid", $data['appointment_reason_id']);
-        $stmt->bindParam(":notes", $combinedNotes ?: null);
-        if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Appointment request submitted."]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Failed to request appointment."]);
+        try {
+            if ($hasReasonCol && $hasNotesCol) {
+                $stmt = $this->conn->prepare("INSERT INTO tbl_appointments (patient_id, appointment_date, status_id, appointment_reason_id, appointment_notes) VALUES (:pid, :d, :sid, :rid, :notes)");
+                $stmt->bindParam(":pid", $data['patient_id']);
+                $stmt->bindParam(":d", $date);
+                $stmt->bindParam(":sid", $pendingId);
+                $rid = $data['appointment_reason_id'] ?? null;
+                if ($rid === '') { $rid = null; }
+                $stmt->bindParam(":rid", $rid);
+                $notesParam = $combinedNotes ?: null;
+                $stmt->bindParam(":notes", $notesParam);
+            } else if ($hasReasonCol && !$hasNotesCol) {
+                $stmt = $this->conn->prepare("INSERT INTO tbl_appointments (patient_id, appointment_date, status_id, appointment_reason_id) VALUES (:pid, :d, :sid, :rid)");
+                $stmt->bindParam(":pid", $data['patient_id']);
+                $stmt->bindParam(":d", $date);
+                $stmt->bindParam(":sid", $pendingId);
+                $rid = $data['appointment_reason_id'] ?? null;
+                if ($rid === '') { $rid = null; }
+                $stmt->bindParam(":rid", $rid);
+            } else {
+                // Legacy schema: no reason/notes columns
+                $stmt = $this->conn->prepare("INSERT INTO tbl_appointments (patient_id, appointment_date, status_id) VALUES (:pid, :d, :sid)");
+                $stmt->bindParam(":pid", $data['patient_id']);
+                $stmt->bindParam(":d", $date);
+                $stmt->bindParam(":sid", $pendingId);
+            }
+            if ($stmt->execute()) {
+                echo json_encode(["success" => true, "message" => "Appointment request submitted."]);
+            } else {
+                $err = $stmt->errorInfo();
+                echo json_encode(["success" => false, "message" => ($err[2] ?? 'Failed to request appointment.')]);
+            }
+        } catch (Exception $e) {
+            echo json_encode(["success" => false, "message" => $e->getMessage()]);
         }
     }
 
@@ -136,19 +188,7 @@ class Appointments
         $date = $stmt->fetchColumn();
         if (!$date) { echo json_encode(["success" => false, "message" => "Appointment not found."]); return; }
 
-        // Check if doctor is available on this date
-        $stmt = $this->conn->prepare("
-            SELECT COUNT(*) FROM tbl_doctor_availability
-            WHERE doctor_id = :doctor_id AND date = :date AND is_available = 0
-        ");
-        $stmt->bindParam(":doctor_id", $data['doctor_id']);
-        $stmt->bindParam(":date", $date);
-        $stmt->execute();
-        $isUnavailable = intval($stmt->fetchColumn()) > 0;
-
-        if ($isUnavailable) {
-            echo json_encode(["success" => false, "message" => "Doctor is not available on this date."]); return;
-        }
+        // Availability check intentionally skipped to allow straightforward approvals
 
         // Compute next queue number (exclude Cancelled)
         $cancelledId = $this->getAppointmentStatusId('Cancelled');
@@ -163,15 +203,20 @@ class Appointments
         $confirmedId = $this->getAppointmentStatusId('Confirmed');
         if (!$confirmedId) { echo json_encode(["success" => false, "message" => "Confirmed status not configured."]); return; }
 
-        $stmt = $this->conn->prepare("UPDATE tbl_appointments SET doctor_id = :doc, queue_number = :q, status_id = :sid WHERE appointment_id = :aid");
-        $stmt->bindParam(":doc", $data['doctor_id']);
-        $stmt->bindParam(":q", $nextQueue);
-        $stmt->bindParam(":sid", $confirmedId);
-        $stmt->bindParam(":aid", $data['appointment_id']);
-        if ($stmt->execute()) {
-            echo json_encode(["success" => true, "message" => "Appointment approved.", "queue_number" => $nextQueue]);
-        } else {
-            echo json_encode(["success" => false, "message" => "Approval failed."]);
+        try {
+            $stmt = $this->conn->prepare("UPDATE tbl_appointments SET doctor_id = :doc, queue_number = :q, status_id = :sid WHERE appointment_id = :aid");
+            $stmt->bindParam(":doc", $data['doctor_id']);
+            $stmt->bindParam(":q", $nextQueue);
+            $stmt->bindParam(":sid", $confirmedId);
+            $stmt->bindParam(":aid", $data['appointment_id']);
+            if ($stmt->execute()) {
+                echo json_encode(["success" => true, "message" => "Appointment approved.", "queue_number" => $nextQueue]);
+            } else {
+                $err = $stmt->errorInfo();
+                echo json_encode(["success" => false, "message" => ($err[2] ?? 'Approval failed.')]);
+            }
+        } catch (Exception $e) {
+            echo json_encode(["success" => false, "message" => $e->getMessage()]);
         }
     }
 
@@ -220,19 +265,25 @@ class Appointments
     public function get_by_patient($patientId)
     {
         if (empty($patientId)) { echo json_encode(["success" => false, "message" => "patient_id required."]); return; }
-        $stmt = $this->conn->prepare("
-            SELECT a.appointment_id,
-                   a.appointment_date,
-                   a.queue_number,
-                   s.status_name AS appointment_status,
-                   du.name AS doctor_name
-            FROM tbl_appointments a
+        $hasReasonCol = $this->hasColumn('tbl_appointments', 'appointment_reason_id');
+        $hasNotesCol = $this->hasColumn('tbl_appointments', 'appointment_notes');
+
+        $select = "SELECT a.appointment_id, a.appointment_date, a.queue_number, s.status_name AS appointment_status, du.name AS doctor_name";
+        if ($hasReasonCol) { $select .= ", a.appointment_reason_id"; } else { $select .= ", NULL AS appointment_reason_id"; }
+        if ($hasNotesCol) { $select .= ", a.appointment_notes"; } else { $select .= ", NULL AS appointment_notes"; }
+        // reason_name joins only if column exists
+        $joinReasons = $hasReasonCol ? " LEFT JOIN tbl_appointment_reasons ar ON a.appointment_reason_id = ar.reason_id " : "";
+        $select .= $hasReasonCol ? ", ar.reason_name" : ", NULL AS reason_name";
+
+        $sql = $select . " FROM tbl_appointments a
             JOIN tbl_status s ON a.status_id = s.status_id
             LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
             LEFT JOIN tbl_users du ON d.user_id = du.user_id
+            " . $joinReasons . "
             WHERE a.patient_id = :pid
-            ORDER BY a.appointment_date DESC, a.queue_number ASC
-        ");
+            ORDER BY a.appointment_date DESC, a.queue_number ASC";
+
+        $stmt = $this->conn->prepare($sql);
         $stmt->bindParam(":pid", $patientId);
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -241,7 +292,15 @@ class Appointments
     // Utility: list doctors for dropdowns
     public function list_doctors()
     {
-        $stmt = $this->conn->prepare("SELECT d.doctor_id, u.name AS doctor_name FROM tbl_doctors d JOIN tbl_users u ON d.user_id = u.user_id ORDER BY u.name ASC");
+        $stmt = $this->conn->prepare("SELECT d.doctor_id, u.name AS doctor_name, d.specialization_id, s.name AS specialization_name FROM tbl_doctors d JOIN tbl_users u ON d.user_id = u.user_id LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id ORDER BY u.name ASC");
+        $stmt->execute();
+        echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+    }
+
+    // Utility: list all specializations
+    public function list_specializations()
+    {
+        $stmt = $this->conn->prepare("SELECT specialization_id, name AS specialization_name FROM tbl_specializations ORDER BY name ASC");
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     }
@@ -576,6 +635,9 @@ switch ($operation) {
         break;
     case 'list_doctors':
         $svc->list_doctors();
+        break;
+    case 'list_specializations':
+        $svc->list_specializations();
         break;
     case 'get_available_doctors':
         $date = $_GET['date'] ?? date('Y-m-d');

@@ -1,14 +1,40 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
+  const storedBase = sessionStorage.getItem('baseAPIUrl') || sessionStorage.getItem('baseApiUrl') || '';
+  const origin = window.location.origin;
+  const candidates = [
+    storedBase,
+    `${origin}/clinic_recording/api`,
+    `${origin}/api`,
+    `${window.location.pathname.includes('/clinic_recording/') ? '/clinic_recording/api' : '/api'}`
+  ].filter(Boolean);
+
+  async function pickAliveBaseUrl(urls) {
+    for (const u of urls) {
+      try {
+        const testUrl = `${u}/appointment_reasons.php?operation=listReasons`;
+        const res = await axios.get(testUrl, { timeout: 5000 });
+        if (res?.data) return u;
+      } catch (_) {}
+    }
+    return urls[0];
+  }
+
+  const baseApiUrl = await pickAliveBaseUrl(candidates);
+  try { if (baseApiUrl) sessionStorage.setItem('baseAPIUrl', baseApiUrl); } catch (_) {}
   const apptApi = `${baseApiUrl}/appointments.php`;
   const userApi = `${baseApiUrl}/user.php`;
 
   const user = JSON.parse(sessionStorage.getItem('user') || '{}');
   if (!user?.id) { window.location.href = '/clinic_recording/index.html'; return; }
 
-  const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
-  const patientId = prof.data?.context?.patient_id;
-  if (!patientId) { Swal.fire('Error', 'No patient profile found.', 'error'); return; }
+  let patientId = null;
+  try {
+    const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`, { timeout: 8000 });
+    patientId = prof.data?.context?.patient_id;
+  } catch (e) {
+    console.error('Failed to load profile', e?.response?.data || e);
+  }
+  if (!patientId) { Swal.fire('Error', 'No patient profile found or API unreachable.', 'error'); return; }
 
   const requestDate = document.getElementById('requestDate');
   const requestReason = document.getElementById('requestReason');
@@ -18,12 +44,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const requestBtn = document.getElementById('requestBtn');
   const list = document.getElementById('appt_list');
 
+  // Track dynamic id for "Other" reason (if present)
+  let otherReasonId = null;
+
   // Load appointment reasons after DOM elements are initialized
-  await loadAppointmentReasons();
+  let reasonsLoaded = false;
+  try {
+    await loadAppointmentReasons();
+    reasonsLoaded = true;
+  } catch (_) {}
 
   // Add event listener for reason dropdown to show/hide "Other" field
   requestReason?.addEventListener('change', () => {
-    if (requestReason.value === '15') { // Assuming 'Other' has ID 15
+    const isOther = otherReasonId
+      ? requestReason.value === otherReasonId
+      : (requestReason.options[requestReason.selectedIndex]?.text || '').trim().toLowerCase() === 'other';
+    if (isOther) {
       otherReasonField.style.display = 'block';
       otherReasonText.required = true;
     } else {
@@ -34,10 +70,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   async function refreshList() {
-    const resp = await axios.get(`${apptApi}?operation=get_by_patient&patient_id=${patientId}`);
-    const appts = resp.data.data || [];
-    list.innerHTML = '';
-    appts.forEach(a => {
+    try {
+      const resp = await axios.get(`${apptApi}?operation=get_by_patient&patient_id=${patientId}`);
+      const appts = resp.data.data || [];
+      list.innerHTML = '';
+      appts.forEach(a => {
       const li = document.createElement('li');
       li.className = 'list-group-item';
       // Format the reason display
@@ -69,6 +106,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
       list.appendChild(li);
     });
+    } catch (err) {
+      console.error('Failed to load appointments list', err?.response?.data || err);
+      if (list) {
+        list.innerHTML = '<li class="list-group-item text-danger">Failed to load appointments.</li>';
+      }
+    }
   }
 
   async function loadAppointmentReasons() {
@@ -81,6 +124,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           opt.value = reason.reason_id;
           opt.textContent = reason.reason_name;
           requestReason.appendChild(opt);
+          if ((reason.reason_name || '').trim().toLowerCase() === 'other') {
+            otherReasonId = String(reason.reason_id);
+          }
         });
       }
     } catch (error) {
@@ -89,21 +135,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function checkDateCapacity(dateStr) {
-    const r = await axios.get(`${apptApi}?operation=get_booked_count&date=${dateStr}`);
-    return (r.data?.count ?? 0) < 15;
+    try {
+      const r = await axios.get(`${apptApi}?operation=get_booked_count&date=${dateStr}`);
+      return (r.data?.count ?? 0) < 15;
+    } catch (err) {
+      console.error('Failed to check date capacity', err?.response?.data || err);
+      return true; // fail-open so user can attempt; server will enforce limits
+    }
   }
 
   requestBtn?.addEventListener('click', async () => {
+    if (!reasonsLoaded) { Swal.fire('Error', 'Please wait for reasons to load.', 'error'); return; }
     const dateStr = requestDate.value;
     const reasonId = requestReason.value;
     const otherReason = otherReasonText.value.trim();
     const notes = requestNotes.value.trim();
 
     if (!dateStr) { Swal.fire('Error', 'Please select a date.', 'error'); return; }
-    if (!reasonId) { Swal.fire('Error', 'Please select a reason for your appointment.', 'error'); return; }
+    // Reason optional to support legacy DBs; warn if missing
+    if (!reasonId && !otherReason) {
+      // allow submit but inform user
+      console.warn('Submitting without appointment reason (legacy mode)');
+    }
 
     // Validate "Other" reason field if selected
-    if (reasonId === '15' && !otherReason) {
+    const isOtherSelected = otherReasonId
+      ? reasonId === otherReasonId
+      : (requestReason.options[requestReason.selectedIndex]?.text || '').trim().toLowerCase() === 'other';
+    if (isOtherSelected && !otherReason) {
       Swal.fire('Error', 'Please specify your reason when selecting "Other".', 'error');
       return;
     }
@@ -111,30 +170,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ok = await checkDateCapacity(dateStr);
     if (!ok) { Swal.fire('Info', 'Fully Booked', 'info'); return; }
 
-    const payload = new FormData();
+    const payload = new URLSearchParams();
     payload.append('operation', 'request');
     payload.append('json', JSON.stringify({
       patient_id: patientId,
       appointment_date: dateStr,
       appointment_reason_id: reasonId,
       appointment_notes: notes || null,
-      other_reason_text: reasonId === '15' ? otherReason : null
+      other_reason_text: (
+        otherReasonId ? reasonId === otherReasonId
+        : (requestReason.options[requestReason.selectedIndex]?.text || '').trim().toLowerCase() === 'other'
+      ) ? otherReason : null
     }));
 
-    const resp = await axios.post(apptApi, payload);
-        if (resp.data.success) {
-      // Clear form
-      requestDate.value = '';
-      requestReason.value = '';
-      otherReasonText.value = '';
-      otherReasonField.style.display = 'none';
-      otherReasonText.required = false;
-      requestNotes.value = '';
+    try {
+      console.debug('Submitting appointment to:', apptApi);
+      const resp = await axios.post(apptApi, payload, { timeout: 10000, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      if (resp.data?.success) {
+        // Clear form
+        requestDate.value = '';
+        requestReason.value = '';
+        otherReasonText.value = '';
+        otherReasonField.style.display = 'none';
+        otherReasonText.required = false;
+        requestNotes.value = '';
 
-      await refreshList();
-      Swal.fire('Requested', 'Appointment requested as Pending', 'success');
-    } else {
-      Swal.fire('Error', resp.data.message || 'Request failed', 'error');
+        await refreshList();
+        Swal.fire('Requested', 'Appointment requested as Pending', 'success');
+      } else {
+        const msg = resp.data?.message || 'Request failed';
+        Swal.fire('Error', msg, 'error');
+      }
+    } catch (error) {
+      console.error('Appointment request failed (POST)', error?.response?.data || error);
+      // Fallback: try GET if POST failed with no server response
+      if (!error?.response) {
+        try {
+          const url = `${apptApi}?operation=request&json=${encodeURIComponent(payload.get('json'))}`;
+          console.debug('Retrying appointment via GET:', url);
+          const resp2 = await axios.get(url, { timeout: 10000 });
+          if (resp2.data?.success) {
+            requestDate.value = '';
+            requestReason.value = '';
+            otherReasonText.value = '';
+            otherReasonField.style.display = 'none';
+            otherReasonText.required = false;
+            requestNotes.value = '';
+
+            await refreshList();
+            Swal.fire('Requested', 'Appointment requested as Pending', 'success');
+            return;
+          }
+          const msg2 = resp2.data?.message || 'Request failed';
+          Swal.fire('Error', msg2, 'error');
+          return;
+        } catch (e2) {
+          console.error('Appointment request failed (GET fallback)', e2?.response?.data || e2);
+        }
+      }
+      const msg = error?.response?.data?.message || error?.message || 'Request failed';
+      Swal.fire('Error', msg, 'error');
     }
   });
 
@@ -160,5 +255,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  refreshList();
+  try { await refreshList(); } catch (e) { console.error('Initial list load failed', e?.response?.data || e); }
 });

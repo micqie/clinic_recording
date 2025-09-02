@@ -1,5 +1,13 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const baseApiUrl = sessionStorage.getItem("baseApiUrl") || "http://localhost/clinic_recording/api";
+  const storedBase = sessionStorage.getItem("baseAPIUrl") || sessionStorage.getItem("baseApiUrl") || '';
+  const origin = window.location.origin;
+  const candidates = [
+    storedBase,
+    `${origin}/clinic_recording/api`,
+    `${origin}/api`,
+    `${window.location.pathname.includes('/clinic_recording/') ? '/clinic_recording/api' : '/api'}`
+  ].filter(Boolean);
+  const baseApiUrl = candidates[0];
   const apptApi = `${baseApiUrl}/appointments.php`;
   const queueApi = `${baseApiUrl}/queue_management.php`;
   const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
@@ -15,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const approveModalEl = document.getElementById('approveModal');
   const approveModal = approveModalEl ? new bootstrap.Modal(approveModalEl) : null;
   const approveForm = document.getElementById('approveForm');
+  const approveSpecSelect = document.getElementById('approve_specialization_id');
 
   // Queue management elements
   const refreshQueueBtn = document.getElementById('refreshQueueBtn');
@@ -55,7 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (select) {
         const opt = document.createElement('option');
         opt.value = d.doctor_id;
-        opt.textContent = d.doctor_name;
+        opt.textContent = d.specialization_name ? `${d.doctor_name} (${d.specialization_name})` : d.doctor_name;
+        opt.setAttribute('data-specialization-id', d.specialization_id || '');
         select.appendChild(opt);
       }
       if (queueSelect) {
@@ -65,6 +75,22 @@ document.addEventListener("DOMContentLoaded", () => {
         queueSelect.appendChild(queueOpt);
       }
     });
+  }
+
+  async function loadSpecializations() {
+    if (!approveSpecSelect) return;
+    try {
+      const resp = await axios.get(`${apptApi}?operation=list_specializations`);
+      approveSpecSelect.innerHTML = '<option value="">All specializations</option>';
+      (resp.data.data || []).forEach(sp => {
+        const opt = document.createElement('option');
+        opt.value = sp.specialization_id;
+        opt.textContent = sp.specialization_name;
+        approveSpecSelect.appendChild(opt);
+      });
+    } catch (_) {
+      approveSpecSelect.innerHTML = '<option value="">All specializations</option>';
+    }
   }
 
   // Load available doctors for a specific date
@@ -116,8 +142,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         document.getElementById('approve_appointment_notes').textContent = notesDisplay;
 
-        // Load specialization-based doctors
-        await loadDoctorsBySpecialization(appointment.appointment_reason_id, appointment.appointment_date);
+        // Load specialization-based doctors (fallback to all doctors if reason is missing)
+        if (!appointment.appointment_reason_id) {
+          await loadDoctors();
+        } else {
+          await loadDoctorsBySpecialization(appointment.appointment_reason_id, appointment.appointment_date);
+        }
       }
     } catch (error) {
       console.error('Failed to load appointment details:', error);
@@ -128,6 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load doctors by specialization for appointment reason
   async function loadDoctorsBySpecialization(reasonId, date) {
+    if (!reasonId) { await loadDoctors(); return; }
     try {
       const resp = await axios.get(`${apptApi}?operation=get_doctors_by_specialization&reason_id=${reasonId}&date=${date}`);
       const select = document.getElementById('approve_doctor_id');
@@ -450,7 +481,25 @@ document.addEventListener("DOMContentLoaded", () => {
       const approveId = approveBtn.getAttribute('data-approve');
       document.getElementById('approve_appointment_id').value = approveId;
       document.getElementById('approve_queue_number').value = '';
-      loadAppointmentDetails(approveId).then(() => approveModal?.show());
+      Promise.all([loadSpecializations(), loadAppointmentDetails(approveId)]).then(() => approveModal?.show());
+    }
+  });
+
+  // Filter doctors by specialization in approve modal
+  approveSpecSelect?.addEventListener('change', () => {
+    const filterId = approveSpecSelect.value || '';
+    const select = document.getElementById('approve_doctor_id');
+    if (!select) return;
+    const options = Array.from(select.options);
+    options.forEach((opt, idx) => {
+      if (idx === 0) return; // keep placeholder
+      const sid = opt.getAttribute('data-specialization-id') || '';
+      opt.hidden = filterId && sid !== filterId;
+    });
+    // If current value hidden, reset selection
+    const current = select.selectedOptions[0];
+    if (current && current.hidden) {
+      select.value = '';
     }
   });
 
@@ -479,13 +528,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const payload = new FormData();
     payload.append('operation', 'approve');
     payload.append('json', json);
-    const resp = await axios.post(apptApi, payload);
-    if (resp.data.success) {
-      approveModal?.hide();
-      await loadAll();
-      Swal.fire('Approved', 'Appointment approved', 'success');
-    } else {
-      Swal.fire('Error', resp.data.message || 'Approval failed', 'error');
+    try {
+      const resp = await axios.post(apptApi, payload);
+      if (resp.data?.success) {
+        approveModal?.hide();
+        await loadAll();
+        Swal.fire('Approved', 'Appointment approved', 'success');
+      } else {
+        const msg = resp.data?.message || 'Approval failed';
+        Swal.fire('Error', msg, 'error');
+      }
+    } catch (error) {
+      console.error('Approval failed', error?.response?.data || error);
+      const msg = error?.response?.data?.message || error?.message || 'Approval failed';
+      Swal.fire('Error', msg, 'error');
     }
   });
 
