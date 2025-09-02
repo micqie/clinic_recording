@@ -4,6 +4,109 @@ header("Access-Control-Allow-Origin: *");
 
 class Payments
 {
+    private function getStatusId($conn, $statusName, $typeName)
+    {
+        $stmt = $conn->prepare("SELECT s.status_id FROM tbl_status s JOIN tbl_status_type t ON s.status_type_id = t.status_type_id WHERE s.status_name = :name AND t.status_type_name = :type LIMIT 1");
+        $stmt->bindParam(":name", $statusName);
+        $stmt->bindParam(":type", $typeName);
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? intval($row['status_id']) : null;
+    }
+
+    // Ensure there is an Unpaid payment per appointment for any open charges (prescriptions + lab requests).
+    // Returns a summary of created/updated pending payments for the patient.
+    function ensurePendingForPatient($patient_id)
+    {
+        include "connection.php";
+        if (empty($patient_id)) {
+            return ['success' => false, 'message' => 'patient_id is required'];
+        }
+        try {
+            $unpaidId = $this->getStatusId($conn, 'Unpaid', 'Payment');
+            if (!$unpaidId) { return ['success' => false, 'message' => 'Unpaid status missing']; }
+
+            // Pull appointments (Confirmed/Completed) for the patient with any billable items
+            $sql = "
+                SELECT a.appointment_id, a.appointment_date
+                FROM tbl_appointments a
+                JOIN tbl_status st ON a.status_id = st.status_id
+                WHERE a.patient_id = :pid
+                  AND st.status_name IN ('Confirmed','Completed')
+                  AND (
+                      EXISTS (
+                          SELECT 1 FROM tbl_prescriptions pr WHERE pr.appointment_id = a.appointment_id
+                      ) OR EXISTS (
+                          SELECT 1 FROM tbl_lab_requests lr WHERE lr.appointment_id = a.appointment_id
+                      )
+                  )
+                ORDER BY a.appointment_date DESC, a.appointment_id DESC";
+            $a = $conn->prepare($sql);
+            $a->bindParam(":pid", $patient_id);
+            $a->execute();
+            $appointments = $a->fetchAll(PDO::FETCH_ASSOC);
+
+            $created = 0; $updated = 0; $items = [];
+
+            foreach ($appointments as $row) {
+                $aid = $row['appointment_id'];
+                // Prescriptions subtotal
+                $pstmt = $conn->prepare("SELECT COALESCE(SUM(m.price * COALESCE(p.quantity,1)),0)
+                                         FROM tbl_prescriptions p JOIN tbl_medicines m ON p.medicine_id = m.medicine_id
+                                         WHERE p.appointment_id = :aid");
+                $pstmt->bindParam(":aid", $aid);
+                $pstmt->execute();
+                $prescSubtotal = (float)$pstmt->fetchColumn();
+
+                // Lab requests subtotal
+                $lstmt = $conn->prepare("SELECT COALESCE(SUM(tt.price),0)
+                                         FROM tbl_lab_requests lr
+                                         LEFT JOIN tbl_lab_test_types tt ON lr.lab_test_type_id = tt.lab_test_type_id
+                                         WHERE lr.appointment_id = :aid");
+                $lstmt->bindParam(":aid", $aid);
+                $lstmt->execute();
+                $labSubtotal = (float)$lstmt->fetchColumn();
+
+                $total = $prescSubtotal + $labSubtotal; // consultation fee optional; 0 by default
+                if ($total <= 0) { continue; }
+
+                // Check latest payment for this appointment
+                $find = $conn->prepare("SELECT payment_id, amount, status_id FROM tbl_payments WHERE appointment_id = :aid AND patient_id = :pid ORDER BY payment_id DESC LIMIT 1");
+                $find->bindParam(":aid", $aid);
+                $find->bindParam(":pid", $patient_id);
+                $find->execute();
+                $existing = $find->fetch(PDO::FETCH_ASSOC);
+
+                if ($existing) {
+                    // If paid, skip; if unpaid and amount differs, update
+                    if ((int)$existing['status_id'] === $unpaidId) {
+                        if ((float)$existing['amount'] !== $total) {
+                            $upd = $conn->prepare("UPDATE tbl_payments SET amount = :amt WHERE payment_id = :pid");
+                            $upd->bindParam(":amt", $total);
+                            $upd->bindParam(":pid", $existing['payment_id']);
+                            $upd->execute();
+                            $updated++;
+                            $items[] = ['appointment_id' => $aid, 'payment_id' => $existing['payment_id'], 'action' => 'updated', 'amount' => $total];
+                        }
+                    }
+                } else {
+                    // Insert new Unpaid payment
+                    $ins = $conn->prepare("INSERT INTO tbl_payments (appointment_id, patient_id, amount, payment_method, status_id) VALUES (:aid, :pid, :amt, 'Walk-in', :sid)");
+                    $ins->bindParam(":aid", $aid);
+                    $ins->bindParam(":pid", $patient_id);
+                    $ins->bindParam(":amt", $total);
+                    $ins->bindParam(":sid", $unpaidId);
+                    $ins->execute();
+                    $created++;
+                    $items[] = ['appointment_id' => $aid, 'payment_id' => $conn->lastInsertId(), 'action' => 'created', 'amount' => $total];
+                }
+            }
+
+            return ['success' => true, 'created' => $created, 'updated' => $updated, 'items' => $items];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to ensure pending payments: ' . $e->getMessage()];
+        }
+    }
     function getAllPayments()
     {
         include "connection.php";
@@ -45,9 +148,13 @@ class Payments
                 SELECT p.*,
                        a.appointment_date,
                        a.queue_number,
-                       st.status_name
+                       st.status_name,
+                       d.doctor_id,
+                       du.name AS doctor_name
                 FROM tbl_payments p
                 JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
+                LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
                 LEFT JOIN tbl_status st ON p.status_id = st.status_id
                 WHERE p.patient_id = :patient_id
                 ORDER BY p.payment_date DESC
@@ -214,6 +321,63 @@ class Payments
         }
     }
 
+    // Mark an appointment's latest Unpaid payment as Paid (patient flow from Payments page)
+    function markAppointmentPaid($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+        $appointment_id = $data['appointment_id'] ?? null;
+        $patient_id = $data['patient_id'] ?? null;
+        $method_name = $data['method_name'] ?? 'Online';
+        $payer_account = $data['payer_account'] ?? null;
+        $payment_id_input = $data['payment_id'] ?? null;
+        if ((!$appointment_id && !$payment_id_input) || !$patient_id) {
+            return ['success' => false, 'message' => 'appointment_id or payment_id and patient_id are required.'];
+        }
+        try {
+            $paidId = $this->getStatusId($conn, 'Paid', 'Payment');
+            $unpaidId = $this->getStatusId($conn, 'Unpaid', 'Payment');
+            if (!$paidId || !$unpaidId) { return ['success' => false, 'message' => 'Payment statuses not configured']; }
+
+            if ($payment_id_input) {
+                $find = $conn->prepare("SELECT payment_id, amount FROM tbl_payments WHERE payment_id = :id AND patient_id = :pid AND status_id = :sid LIMIT 1");
+                $find->bindParam(":id", $payment_id_input);
+                $find->bindParam(":pid", $patient_id);
+                $find->bindParam(":sid", $unpaidId);
+                $find->execute();
+                $row = $find->fetch(PDO::FETCH_ASSOC);
+            } else {
+                // Find latest Unpaid for appointment/patient
+                $find = $conn->prepare("SELECT payment_id, amount FROM tbl_payments WHERE appointment_id = :aid AND patient_id = :pid AND status_id = :sid ORDER BY payment_id DESC LIMIT 1");
+                $find->bindParam(":aid", $appointment_id);
+                $find->bindParam(":pid", $patient_id);
+                $find->bindParam(":sid", $unpaidId);
+                $find->execute();
+                $row = $find->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$row) { return ['success' => false, 'message' => 'No pending payment found']; }
+
+            $upd = $conn->prepare("UPDATE tbl_payments SET status_id = :paid, payment_method = :m, payment_date = NOW() WHERE payment_id = :id");
+            $upd->bindParam(":paid", $paidId);
+            $upd->bindParam(":m", $method_name);
+            $upd->bindParam(":id", $row['payment_id']);
+            $upd->execute();
+
+            if ($payer_account) {
+                $conn->prepare("CREATE TABLE IF NOT EXISTS tbl_payment_references (ref_id INT AUTO_INCREMENT PRIMARY KEY, payment_id INT NOT NULL, method_name VARCHAR(100) NOT NULL, payer_account VARCHAR(100) NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, INDEX(payment_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4")->execute();
+                $log = $conn->prepare("INSERT INTO tbl_payment_references (payment_id, method_name, payer_account) VALUES (:pid, :m, :acct)");
+                $log->bindParam(":pid", $row['payment_id']);
+                $log->bindParam(":m", $method_name);
+                $log->bindParam(":acct", $payer_account);
+                $log->execute();
+            }
+
+            return ['success' => true, 'message' => 'Payment marked as Paid', 'payment_id' => $row['payment_id']];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to mark paid: ' . $e->getMessage()];
+        }
+    }
+
     // Patient online payment for a consultation: computes prescription subtotal and marks Paid
     function processOnlineConsultationPayment($json)
     {
@@ -376,6 +540,9 @@ switch ($operation) {
     case "getByPatient":
         echo json_encode($payments->getPaymentsByPatient($patient_id));
         break;
+    case "ensurePendingForPatient":
+        echo json_encode($payments->ensurePendingForPatient($patient_id));
+        break;
     case "getByAppointment":
         echo json_encode($payments->getPaymentsByAppointment($appointment_id));
         break;
@@ -393,6 +560,9 @@ switch ($operation) {
         break;
     case "processOnlineConsultation":
         echo json_encode($payments->processOnlineConsultationPayment($json));
+        break;
+    case "markAppointmentPaid":
+        echo json_encode($payments->markAppointmentPaid($json));
         break;
     case "getStatistics":
         echo json_encode($payments->getPaymentStatistics());

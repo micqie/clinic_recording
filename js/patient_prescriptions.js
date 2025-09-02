@@ -60,19 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ${consultation.diagnosis}
                             </span>
                         </td>
-                        <td>
-                            <span class="fw-bold text-success">₱${formatConsultationTotal(consultation)}</span>
-                        </td>
+                        <td>-</td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
                                 <button class="btn btn-outline-primary" onclick="viewPrescriptionDetails(${consultation.consultation_id})" title="View Details">
                                     <i class="fas fa-eye"></i>
-                                </button>
-                                <button class="btn btn-outline-success" onclick="viewReceipt(${consultation.consultation_id})" title="View Receipt">
-                                    <i class="fas fa-receipt"></i>
-                                </button>
-                                <button class="btn btn-primary" onclick="payNow(${consultation.consultation_id})" title="Pay Online">
-                                    <i class="fas fa-credit-card"></i>
                                 </button>
                             </div>
                         </td>

@@ -12,6 +12,47 @@ class PrescriptionReceipt
         $this->conn = $conn;
     }
 
+    // Helper to render minimal HTML for payments page (optional)
+    private function render_receipt_html($receipt)
+    {
+        $rowsMeds = '';
+        foreach (($receipt['prescriptions'] ?? []) as $p) {
+            $rowsMeds .= '<tr>'
+                . '<td><strong>' . htmlspecialchars($p['generic_name']) . '</strong></td>'
+                . '<td>' . intval($p['quantity']) . ' ' . htmlspecialchars($p['packaging_name'] ?? 'unit') . '</td>'
+                . '<td>₱' . number_format((float)($p['unit_price'] ?? 0), 2) . '</td>'
+                . '<td class="fw-bold">₱' . number_format((float)($p['total_cost'] ?? 0), 2) . '</td>'
+                . '</tr>';
+        }
+        $rowsLabs = '';
+        foreach (($receipt['lab_requests'] ?? []) as $l) {
+            $rowsLabs .= '<tr>'
+                . '<td><strong>' . htmlspecialchars($l['type_name']) . '</strong></td>'
+                . '<td>' . htmlspecialchars($l['description'] ?? '') . '</td>'
+                . '<td>' . htmlspecialchars($l['request_text'] ?? '') . '</td>'
+                . '<td class="fw-bold">₱' . number_format((float)($l['price'] ?? 0), 2) . '</td>'
+                . '</tr>';
+        }
+        $html = '<div class="receipt-container">'
+            . '<div class="text-center mb-3"><h5 class="mb-1">Prescription Receipt</h5>'
+            . '<span class="badge bg-secondary">' . htmlspecialchars($receipt['receipt_number']) . '</span></div>'
+            . '<div class="row mb-3"><div class="col-6">'
+            . '<div><strong>Patient:</strong> ' . htmlspecialchars($receipt['patient_name']) . '</div>'
+            . '<div><strong>Date:</strong> ' . htmlspecialchars($receipt['appointment_date'] ?? $receipt['consultation_date']) . '</div>'
+            . '</div><div class="col-6">'
+            . '<div><strong>Doctor:</strong> ' . htmlspecialchars($receipt['doctor_name']) . '</div>'
+            . '<div><strong>Specialization:</strong> ' . htmlspecialchars($receipt['specialization'] ?? 'General') . '</div>'
+            . '</div></div>';
+        if ($rowsMeds) {
+            $html .= '<h6 class="text-primary">Medicines</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Medicine</th><th>Qty</th><th>Unit</th><th>Total</th></tr></thead><tbody>' . $rowsMeds . '</tbody></table></div>';
+        }
+        if ($rowsLabs) {
+            $html .= '<h6 class="text-info">Lab Tests</h6><div class="table-responsive"><table class="table table-sm table-bordered"><thead><tr><th>Test</th><th>Description</th><th>Notes</th><th>Price</th></tr></thead><tbody>' . $rowsLabs . '</tbody></table></div>';
+        }
+        $html .= '<div class="text-end mt-2"><strong>Total: ₱' . number_format((float)($receipt['total_amount'] ?? 0), 2) . '</strong></div></div>';
+        return $html;
+    }
+
     // Get prescription receipt for a specific consultation
     public function get_prescription_receipt($consultationId, $patientId)
     {
@@ -185,7 +226,8 @@ class PrescriptionReceipt
 
             echo json_encode([
                 "success" => true,
-                "receipt" => $receipt
+                "receipt" => $receipt,
+                "html" => $this->render_receipt_html($receipt)
             ]);
 
         } catch (Exception $e) {
@@ -193,6 +235,25 @@ class PrescriptionReceipt
                 "success" => false,
                 "message" => $e->getMessage()
             ]);
+        }
+    }
+
+    // Get receipt by appointment id (latest consultation for that appointment)
+    public function get_receipt_by_appointment($appointmentId)
+    {
+        if (empty($appointmentId)) {
+            echo json_encode(["success" => false, "message" => "appointment_id is required."]); return;
+        }
+        try {
+            $stmt = $this->conn->prepare("SELECT consultation_id, patient_id FROM tbl_consultations WHERE appointment_id = :aid ORDER BY consultation_id DESC LIMIT 1");
+            $stmt->bindParam(":aid", $appointmentId);
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) { echo json_encode(["success" => false, "message" => "No consultation found for appointment."]); return; }
+            // Reuse existing method
+            $this->get_prescription_receipt($row['consultation_id'], $row['patient_id']);
+        } catch (Exception $e) {
+            echo json_encode(["success" => false, "message" => $e->getMessage()]);
         }
     }
 
@@ -256,6 +317,10 @@ switch ($operation) {
             break;
         }
         $svc->get_patient_receipts($patientId);
+        break;
+    case 'get_receipt_by_appointment':
+        $appointmentId = $_GET['appointment_id'] ?? '';
+        $svc->get_receipt_by_appointment($appointmentId);
         break;
     default:
         echo json_encode(["success" => false, "message" => "Invalid operation"]);
