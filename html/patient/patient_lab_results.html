@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../css/dashboard.css">
   <link rel="stylesheet" href="../../css/table.css">
+  <link rel="stylesheet" href="../../css/patient_mobile.css">
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="../../js/patient_lab_results.js" defer></script>
@@ -26,8 +27,8 @@
       </a>
 
       <div class="d-flex align-items-center">
-        <!-- Mobile Toggle Button -->
-        <button class="btn btn-primary d-lg-none me-2" type="button" id="sidebarToggle">
+        <!-- Sidebar Toggle Button (all viewports) -->
+        <button class="btn btn-primary me-2" type="button" id="sidebarToggle">
           <i class="fas fa-bars"></i>
         </button>
 
@@ -180,6 +181,16 @@
           sidebar.classList.remove('show');
         }
       });
+
+      // Keep body class in sync for desktop content shift
+      const observer = new MutationObserver(() => {
+        if (sidebar.classList.contains('show')) {
+          document.body.classList.add('sidebar-open');
+        } else {
+          document.body.classList.remove('sidebar-open');
+        }
+      });
+      observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
     });
   </script>
 </body>

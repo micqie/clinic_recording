@@ -13,6 +13,7 @@
   <script src="../../js/auto-logout.js" defer></script>
     <link rel="stylesheet" href="../../css/dashboard.css">
     <link rel="stylesheet" href="../../css/table.css">
+    <link rel="stylesheet" href="../../css/patient_mobile.css">
     <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
     <style>
         .queue-status-card {
@@ -106,8 +107,8 @@
             </a>
 
             <div class="d-flex align-items-center">
-                <!-- Mobile Toggle Button -->
-                <button class="btn btn-primary d-lg-none me-2" type="button" id="sidebarToggle">
+                <!-- Sidebar Toggle Button (all viewports) -->
+                <button class="btn btn-primary me-2" type="button" id="sidebarToggle">
                     <i class="fas fa-bars"></i>
                 </button>
 
@@ -266,9 +267,12 @@
         </main>
     </div>
 
-    <!-- Floating Refresh Button -->
+    <!-- Floating Refresh Button & FAB -->
     <button class="btn btn-primary refresh-btn" onclick="loadQueueStatus()" title="Refresh Queue">
         <i class="fas fa-sync-alt"></i>
+    </button>
+    <button class="btn btn-primary patient-fab d-lg-none" id="patientFab" aria-label="Quick actions">
+        <i class="fas fa-bolt"></i>
     </button>
 
     <!-- Scripts -->
@@ -278,5 +282,42 @@
     <script src="../../js/logout.js"></script>
   <script src="../../js/auto-logout.js" defer></script>
     <script src="../../js/patient_queue_status.js"></script>
+    <script>
+      // Keep body class in sync & FAB behavior
+      document.addEventListener('DOMContentLoaded', () => {
+        const sidebar = document.getElementById('sidebar-wrapper');
+        const toggleBtn = document.getElementById('sidebarToggle');
+
+        // Toggle handler (desktop and mobile)
+        toggleBtn?.addEventListener('click', () => {
+          sidebar.classList.toggle('show');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+          if (window.innerWidth <= 991.98 &&
+              sidebar.classList.contains('show') &&
+              !sidebar.contains(e.target) &&
+              !toggleBtn.contains(e.target)) {
+            sidebar.classList.remove('show');
+          }
+        });
+
+        const observer = new MutationObserver(() => {
+          if (sidebar.classList.contains('show')) {
+            document.body.classList.add('sidebar-open');
+          } else {
+            document.body.classList.remove('sidebar-open');
+          }
+        });
+        observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+
+        const fab = document.getElementById('patientFab');
+        let pressTimer;
+        fab?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        fab?.addEventListener('mousedown', () => { pressTimer = setTimeout(() => sidebar?.classList.toggle('show'), 600); });
+        ['mouseup','mouseleave'].forEach(ev => fab?.addEventListener(ev, () => clearTimeout(pressTimer)));
+      });
+    </script>
 </body>
 </html>

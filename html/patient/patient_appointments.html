@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../css/dashboard.css">
   <link rel="stylesheet" href="../../css/table.css">
+  <link rel="stylesheet" href="../../css/patient_mobile.css">
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="../../js/patient_appointments.js" defer></script>
@@ -26,8 +27,8 @@
       </a>
 
       <div class="d-flex align-items-center">
-        <!-- Mobile Toggle Button -->
-        <button class="btn btn-primary d-lg-none me-2" type="button" id="sidebarToggle">
+        <!-- Sidebar Toggle Button (all viewports) -->
+        <button class="btn btn-primary me-2" type="button" id="sidebarToggle">
           <i class="fas fa-bars"></i>
         </button>
 
@@ -168,12 +169,37 @@
     </main>
   </div>
 
+  <!-- Floating Action Button (mobile): opens request form and toggles sidebar on long-press -->
+  <button class="btn btn-primary patient-fab d-lg-none" id="patientFab" aria-label="New request">
+    <i class="fas fa-plus"></i>
+  </button>
+
+  <!-- Bottom navigation (mobile) -->
+  <nav class="patient-bottom-nav d-lg-none">
+    <ul class="nav justify-content-around align-items-center">
+      <li class="nav-item">
+        <a class="nav-link" href="patient_dashboard.html"><i class="fas fa-home fa-lg d-block"></i><span>Home</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link active" href="patient_appointments.html"><i class="fa-solid fa-calendar-check fa-lg d-block"></i><span>Appts</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="patient_queue_status.html"><i class="fa-solid fa-list-ol fa-lg d-block"></i><span>Queue</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="patient_profile.html"><i class="fas fa-user fa-lg d-block"></i><span>Profile</span></a>
+      </li>
+    </ul>
+  </nav>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     // Sidebar toggle functionality
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('sidebar-wrapper');
       const toggleBtn = document.getElementById('sidebarToggle');
+      const fab = document.getElementById('patientFab');
+      const requestForm = document.getElementById('requestForm');
 
       toggleBtn?.addEventListener('click', () => {
         sidebar.classList.toggle('show');
@@ -188,6 +214,31 @@
           sidebar.classList.remove('show');
         }
       });
+
+      // FAB toggles request form collapse; long-press toggles sidebar
+      let pressTimer;
+      fab?.addEventListener('click', () => {
+        if (!requestForm) return;
+        const bsCollapse = bootstrap.Collapse.getOrCreateInstance(requestForm);
+        bsCollapse.toggle();
+      });
+      fab?.addEventListener('mousedown', () => {
+        pressTimer = setTimeout(() => {
+          sidebar?.classList.toggle('show');
+        }, 600);
+      });
+      fab?.addEventListener('mouseup', () => clearTimeout(pressTimer));
+      fab?.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+
+      // Keep body class in sync for desktop content shift
+      const observer = new MutationObserver(() => {
+        if (sidebar.classList.contains('show')) {
+          document.body.classList.add('sidebar-open');
+        } else {
+          document.body.classList.remove('sidebar-open');
+        }
+      });
+      observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
     });
   </script>
 </body>

@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
+    const storedBase = sessionStorage.getItem('baseAPIUrl') || sessionStorage.getItem('baseApiUrl') || '';
+    const origin = window.location.origin;
+    const candidates = [storedBase, `${origin}/clinic_recording/api`, `${origin}/api`, `${window.location.pathname.includes('/clinic_recording/') ? '/clinic_recording/api' : '/api'}`].filter(Boolean);
+    const baseApiUrl = candidates[0];
     const prescriptionReceiptApi = `${baseApiUrl}/prescription_receipt.php`;
     const integratedConsultationApi = `${baseApiUrl}/integrated_consultation.php`;
     const appointmentsApi = `${baseApiUrl}/appointments.php`;
@@ -13,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let patientId = null;
+    let patientProfile = null;
 
     // Get patient_id from user profile
     async function getPatientId() {
@@ -20,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
             patientId = prof.data?.context?.patient_id || null;
+            patientProfile = prof.data?.context?.patient || null;
             return patientId;
         } catch (e) {
             console.error('Failed to get patient profile:', e);
@@ -59,6 +64,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Load lab tests count (placeholder for now)
             document.getElementById('totalLabTests').textContent = '0';
+
+            // Populate profile summary
+            if (patientProfile) {
+                const nameEl = document.getElementById('dashboardName');
+                const emailEl = document.getElementById('dashboardEmail');
+                const contactEl = document.getElementById('dashboardContact');
+                const sinceEl = document.getElementById('dashboardMemberSince');
+                if (nameEl) nameEl.textContent = user.name || '-';
+                if (emailEl) emailEl.textContent = user.email || '-';
+                if (contactEl) contactEl.textContent = patientProfile.contact_num || '-';
+                if (sinceEl) sinceEl.textContent = new Date(patientProfile.created_at || user.created_at || Date.now()).toLocaleDateString();
+            }
 
         } catch (e) {
             console.error('Failed to load dashboard stats:', e);

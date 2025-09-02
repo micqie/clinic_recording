@@ -1,0 +1,75 @@
+/* Patient mobile-first enhancements while keeping brand colors */
+
+/* Floating Action Button (FAB) */
+.patient-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 84px; /* leave space for bottom nav */
+  z-index: 1040;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bottom navigation bar (mobile) */
+.patient-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1030;
+  background: #ffffff;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+.patient-bottom-nav .nav-item {
+  flex: 1 1 0;
+}
+.patient-bottom-nav .nav-link {
+  padding: 10px 6px;
+  font-size: 12px;
+  color: #6c757d;
+}
+.patient-bottom-nav .nav-link.active,
+.patient-bottom-nav .nav-link:focus,
+.patient-bottom-nav .nav-link:hover {
+  color: var(--bs-primary);
+}
+
+/* Content bottom padding so it doesn't hide behind bottom nav on mobile */
+#page-content-wrapper {
+  padding-bottom: 0;
+}
+@media (max-width: 991.98px) {
+  #page-content-wrapper {
+    padding-bottom: 84px;
+  }
+}
+
+/* Sidebar offcanvas across all viewports for patient pages */
+#sidebar-wrapper {
+  width: 260px;
+  max-width: 80vw;
+  transform: translateX(-260px);
+  transition: transform .25s ease-in-out;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+}
+#sidebar-wrapper.show {
+  transform: translateX(0);
+  box-shadow: 2px 0 12px rgba(0,0,0,.08);
+}
+
+/* Shift content when sidebar is open on large screens */
+@media (min-width: 992px) {
+  body.sidebar-open #page-content-wrapper {
+    margin-left: 260px;
+  }
+}
+
+/* Cards subtle lift */
+.card.border-0.shadow-sm:hover {
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
+}

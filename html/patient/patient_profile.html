@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../css/dashboard.css">
     <link rel="stylesheet" href="../../css/table.css">
+    <link rel="stylesheet" href="../../css/patient_mobile.css">
     <script src="../../js/logout.js" defer></script>
   <script src="../../js/auto-logout.js" defer></script>
     <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
@@ -23,7 +24,13 @@
                 <span class="fs-4 fw-bold text-primary">MCSTUFFIN's</span>
             </a>
 
-            <div class="dropdown ms-auto">
+            <div class="d-flex align-items-center ms-auto">
+                <!-- Sidebar Toggle Button (all viewports) -->
+                <button class="btn btn-primary me-2" type="button" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+
+                <div class="dropdown">
                 <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
                     <span class="fw-semibold">Patient</span>
@@ -35,6 +42,7 @@
                         </button>
                     </li>
                 </ul>
+                </div>
             </div>
         </div>
     </nav>
@@ -66,9 +74,6 @@
 
         <!-- Main Content -->
         <main id="page-content-wrapper" class="pt-5" tabindex="-1">
-            <button class="btn btn-primary d-lg-none offcanvas-toggle-btn" type="button" aria-label="Toggle menu">
-                <i class="fas fa-bars"></i>
-            </button>
 
             <div class="content-container mt-5 p-4">
                 <!-- Header Section -->
@@ -163,6 +168,29 @@
             </div>
         </main>
     </div>
+
+    <!-- Floating Action Button (mobile): quick scroll to header; long-press toggles sidebar -->
+    <button class="btn btn-primary patient-fab d-lg-none" id="patientFab" aria-label="Quick actions">
+        <i class="fas fa-bolt"></i>
+    </button>
+
+    <!-- Bottom navigation (mobile) -->
+    <nav class="patient-bottom-nav d-lg-none">
+        <ul class="nav justify-content-around align-items-center">
+            <li class="nav-item">
+                <a class="nav-link" href="patient_dashboard.html"><i class="fas fa-home fa-lg d-block"></i><span>Home</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="patient_appointments.html"><i class="fa-solid fa-calendar-check fa-lg d-block"></i><span>Appts</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="patient_queue_status.html"><i class="fa-solid fa-list-ol fa-lg d-block"></i><span>Queue</span></a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="patient_profile.html"><i class="fas fa-user fa-lg d-block"></i><span>Profile</span></a>
+            </li>
+        </ul>
+    </nav>
 
     <!-- Edit Profile Modal -->
     <div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModalLabel" aria-hidden="true">
@@ -266,7 +294,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const sidebar = document.getElementById('sidebar-wrapper');
-            const toggleBtn = document.querySelector('.offcanvas-toggle-btn');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const fab = document.getElementById('patientFab');
 
             toggleBtn?.addEventListener('click', () => {
                 sidebar.classList.toggle('show');
@@ -282,6 +311,22 @@
                     sidebar.classList.remove('show');
                 }
             });
+
+            // body shift sync
+            const observer = new MutationObserver(() => {
+                if (sidebar.classList.contains('show')) {
+                    document.body.classList.add('sidebar-open');
+                } else {
+                    document.body.classList.remove('sidebar-open');
+                }
+            });
+            observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+
+            // FAB quick scroll and long-press toggle
+            let pressTimer;
+            fab?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+            fab?.addEventListener('mousedown', () => { pressTimer = setTimeout(() => sidebar?.classList.toggle('show'), 600); });
+            ['mouseup','mouseleave'].forEach(ev => fab?.addEventListener(ev, () => clearTimeout(pressTimer)));
         });
     </script>
 </body>

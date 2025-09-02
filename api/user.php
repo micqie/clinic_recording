@@ -306,7 +306,7 @@ function registerPatient($json)
         if (empty($user_id)) {
             return ['success' => false, 'message' => 'user_id is required.'];
         }
-        $stmt = $conn->prepare("SELECT u.user_id, u.name, u.email, r.role_name FROM tbl_users u JOIN tbl_roles r ON u.role_id = r.role_id WHERE u.user_id = :uid LIMIT 1");
+        $stmt = $conn->prepare("SELECT u.user_id, u.name, u.email, r.role_name, u.created_at FROM tbl_users u JOIN tbl_roles r ON u.role_id = r.role_id WHERE u.user_id = :uid LIMIT 1");
         $stmt->bindParam(":uid", $user_id);
         $stmt->execute();
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -316,10 +316,14 @@ function registerPatient($json)
         $role = $user['role_name'];
         $ctx = [];
         if ($role === 'patient') {
-            $q = $conn->prepare("SELECT patient_id FROM tbl_patients WHERE user_id = :uid LIMIT 1");
+            $q = $conn->prepare("SELECT patient_id, sex, contact_num, birthdate, address, created_at FROM tbl_patients WHERE user_id = :uid LIMIT 1");
             $q->bindParam(":uid", $user_id);
             $q->execute();
-            $ctx['patient_id'] = $q->fetchColumn();
+            $patient = $q->fetch(PDO::FETCH_ASSOC);
+            if ($patient) {
+                $ctx['patient_id'] = $patient['patient_id'];
+                $ctx['patient'] = $patient;
+            }
         } else if ($role === 'doctor') {
             $q = $conn->prepare("SELECT doctor_id FROM tbl_doctors WHERE user_id = :uid LIMIT 1");
             $q->bindParam(":uid", $user_id);

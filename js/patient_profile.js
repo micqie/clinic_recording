@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
+    const storedBase = sessionStorage.getItem('baseAPIUrl') || sessionStorage.getItem('baseApiUrl') || '';
+    const origin = window.location.origin;
+    const candidates = [storedBase, `${origin}/clinic_recording/api`, `${origin}/api`, `${window.location.pathname.includes('/clinic_recording/') ? '/clinic_recording/api' : '/api'}`].filter(Boolean);
+    const baseApiUrl = candidates[0];
 
     // Check if user is logged in
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');

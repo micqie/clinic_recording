@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../css/dashboard.css">
   <link rel="stylesheet" href="../../css/table.css">
+  <link rel="stylesheet" href="../../css/patient_mobile.css">
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -37,8 +38,8 @@
       </a>
 
       <div class="d-flex align-items-center">
-        <!-- Mobile Toggle Button -->
-        <button class="btn btn-primary d-lg-none me-2" type="button" id="sidebarToggle">
+        <!-- Sidebar Toggle Button (all viewports) -->
+        <button class="btn btn-primary me-2" type="button" id="sidebarToggle">
           <i class="fas fa-bars"></i>
         </button>
 
@@ -103,6 +104,34 @@
             </a>
             <a href="patient_appointments.html" class="btn btn-primary">
               <i class="fas fa-calendar-plus me-2"></i>Book Appointment
+            </a>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row g-3 mb-4">
+          <div class="col-6">
+            <a href="patient_appointments.html" class="btn btn-primary w-100 py-3">
+              <i class="fas fa-calendar-plus d-block mb-1"></i>
+              Book
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="patient_queue_status.html" class="btn btn-outline-primary w-100 py-3">
+              <i class="fas fa-list-ol d-block mb-1"></i>
+              Queue
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="patient_prescriptions.html" class="btn btn-outline-primary w-100 py-3">
+              <i class="fas fa-pills d-block mb-1"></i>
+              Rx
+            </a>
+          </div>
+          <div class="col-6">
+            <a href="patient_profile.html" class="btn btn-outline-primary w-100 py-3">
+              <i class="fas fa-user d-block mb-1"></i>
+              Profile
             </a>
           </div>
         </div>
@@ -321,12 +350,36 @@
     </main>
   </div>
 
+  <!-- Floating Action Button (mobile): quick sheet for actions -->
+  <button class="btn btn-primary patient-fab d-lg-none" id="patientFab" aria-label="Quick actions">
+    <i class="fas fa-bolt"></i>
+  </button>
+
+  <!-- Bottom navigation (mobile) -->
+  <nav class="patient-bottom-nav d-lg-none">
+    <ul class="nav justify-content-around align-items-center">
+      <li class="nav-item">
+        <a class="nav-link active" href="patient_dashboard.html"><i class="fas fa-home fa-lg d-block"></i><span>Home</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="patient_appointments.html"><i class="fa-solid fa-calendar-check fa-lg d-block"></i><span>Appts</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="patient_queue_status.html"><i class="fa-solid fa-list-ol fa-lg d-block"></i><span>Queue</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="patient_profile.html"><i class="fas fa-user fa-lg d-block"></i><span>Profile</span></a>
+      </li>
+    </ul>
+  </nav>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     // Sidebar toggle functionality
     document.addEventListener('DOMContentLoaded', () => {
       const sidebar = document.getElementById('sidebar-wrapper');
       const toggleBtn = document.getElementById('sidebarToggle');
+      const fab = document.getElementById('patientFab');
 
       toggleBtn?.addEventListener('click', () => {
         sidebar.classList.toggle('show');
@@ -341,6 +394,27 @@
           sidebar.classList.remove('show');
         }
       });
+
+      // FAB toggles sidebar on long-press; on tap opens quick actions (scroll to quick section)
+      let pressTimer;
+      fab?.addEventListener('click', () => {
+        const quick = document.querySelector('.d-lg-none');
+        if (quick) quick.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      fab?.addEventListener('mousedown', () => {
+        pressTimer = setTimeout(() => sidebar?.classList.toggle('show'), 600);
+      });
+      ['mouseup','mouseleave'].forEach(ev => fab?.addEventListener(ev, () => clearTimeout(pressTimer)));
+
+      // Keep body class in sync for desktop content shift
+      const observer = new MutationObserver(() => {
+        if (sidebar.classList.contains('show')) {
+          document.body.classList.add('sidebar-open');
+        } else {
+          document.body.classList.remove('sidebar-open');
+        }
+      });
+      observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
     });
   </script>
 </body>
