@@ -88,6 +88,201 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Load appointment details and populate modal
+  async function loadAppointmentDetails(appointmentId) {
+    try {
+      const resp = await axios.get(`${apptApi}?operation=get_appointment_details&appointment_id=${appointmentId}`);
+      if (resp.data.success) {
+        const appointment = resp.data.data;
+
+        // Populate appointment details
+        document.getElementById('approve_patient_name').textContent = appointment.patient_name || '-';
+        document.getElementById('approve_appointment_date').textContent = appointment.appointment_date || '-';
+        document.getElementById('approve_appointment_reason').textContent = appointment.reason_name || '-';
+
+        // Handle notes display - check if it contains "Reason:" prefix (from Other selection)
+        let notesDisplay = appointment.appointment_notes || 'No additional notes';
+        if (notesDisplay.startsWith('Reason:')) {
+          // Format the display to show reason and notes separately
+          const lines = notesDisplay.split('\n\n');
+          const reasonText = lines[0].replace('Reason: ', '');
+          const additionalNotes = lines.slice(1).join('\n\n');
+
+          notesDisplay = `Custom Reason: ${reasonText}`;
+          if (additionalNotes.trim()) {
+            notesDisplay += `\n\nAdditional Notes: ${additionalNotes}`;
+          }
+        }
+
+        document.getElementById('approve_appointment_notes').textContent = notesDisplay;
+
+        // Load specialization-based doctors
+        await loadDoctorsBySpecialization(appointment.appointment_reason_id, appointment.appointment_date);
+      }
+    } catch (error) {
+      console.error('Failed to load appointment details:', error);
+      // Fallback to regular doctor loading
+      loadDoctors();
+    }
+  }
+
+  // Load doctors by specialization for appointment reason
+  async function loadDoctorsBySpecialization(reasonId, date) {
+    try {
+      const resp = await axios.get(`${apptApi}?operation=get_doctors_by_specialization&reason_id=${reasonId}&date=${date}`);
+      const select = document.getElementById('approve_doctor_id');
+
+      if (resp.data.success) {
+        const doctors = resp.data.data || [];
+        const reason = resp.data.reason;
+
+        // Clear previous options
+        select.innerHTML = '<option value="">Select doctor...</option>';
+
+        if (doctors.length > 0) {
+          // Show recommendations
+          showDoctorRecommendations(doctors, reason);
+
+          // Add doctor options
+          doctors.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.doctor_id;
+            opt.textContent = `${d.doctor_name} (${d.specialization_name || 'No specialization'}) - ${d.available_slots} slots available`;
+            select.appendChild(opt);
+          });
+        } else {
+          // Show alternative options
+          showAlternativeOptions(reason);
+          // Load general doctors as fallback
+          loadDoctors();
+        }
+      } else {
+        // Fallback to regular doctor loading
+        loadDoctors();
+      }
+    } catch (error) {
+      console.error('Failed to load doctors by specialization:', error);
+      loadDoctors();
+    }
+  }
+
+  // Show doctor recommendations
+  function showDoctorRecommendations(doctors, reason) {
+    const recommendationsDiv = document.getElementById('doctorRecommendations');
+    const recommendationsList = document.getElementById('recommendationsList');
+    const alternativeDiv = document.getElementById('alternativeOptions');
+
+    // Hide alternative options
+    alternativeDiv.style.display = 'none';
+
+    // Show recommendations
+    recommendationsDiv.style.display = 'block';
+
+    let recommendationsHtml = `
+      <div class="card-body p-3">
+        <p class="mb-2"><strong>Based on reason: ${reason.reason_name}</strong></p>
+        <p class="mb-2 small text-muted">${reason.description || ''}</p>
+        <div class="row">
+    `;
+
+    doctors.forEach(doctor => {
+      const priorityClass = doctor.priority === 1 ? 'text-success' : doctor.priority === 2 ? 'text-warning' : 'text-info';
+      const priorityText = doctor.priority === 1 ? 'Specialist' : doctor.priority === 2 ? 'Internal Medicine' : 'General Medicine';
+
+      recommendationsHtml += `
+        <div class="col-md-6 mb-2">
+          <div class="d-flex align-items-center">
+            <i class="fas fa-user-md me-2 ${priorityClass}"></i>
+            <div>
+              <div class="fw-semibold">${doctor.doctor_name}</div>
+              <div class="small text-muted">${doctor.specialization_name || 'No specialization'}</div>
+              <div class="small ${priorityClass}">${priorityText} • ${doctor.available_slots} slots available</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    recommendationsHtml += '</div></div>';
+    recommendationsList.innerHTML = recommendationsHtml;
+  }
+
+  // Show alternative options when no specialists are available
+  function showAlternativeOptions(reason) {
+    const recommendationsDiv = document.getElementById('doctorRecommendations');
+    const alternativeDiv = document.getElementById('alternativeOptions');
+    const alternativeMessage = document.getElementById('alternativeMessage');
+
+    // Hide recommendations
+    recommendationsDiv.style.display = 'none';
+
+    // Show alternative options
+    alternativeDiv.style.display = 'block';
+
+    alternativeMessage.innerHTML = `
+      <p class="mb-2"><strong>No specialists available for: ${reason.reason_name}</strong></p>
+      <p class="mb-2 small text-muted">${reason.description || ''}</p>
+      <p class="mb-0 small">You can assign to a general medicine doctor or reschedule for when a specialist is available.</p>
+    `;
+
+    // Add event listeners for alternative buttons
+    document.getElementById('showGeneralDoctors').onclick = () => {
+      loadGeneralDoctors();
+    };
+
+    document.getElementById('rescheduleOption').onclick = () => {
+      showRescheduleMessage(reason);
+    };
+  }
+
+  // Load general medicine doctors
+  async function loadGeneralDoctors() {
+    try {
+      const resp = await axios.get(`${apptApi}?operation=list_doctors`);
+      const select = document.getElementById('approve_doctor_id');
+
+      select.innerHTML = '<option value="">Select general medicine doctor...</option>';
+
+      (resp.data.data || []).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.doctor_id;
+        opt.textContent = `${d.doctor_name} (${d.specialization_name || 'No specialization'})`;
+        select.appendChild(opt);
+      });
+
+      // Hide alternative options
+      document.getElementById('alternativeOptions').style.display = 'none';
+
+    } catch (error) {
+      console.error('Failed to load general doctors:', error);
+    }
+  }
+
+  // Show reschedule message
+  function showRescheduleMessage(reason) {
+    Swal.fire({
+      title: 'Reschedule Appointment',
+      html: `
+        <div class="text-center">
+          <i class="fas fa-calendar-plus text-info fa-3x mb-3"></i>
+          <p><strong>${reason.reason_name}</strong> requires specialized care.</p>
+          <p class="text-muted">Please contact the patient to reschedule when a specialist is available.</p>
+          <p class="small text-muted">You can also assign to a general medicine doctor for initial assessment.</p>
+        </div>
+      `,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'Assign to General Doctor',
+      cancelButtonText: 'Close',
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#6c757d'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        loadGeneralDoctors();
+      }
+    });
+  }
+
   async function loadAppointments() {
     const date = filterDate.value || '';
     const resp = await axios.get(`${apptApi}?operation=get_doctor_day_overview&date=${encodeURIComponent(date)}`);
@@ -255,7 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const approveId = approveBtn.getAttribute('data-approve');
       document.getElementById('approve_appointment_id').value = approveId;
       document.getElementById('approve_queue_number').value = '';
-      loadDoctors().then(() => approveModal?.show());
+      loadAppointmentDetails(approveId).then(() => approveModal?.show());
     }
   });
 

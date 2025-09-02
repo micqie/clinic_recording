@@ -78,8 +78,8 @@ class Appointments
     // Patient: request a new appointment for a date (no time)
     public function request($data)
     {
-        if (empty($data['patient_id']) || empty($data['appointment_date'])) {
-            echo json_encode(["success" => false, "message" => "patient_id and appointment_date are required."]); return;
+        if (empty($data['patient_id']) || empty($data['appointment_date']) || empty($data['appointment_reason_id'])) {
+            echo json_encode(["success" => false, "message" => "patient_id, appointment_date, and appointment_reason_id are required."]); return;
         }
         $date = $data['appointment_date'];
 
@@ -103,10 +103,18 @@ class Appointments
         $pendingId = $this->getAppointmentStatusId('Pending');
         if (!$pendingId) { echo json_encode(["success" => false, "message" => "Pending status not configured."]); return; }
 
-        $stmt = $this->conn->prepare("INSERT INTO tbl_appointments (patient_id, appointment_date, status_id) VALUES (:pid, :d, :sid)");
+        // Combine other reason text with notes if "Other" is selected
+        $combinedNotes = $data['appointment_notes'] ?? '';
+        if (!empty($data['other_reason_text'])) {
+            $combinedNotes = "Reason: " . $data['other_reason_text'] . "\n\n" . $combinedNotes;
+        }
+
+        $stmt = $this->conn->prepare("INSERT INTO tbl_appointments (patient_id, appointment_date, status_id, appointment_reason_id, appointment_notes) VALUES (:pid, :d, :sid, :rid, :notes)");
         $stmt->bindParam(":pid", $data['patient_id']);
         $stmt->bindParam(":d", $date);
         $stmt->bindParam(":sid", $pendingId);
+        $stmt->bindParam(":rid", $data['appointment_reason_id']);
+        $stmt->bindParam(":notes", $combinedNotes ?: null);
         if ($stmt->execute()) {
             echo json_encode(["success" => true, "message" => "Appointment request submitted."]);
         } else {
@@ -387,6 +395,147 @@ class Appointments
         $stmt->execute();
         echo json_encode(["success" => true, "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
     }
+
+    // Get available doctors by specialization for a specific appointment reason
+    public function get_doctors_by_specialization($reasonId, $date)
+    {
+        if (empty($reasonId)) {
+            echo json_encode(["success" => false, "message" => "reason_id is required."]);
+            return;
+        }
+
+        try {
+            // First, get the appointment reason to understand what type of specialist is needed
+            $stmt = $this->conn->prepare("
+                SELECT reason_name, description
+                FROM tbl_appointment_reasons
+                WHERE reason_id = :reason_id AND is_active = 1
+            ");
+            $stmt->bindParam(":reason_id", $reasonId);
+            $stmt->execute();
+            $reason = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$reason) {
+                echo json_encode(["success" => false, "message" => "Appointment reason not found."]);
+                return;
+            }
+
+            // Get doctors by specialization, prioritizing exact matches
+            $stmt = $this->conn->prepare("
+                SELECT
+                    d.doctor_id,
+                    d.user_id,
+                    d.license_number,
+                    d.specialization_id,
+                    d.years_experience,
+                    u.name AS doctor_name,
+                    u.email,
+                    s.name AS specialization_name,
+                    s.description AS specialization_description,
+                    CASE
+                        WHEN s.name LIKE '%General%' OR s.name LIKE '%Family%' THEN 3
+                        WHEN s.name LIKE '%Internal%' THEN 2
+                        ELSE 1
+                    END AS priority
+                FROM tbl_doctors d
+                JOIN tbl_users u ON d.user_id = u.user_id
+                LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
+                WHERE u.is_active = 1
+                ORDER BY priority ASC, d.years_experience DESC, u.name ASC
+            ");
+            $stmt->execute();
+            $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Check availability for each doctor on the specified date
+            $availableDoctors = [];
+            foreach ($doctors as $doctor) {
+                // Check if doctor is available on this date
+                $stmt = $this->conn->prepare("
+                    SELECT COUNT(*) FROM tbl_doctor_availability
+                    WHERE doctor_id = :doctor_id AND date = :date AND is_available = 0
+                ");
+                $stmt->bindParam(":doctor_id", $doctor['doctor_id']);
+                $stmt->bindParam(":date", $date);
+                $stmt->execute();
+                $isUnavailable = intval($stmt->fetchColumn()) > 0;
+
+                if (!$isUnavailable) {
+                    // Check current appointment load for this doctor on this date
+                    $stmt = $this->conn->prepare("
+                        SELECT COUNT(*) FROM tbl_appointments
+                        WHERE doctor_id = :doctor_id AND appointment_date = :date
+                        AND status_id NOT IN (SELECT status_id FROM tbl_status WHERE status_name = 'Cancelled')
+                    ");
+                    $stmt->bindParam(":doctor_id", $doctor['doctor_id']);
+                    $stmt->bindParam(":date", $date);
+                    $stmt->execute();
+                    $currentLoad = intval($stmt->fetchColumn());
+
+                    $doctor['current_load'] = $currentLoad;
+                    $doctor['max_load'] = 15; // Assuming max 15 patients per doctor per day
+                    $doctor['available_slots'] = max(0, $doctor['max_load'] - $doctor['current_load']);
+
+                    $availableDoctors[] = $doctor;
+                }
+            }
+
+            echo json_encode([
+                "success" => true,
+                "data" => $availableDoctors,
+                "reason" => $reason,
+                "message" => count($availableDoctors) > 0 ?
+                    "Found " . count($availableDoctors) . " available doctor(s)" :
+                    "No doctors available for this appointment reason on the selected date"
+            ]);
+        } catch (PDOException $e) {
+            echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
+        }
+    }
+
+    // Get appointment details including reason and notes
+    public function get_appointment_details($appointmentId)
+    {
+        if (empty($appointmentId)) {
+            echo json_encode(["success" => false, "message" => "appointment_id is required."]);
+            return;
+        }
+
+        try {
+            $stmt = $this->conn->prepare("
+                SELECT
+                    a.*,
+                    ar.reason_name,
+                    ar.description AS reason_description,
+                    p.user_id AS patient_user_id,
+                    pu.name AS patient_name,
+                    pu.email AS patient_email,
+                    d.doctor_id,
+                    du.name AS doctor_name,
+                    s.name AS doctor_specialization,
+                    st.status_name AS appointment_status
+                FROM tbl_appointments a
+                LEFT JOIN tbl_appointment_reasons ar ON a.appointment_reason_id = ar.reason_id
+                JOIN tbl_patients p ON a.patient_id = p.patient_id
+                JOIN tbl_users pu ON p.user_id = pu.user_id
+                LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
+                LEFT JOIN tbl_specializations s ON d.specialization_id = s.specialization_id
+                LEFT JOIN tbl_status st ON a.status_id = st.status_id
+                WHERE a.appointment_id = :appointment_id
+            ");
+            $stmt->bindParam(":appointment_id", $appointmentId);
+            $stmt->execute();
+            $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($appointment) {
+                echo json_encode(["success" => true, "data" => $appointment]);
+            } else {
+                echo json_encode(["success" => false, "message" => "Appointment not found."]);
+            }
+        } catch (PDOException $e) {
+            echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
+        }
+    }
 }
 
 // Router
@@ -444,6 +593,15 @@ switch ($operation) {
         $doctorId = $_GET['doctor_id'] ?? '';
         $date = $_GET['date'] ?? '';
         $svc->get_doctor_patients_on_date($doctorId, $date);
+        break;
+    case 'get_doctors_by_specialization':
+        $reasonId = $_GET['reason_id'] ?? '';
+        $date = $_GET['date'] ?? date('Y-m-d');
+        $svc->get_doctors_by_specialization($reasonId, $date);
+        break;
+    case 'get_appointment_details':
+        $appointmentId = $_GET['appointment_id'] ?? '';
+        $svc->get_appointment_details($appointmentId);
         break;
     default:
         echo json_encode(["success" => false, "message" => "Invalid operation"]);

@@ -108,8 +108,26 @@
                   <input type="date" class="form-control" id="requestDate" required />
                   <div class="form-text">Select your preferred appointment date</div>
                 </div>
-                <div class="col-md-6 d-flex align-items-end">
-                  <button class="btn btn-primary w-100" id="requestBtn">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Reason for Appointment <span class="text-danger">*</span></label>
+                  <select class="form-select" id="requestReason" required>
+                    <option value="">Select a reason...</option>
+                    <!-- Options will be loaded dynamically -->
+                  </select>
+                  <div class="form-text">Please select the primary reason for your visit</div>
+                </div>
+                <div class="col-12" id="otherReasonField" style="display: none;">
+                  <label class="form-label fw-semibold">Please Specify Reason <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" id="otherReasonText" placeholder="Please describe your specific reason for the appointment..." />
+                  <div class="form-text">Required when selecting 'Other' as reason</div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label fw-semibold">Additional Notes (Optional)</label>
+                  <textarea class="form-control" id="requestNotes" rows="3" placeholder="Please provide any additional details about your symptoms or concerns..."></textarea>
+                  <div class="form-text">Any additional information that might help the doctor</div>
+                </div>
+                <div class="col-12">
+                  <button class="btn btn-primary" id="requestBtn">
                     <i class="fas fa-paper-plane me-2"></i>Submit Request
                   </button>
                 </div>
