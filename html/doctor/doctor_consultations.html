@@ -16,6 +16,19 @@
   <link rel="stylesheet" href="../../css/dashboard.css">
   <link rel="stylesheet" href="../../css/table.css">
   <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
+  <style>
+    .badge .btn-close {
+      font-size: 0.6em;
+      padding: 0;
+      margin-left: 4px;
+    }
+    .badge .btn-close:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+    #selectedConditionsDisplay {
+      min-height: 40px;
+    }
+  </style>
 </head>
 
 <body>
@@ -142,17 +155,25 @@
               <!-- Diagnosis Section -->
               <div class="row g-3 mb-4">
                 <div class="col-12">
-                  <label class="form-label">Condition</label>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Condition <small class="text-muted">(Maximum 5 conditions)</small></label>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addNewConditionBtn" title="Add new condition">
+                      <i class="fas fa-plus-circle me-1"></i>Add New Condition
+                    </button>
+                  </div>
                   <div class="input-group">
-                    <select class="form-select" name="diagnosis" required>
+                    <select class="form-select" id="conditionSelect" name="diagnosis">
                       <option value="">Select condition</option>
                       <!-- Conditions will be loaded dynamically from API -->
                     </select>
-                    <button type="button" class="btn btn-outline-primary" id="addConditionBtn" title="Add new condition">
+                    <button type="button" class="btn btn-outline-primary" id="addConditionBtn" title="Add selected condition">
                       <i class="fas fa-plus"></i>
                     </button>
                   </div>
-                  <div class="invalid-feedback">Please select a condition.</div>
+                  <div class="mt-2" id="selectedConditionsDisplay">
+                    <!-- Selected conditions will be displayed here as badges -->
+                  </div>
+                  <div class="invalid-feedback">Please add at least one condition.</div>
                 </div>
                 <div class="col-12">
                   <label class="form-label">Consultation Notes</label>

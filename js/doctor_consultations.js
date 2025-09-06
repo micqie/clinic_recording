@@ -689,11 +689,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (res.data.success && Array.isArray(res.data.data)) {
                 res.data.data.forEach(c => {
+                    // Format diagnosis to show multiple conditions as badges
+                    const diagnosisDisplay = c.diagnosis ?
+                        c.diagnosis.split(', ').map(condition =>
+                            `<span class="badge bg-primary me-1">${condition}</span>`
+                        ).join('') : 'None';
+
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>${c.patient_name}</td>
                         <td>${c.appointment_date} (Q#${c.queue_number || 'N/A'})</td>
-                        <td>${c.diagnosis}</td>
+                        <td>${diagnosisDisplay}</td>
                         <td><span class="badge bg-${getStatusBadgeClass(c.consultation_status)}">${c.consultation_status}</span></td>
                         <td>${c.next_appointment_date || '-'}</td>
                         <td>
@@ -894,13 +900,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     labRequestsHtml += '</ul>';
                 }
 
+                // Format diagnosis to show multiple conditions nicely
+                const diagnosisDisplay = data.consultation.diagnosis ?
+                    data.consultation.diagnosis.split(', ').map(condition =>
+                        `<span class="badge bg-primary me-1">${condition}</span>`
+                    ).join('') : 'None';
+
                 Swal.fire({
                     title: 'Consultation Details',
                     html: `
                         <div class="text-start">
                             <p><strong>Patient:</strong> ${data.consultation.patient_name}</p>
                             <p><strong>Date:</strong> ${data.consultation.appointment_date}</p>
-                            <p><strong>Diagnosis:</strong> ${data.consultation.diagnosis}</p>
+                            <p><strong>Conditions:</strong> ${diagnosisDisplay}</p>
                             <p><strong>Notes:</strong> ${data.consultation.consultation_notes || 'None'}</p>
                             <p><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date || 'None'}</p>
                             <p><strong>Follow-up Notes:</strong> ${data.consultation.next_appointment_notes || 'None'}</p>
@@ -948,12 +960,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Validate conditions first
+        const conditionValidation = validateConditions();
+        if (!conditionValidation.valid) {
+            Swal.fire('Error', conditionValidation.message, 'error');
+            return;
+        }
+
         const formData = new FormData(form);
         const data = {
             appointment_id: formData.get('appointment_id'),
             doctor_id: docId,
             patient_id: formData.get('patient_id'),
-            diagnosis: formData.get('diagnosis'),
+            diagnosis: selectedConditions.join(', '), // Join multiple conditions with comma
+            conditions: selectedConditions, // Also send as array for backend processing
             consultation_notes: formData.get('consultation_notes') || '',
             next_appointment_date: formData.get('next_appointment_date') || null,
             next_appointment_notes: formData.get('next_appointment_notes') || '',
@@ -1097,6 +1117,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 labRequestsContainer.innerHTML = '';
                 prescriptionCounter = 0;
                 labRequestCounter = 0;
+                selectedConditions = []; // Clear selected conditions
+                updateSelectedConditionsDisplay();
                 loadMyConsultations();
                 loadCurrentQueueStatus();
             } else {
@@ -1248,10 +1270,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Reload conditions in the dropdown
                 await loadConditions();
 
-                // Select the newly added condition
-                const conditionSelect = document.querySelector('select[name="diagnosis"]');
-                if (conditionSelect) {
-                    conditionSelect.value = conditionName;
+                // Add the newly added condition to selected conditions
+                if (selectedConditions.length < 5) {
+                    selectedConditions.push(conditionName);
+                    updateSelectedConditionsDisplay();
+                } else {
+                    Swal.fire('Info', 'Maximum 5 conditions reached. New condition added to dropdown but not selected.', 'info');
                 }
             } else {
                 throw new Error(response.data.message || 'Failed to add condition');
@@ -1263,17 +1287,98 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Array to store selected conditions
+    let selectedConditions = [];
+
+    // Function to update selected conditions display
+    function updateSelectedConditionsDisplay() {
+        const displayDiv = document.getElementById('selectedConditionsDisplay');
+
+        if (!displayDiv) return;
+
+        if (selectedConditions.length === 0) {
+            displayDiv.innerHTML = '<small class="text-muted">No conditions selected</small>';
+            return;
+        }
+
+        let html = '<div class="d-flex flex-wrap gap-2">';
+        selectedConditions.forEach((condition, index) => {
+            html += `
+                <span class="badge bg-primary d-flex align-items-center gap-1">
+                    ${condition}
+                    <button type="button" class="btn-close btn-close-white" style="font-size: 0.7em;" onclick="removeCondition(${index})" title="Remove condition"></button>
+                </span>
+            `;
+        });
+        html += '</div>';
+
+        displayDiv.innerHTML = html;
+    }
+
+    // Function to add selected condition from dropdown
+    function addSelectedCondition() {
+        const conditionSelect = document.getElementById('conditionSelect');
+        const selectedValue = conditionSelect.value;
+
+        if (!selectedValue) {
+            Swal.fire('Warning', 'Please select a condition first', 'warning');
+            return;
+        }
+
+        if (selectedConditions.length >= 5) {
+            Swal.fire('Warning', 'Maximum of 5 conditions allowed', 'warning');
+            return;
+        }
+
+        if (selectedConditions.includes(selectedValue)) {
+            Swal.fire('Info', 'This condition is already added', 'info');
+            return;
+        }
+
+        selectedConditions.push(selectedValue);
+        updateSelectedConditionsDisplay();
+
+        // Reset the dropdown selection
+        conditionSelect.value = '';
+    }
+
+    // Function to remove a condition
+    window.removeCondition = function(index) {
+        selectedConditions.splice(index, 1);
+        updateSelectedConditionsDisplay();
+    };
+
+    // Function to validate conditions
+    function validateConditions() {
+        if (selectedConditions.length === 0) {
+            return { valid: false, message: 'Please add at least one condition.' };
+        }
+
+        if (selectedConditions.length > 5) {
+            return { valid: false, message: 'Maximum of 5 conditions allowed.' };
+        }
+
+        return { valid: true };
+    }
+
     // Load conditions for the dropdown
     loadConditions();
 
     // Set up add condition button
     const addConditionBtn = document.getElementById('addConditionBtn');
+    const addNewConditionBtn = document.getElementById('addNewConditionBtn');
     const addConditionModal = new bootstrap.Modal(document.getElementById('addConditionModal'));
     const saveConditionBtn = document.getElementById('saveConditionBtn');
     const newConditionName = document.getElementById('newConditionName');
 
     if (addConditionBtn) {
         addConditionBtn.addEventListener('click', () => {
+            addSelectedCondition();
+        });
+    }
+
+    if (addNewConditionBtn) {
+        addNewConditionBtn.addEventListener('click', () => {
             addConditionModal.show();
         });
     }
