@@ -514,6 +514,40 @@ class Payments
             return ['success' => false, 'message' => 'Failed to fetch payment statistics: ' . $e->getMessage()];
         }
     }
+
+    function checkPatientPaymentStatus($patient_id)
+    {
+        include "connection.php";
+
+        if (empty($patient_id)) {
+            return ['success' => false, 'message' => 'Patient ID is required.'];
+        }
+
+        try {
+            // Check if patient has any paid consultations
+            $stmt = $conn->prepare("
+                SELECT COUNT(*) as paid_count
+                FROM tbl_payments p
+                JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
+                WHERE p.patient_id = :patient_id
+                AND p.status_id = 12
+                AND a.appointment_status = 'Completed'
+            ");
+            $stmt->bindParam(":patient_id", $patient_id);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            $hasPaidConsultation = intval($result['paid_count']) > 0;
+
+            return [
+                'success' => true,
+                'has_paid_consultation' => $hasPaidConsultation,
+                'paid_consultations_count' => intval($result['paid_count'])
+            ];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to check payment status: ' . $e->getMessage()];
+        }
+    }
 }
 
 // Handle incoming request
@@ -566,6 +600,9 @@ switch ($operation) {
         break;
     case "getStatistics":
         echo json_encode($payments->getPaymentStatistics());
+        break;
+    case "checkPatientPaymentStatus":
+        echo json_encode($payments->checkPatientPaymentStatus($patient_id));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

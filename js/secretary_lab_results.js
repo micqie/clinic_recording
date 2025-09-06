@@ -12,10 +12,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const labResultsTableBody = document.getElementById("labResultsTableBody");
     const addLabResultForm = document.getElementById("addLabResultForm");
     const labRequestSelect = document.getElementById('lab_request_id');
+    const patientFilter = document.getElementById("patientFilter");
+    const statusFilter = document.getElementById("statusFilter");
+    const dateFromFilter = document.getElementById("dateFromFilter");
+    const dateToFilter = document.getElementById("dateToFilter");
     // Doctor select removed per requirement
 
     // Bootstrap modal instances
     const addLabResultModal = new bootstrap.Modal(document.getElementById('addLabResultModal'));
+    const viewLabResultModal = new bootstrap.Modal(document.getElementById('viewLabResultModal'));
+
+    let allLabResults = [];
 
     // Reset form when modal is closed
     document.getElementById('addLabResultModal').addEventListener('hidden.bs.modal', function() {
@@ -36,52 +43,80 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Load lab results and populate table
+    // Load lab results and populate table (only doctor-completed results)
     async function loadLabResults() {
         try {
             const res = await axios.get(`${baseApiUrl}/lab_results.php?operation=getAllLabResults`);
             if (!res.data.success) throw new Error(res.data.message || 'Failed to load');
-            const results = res.data.results || [];
-            labResultsTableBody.innerHTML = '';
-            if (results.length === 0) {
-                labResultsTableBody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            <i class="fas fa-file-medical fa-3x mb-3"></i>
-                            <p>No lab results found</p>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-            results.forEach(r => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${r.patient_name || ''}</td>
-                    <td>${r.lab_test_type_name || '-'}</td>
-                    <td>
-                        <div class="text-truncate" style="max-width: 280px;" title="${(r.result_text || '').replace(/"/g,'&quot;')}">
-                            ${(r.result_text || '-')}
-                        </div>
-                    </td>
-                    <td>${formatDate(r.uploaded_at)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary me-1" data-action="edit" data-id="${r.result_id}"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${r.result_id}"><i class="fas fa-trash"></i></button>
-                    </td>
-                `;
-                labResultsTableBody.appendChild(tr);
-            });
+            // Filter to only show doctor-completed results that are ready for delivery (status = Ready)
+            allLabResults = (res.data.results || []).filter(result =>
+                result.status_name === 'Ready'
+            );
+            displayLabResults(allLabResults);
         } catch (error) {
             console.error("Failed to load lab results", error);
             labResultsTableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center text-danger py-4">
+                    <td colspan="7" class="text-center text-danger py-4">
                         <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                         <p>Failed to load lab results</p>
                     </td>
                 </tr>
             `;
+        }
+    }
+
+    // Display lab results in table
+    function displayLabResults(results) {
+        labResultsTableBody.innerHTML = '';
+        if (results.length === 0) {
+            labResultsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        <i class="fas fa-file-medical fa-3x mb-3"></i>
+                        <p>No lab results found</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        results.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.patient_name || ''}</td>
+                <td>${r.lab_test_type_name || '-'}</td>
+                <td>
+                    <div class="text-truncate" style="max-width: 200px;" title="${(r.request_text || '').replace(/"/g,'&quot;')}">
+                        ${(r.request_text || '-')}
+                    </div>
+                </td>
+                <td>
+                    <div class="text-truncate" style="max-width: 200px;" title="${(r.result_text || '').replace(/"/g,'&quot;')}">
+                        ${(r.result_text || 'No result yet')}
+                    </div>
+                </td>
+                <td><span class="badge bg-${getStatusBadgeColor(r.status_name)}">${r.status_name || 'Unknown'}</span></td>
+                <td>${formatDate(r.uploaded_at)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info me-1" data-action="view" data-id="${r.result_id}" title="View Result">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    ${r.status_name === 'Ready' ? `<button class="btn btn-sm btn-outline-success me-1" data-action="deliver" data-id="${r.result_id}" title="Mark as Delivered">
+                        <i class="fas fa-check"></i>
+                    </button>` : ''}
+                </td>
+            `;
+            labResultsTableBody.appendChild(tr);
+        });
+    }
+
+    // Get status badge color
+    function getStatusBadgeColor(status) {
+        switch (status) {
+            case 'Processing': return 'warning';
+            case 'Ready': return 'success';
+            case 'Delivered': return 'primary';
+            default: return 'secondary';
         }
     }
 
@@ -146,55 +181,127 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // Basic delegation for edit/delete buttons (edit modal not yet in DOM; implement next)
+    // Basic delegation for view/deliver buttons (view-only for secretary)
     labResultsTableBody.addEventListener('click', async (e) => {
         const btn = e.target.closest('button[data-action]');
         if (!btn) return;
         const id = btn.getAttribute('data-id');
         const action = btn.getAttribute('data-action');
-        if (action === 'delete') {
-            const confirm = await Swal.fire({icon: 'warning', title: 'Delete?', showCancelButton: true});
+
+        if (action === 'view') {
+            try {
+                const response = await axios.get(`${baseApiUrl}/lab_results.php?operation=getById&result_id=${id}`);
+                if (response.data.success) {
+                    const result = response.data.result;
+
+                    document.getElementById('viewPatientName').textContent = result.patient_name || '-';
+                    document.getElementById('viewTestType').textContent = result.lab_test_type_name || '-';
+                    document.getElementById('viewResultDate').textContent = formatDate(result.uploaded_at);
+                    document.getElementById('viewStatus').innerHTML = `<span class="badge bg-${getStatusBadgeColor(result.status_name)}">${result.status_name || 'Unknown'}</span>`;
+                    document.getElementById('viewRequestDetails').textContent = result.request_text || 'No details available';
+                    document.getElementById('viewResultDetails').textContent = result.result_text || 'No results available yet';
+
+                    viewLabResultModal.show();
+                } else {
+                    Swal.fire('Error', response.data.message, 'error');
+                }
+            } catch (error) {
+                console.error("Error viewing lab result:", error);
+                Swal.fire('Error', 'Failed to load lab result details', 'error');
+            }
+        }
+
+        if (action === 'deliver') {
+            const confirm = await Swal.fire({
+                icon: 'question',
+                title: 'Mark as Delivered?',
+                text: 'This will mark the lab result as delivered to the patient. Please ensure the patient has paid their consultation fee.',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, mark as delivered',
+                cancelButtonText: 'Cancel'
+            });
             if (!confirm.isConfirmed) return;
             try {
                 const payload = new URLSearchParams();
-                payload.append('operation', 'delete');
-                payload.append('result_id', id);
+                payload.append('operation', 'markAsDelivered');
+                payload.append('json', JSON.stringify({ result_id: id }));
                 const res = await axios.post(`${baseApiUrl}/lab_results.php`, payload);
-                if (res.data.success) { loadLabResults(); Swal.fire('Deleted','Lab result deleted','success'); }
-                else Swal.fire('Error', res.data.message || 'Delete failed', 'error');
-            } catch (err) {
-                Swal.fire('Error', err?.response?.data?.message || 'Delete failed', 'error');
-            }
-        }
-        if (action === 'edit') {
-            // Future: open edit modal and submit update
-            const res = await axios.get(`${baseApiUrl}/lab_results.php?operation=getById&result_id=${id}`);
-            if (!res.data.success) { Swal.fire('Error', res.data.message || 'Failed to load', 'error'); return; }
-            Swal.fire({
-                title: 'Edit Result',
-                input: 'textarea',
-                inputValue: res.data.result?.result_text || '',
-                inputLabel: 'Result text',
-                showCancelButton: true
-            }).then(async (r) => {
-                if (!r.isConfirmed) return;
-                try {
-                    const up = new URLSearchParams();
-                    up.append('operation','update');
-                    up.append('json', JSON.stringify({ result_id: id, result_text: r.value, status_id: res.data.result?.status_id || 15 }));
-                    const ur = await axios.post(`${baseApiUrl}/lab_results.php`, up);
-                    if (ur.data.success) { loadLabResults(); Swal.fire('Saved','Lab result updated','success'); }
-                    else Swal.fire('Error', ur.data.message || 'Update failed','error');
-                } catch (err) {
-                    Swal.fire('Error', err?.response?.data?.message || 'Update failed','error');
+                if (res.data.success) {
+                    loadLabResults();
+                    Swal.fire('Success','Lab result marked as delivered','success');
                 }
-            });
+                else Swal.fire('Error', res.data.message || 'Failed to mark as delivered', 'error');
+            } catch (err) {
+                Swal.fire('Error', err?.response?.data?.message || 'Failed to mark as delivered', 'error');
+            }
         }
     });
 
+    // Load patients for filter
+    async function loadPatients() {
+        try {
+            const response = await axios.get(`${baseApiUrl}/patients.php?operation=get_all`);
+            if (response.data.success) {
+                patientFilter.innerHTML = '<option value="">All Patients</option>';
+                response.data.data.forEach(patient => {
+                    patientFilter.innerHTML += `<option value="${patient.patient_id}">${patient.full_name}</option>`;
+                });
+            }
+        } catch (error) {
+            console.error("Error loading patients:", error);
+        }
+    }
+
+    // Filter lab results
+    function filterLabResults() {
+        const patientId = patientFilter.value;
+        const status = statusFilter.value;
+        const dateFrom = dateFromFilter.value;
+        const dateTo = dateToFilter.value;
+
+        let filteredResults = [...allLabResults];
+
+        if (patientId) {
+            filteredResults = filteredResults.filter(result => result.patient_id == patientId);
+        }
+
+        if (status) {
+            filteredResults = filteredResults.filter(result => result.status_name === status);
+        }
+
+        if (dateFrom) {
+            filteredResults = filteredResults.filter(result => {
+                const resultDate = new Date(result.uploaded_at || result.created_at);
+                const fromDate = new Date(dateFrom);
+                return resultDate >= fromDate;
+            });
+        }
+
+        if (dateTo) {
+            filteredResults = filteredResults.filter(result => {
+                const resultDate = new Date(result.uploaded_at || result.created_at);
+                const toDate = new Date(dateTo);
+                toDate.setHours(23, 59, 59, 999); // Include the entire day
+                return resultDate <= toDate;
+            });
+        }
+
+        displayLabResults(filteredResults);
+    }
+
+    // Setup event listeners
+    function setupEventListeners() {
+        patientFilter.addEventListener('change', filterLabResults);
+        statusFilter.addEventListener('change', filterLabResults);
+        dateFromFilter.addEventListener('change', filterLabResults);
+        dateToFilter.addEventListener('change', filterLabResults);
+    }
+
     // Initial load
     loadLabResults();
+    loadPatients();
     preloadDeliveredRequests();
+    setupEventListeners();
 
     // Auto-populate lab test type when lab request is selected
     labRequestSelect?.addEventListener('change', (e) => {

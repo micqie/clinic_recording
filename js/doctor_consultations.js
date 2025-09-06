@@ -54,15 +54,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Enable/disable consultation form based on availability
     function setFormEnabled(isEnabled) {
+        // Enable/disable all form controls
         const controls = form.querySelectorAll('input, select, textarea, button[type="submit"], button[type="reset"]');
+
         controls.forEach(el => {
             // Keep the external Refresh Queue button unaffected
             if (el.id === 'refreshQueueBtn') return;
             el.disabled = !isEnabled;
         });
-        addPrescriptionBtn && (addPrescriptionBtn.disabled = !isEnabled);
-        addLabRequestBtn && (addLabRequestBtn.disabled = !isEnabled);
-        saveDraftBtn && (saveDraftBtn.disabled = !isEnabled);
+
+        // Enable/disable additional buttons
+        if (addPrescriptionBtn) {
+            addPrescriptionBtn.disabled = !isEnabled;
+        }
+        if (addLabRequestBtn) {
+            addLabRequestBtn.disabled = !isEnabled;
+        }
+        if (saveDraftBtn) {
+            saveDraftBtn.disabled = !isEnabled;
+        }
+
+        // Force enable the form if we have a current consultation
+        if (isEnabled) {
+            form.classList.remove('was-validated');
+            // Ensure all required fields are enabled
+            const requiredFields = form.querySelectorAll('[required]');
+            requiredFields.forEach(field => {
+                field.disabled = false;
+            });
+        }
     }
 
     // Display current patient information (only for this doctor)
@@ -144,10 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                     </div>
                                 </div>
                             </div>
-                                                `;
+                        `;
 
                         // Display current patient and enable form
                         displayCurrentPatient(data.current_consultation);
+
+                        // Force enable form as a fallback
+                        setTimeout(() => {
+                            setFormEnabled(true);
+                        }, 100);
 
                     } else if (data.next_in_queue) {
                         currentPatientInfo.innerHTML = `
@@ -700,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Load current queue status for the doctor
+    // Load current queue status for the doctor (using enhanced queue management)
     async function loadQueueStatus() {
         try {
             const docId = await getDoctorId();
@@ -709,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const res = await axios.get(`${queueApi}?operation=get_doctor_queue_status&doctor_id=${docId}`);
+            const res = await axios.get(`${enhancedQueueApi}?operation=get_doctor_queue_status&doctor_id=${docId}`);
             if (res.data.success) {
                 const data = res.data;
 
@@ -785,9 +810,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.startConsultation = async function(appointmentId) {
         try {
             const docId = await getDoctorId();
-            const res = await axios.post(queueApi, {
-                operation: 'start_consultation',
-                json: JSON.stringify({ appointment_id: appointmentId, doctor_id: docId })
+            const res = await axios.post(enhancedQueueApi, {
+                operation: 'set_current_consultation',
+                json: JSON.stringify({ appointment_id: appointmentId, secretary_id: docId })
             });
 
             if (res.data.success) {
@@ -806,9 +831,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.completeConsultation = async function(appointmentId) {
         try {
             const docId = await getDoctorId();
-            const res = await axios.post(queueApi, {
-                operation: 'complete_consultation',
-                json: JSON.stringify({ appointment_id: appointmentId, doctor_id: docId })
+            const res = await axios.post(enhancedQueueApi, {
+                operation: 'complete_and_next',
+                json: JSON.stringify({ secretary_id: docId })
             });
 
             if (res.data.success) {
@@ -1108,6 +1133,15 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initialize() {
         await loadCurrentQueueStatus();
         await loadMyConsultations();
+
+        // Additional check to ensure form is enabled if there's a current consultation
+        setTimeout(() => {
+            const patientId = document.getElementById('patient_id').value;
+            const appointmentId = document.getElementById('appointment_id').value;
+            if (patientId && appointmentId) {
+                setFormEnabled(true);
+            }
+        }, 500);
     }
 
     initialize();

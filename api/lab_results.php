@@ -67,7 +67,7 @@ class LabResults
                 JOIN tbl_users up ON lr.uploaded_by = up.user_id
                 LEFT JOIN tbl_status st ON lr.status_id = st.status_id
                 LEFT JOIN tbl_lab_test_types ltt ON lreq.lab_test_type_id = ltt.lab_test_type_id
-                WHERE lreq.status_id = 16
+                WHERE lreq.status_id IN (15, 16)
                 ORDER BY lr.uploaded_at DESC
             ");
             $stmt->execute();
@@ -87,12 +87,15 @@ class LabResults
             $stmt = $conn->prepare("
                 SELECT lr.*,
                        lreq.request_text,
+                       lreq.lab_test_type_id,
+                       ltt.type_name AS lab_test_type_name,
                        d.user_id as doctor_user_id,
                        du.name as doctor_name,
                        up.name as uploaded_by_name,
                        st.status_name
                 FROM tbl_lab_results lr
                 JOIN tbl_lab_requests lreq ON lr.lab_request_id = lreq.lab_request_id
+                LEFT JOIN tbl_lab_test_types ltt ON lreq.lab_test_type_id = ltt.lab_test_type_id
                 LEFT JOIN tbl_doctors d ON lr.doctor_id = d.doctor_id
                 LEFT JOIN tbl_users du ON d.user_id = du.user_id
                 JOIN tbl_users up ON lr.uploaded_by = up.user_id
@@ -118,12 +121,15 @@ class LabResults
             $stmt = $conn->prepare("
                 SELECT lr.*,
                        lreq.request_text,
+                       lreq.lab_test_type_id,
+                       ltt.type_name AS lab_test_type_name,
                        p.user_id as patient_user_id,
                        u.name as patient_name,
                        up.name as uploaded_by_name,
                        st.status_name
                 FROM tbl_lab_results lr
                 JOIN tbl_lab_requests lreq ON lr.lab_request_id = lreq.lab_request_id
+                LEFT JOIN tbl_lab_test_types ltt ON lreq.lab_test_type_id = ltt.lab_test_type_id
                 JOIN tbl_patients p ON lr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
                 JOIN tbl_users up ON lr.uploaded_by = up.user_id
@@ -138,6 +144,48 @@ class LabResults
             return ['success' => true, 'results' => $results];
         } catch (PDOException $e) {
             return ['success' => false, 'message' => 'Failed to fetch lab results: ' . $e->getMessage()];
+        }
+    }
+
+    function getByLabRequest($lab_request_id)
+    {
+        include "connection.php";
+
+        if (empty($lab_request_id)) {
+            return ['success' => false, 'message' => 'Lab request ID is required.'];
+        }
+
+        try {
+            $stmt = $conn->prepare("
+                SELECT lr.*,
+                       lreq.request_text,
+                       lreq.lab_test_type_id,
+                       ltt.type_name AS lab_test_type_name,
+                       p.user_id as patient_user_id,
+                       u.name as patient_name,
+                       up.name as uploaded_by_name,
+                       st.status_name
+                FROM tbl_lab_results lr
+                JOIN tbl_lab_requests lreq ON lr.lab_request_id = lreq.lab_request_id
+                LEFT JOIN tbl_lab_test_types ltt ON lreq.lab_test_type_id = ltt.lab_test_type_id
+                JOIN tbl_patients p ON lr.patient_id = p.patient_id
+                JOIN tbl_users u ON p.user_id = u.user_id
+                JOIN tbl_users up ON lr.uploaded_by = up.user_id
+                LEFT JOIN tbl_status st ON lr.status_id = st.status_id
+                WHERE lr.lab_request_id = :lab_request_id
+                LIMIT 1
+            ");
+            $stmt->bindParam(":lab_request_id", $lab_request_id);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($result) {
+                return ['success' => true, 'result' => $result];
+            } else {
+                return ['success' => false, 'message' => 'No lab result found for this request.'];
+            }
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to fetch lab result: ' . $e->getMessage()];
         }
     }
 
@@ -167,7 +215,7 @@ class LabResults
             $stmt->bindValue(":status_id", isset($data['status_id']) ? (int)$data['status_id'] : 15, PDO::PARAM_INT);
             $stmt->execute();
 
-            // Update lab request status to Ready
+            // Update lab request status to Ready (15)
             $updateSql = "UPDATE tbl_lab_requests SET status_id = 15 WHERE lab_request_id = :lab_request_id";
             $updateStmt = $conn->prepare($updateSql);
             $updateStmt->bindParam(":lab_request_id", $data['lab_request_id']);
@@ -262,6 +310,43 @@ class LabResults
             return ['success' => false, 'message' => 'Failed to update lab result: ' . $e->getMessage()];
         }
     }
+
+    function markAsDelivered($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['result_id'])) {
+            return ['success' => false, 'message' => 'Result ID is required.'];
+        }
+
+        try {
+            // Update lab result status to Delivered (16)
+            $sql = "UPDATE tbl_lab_results SET status_id = 16 WHERE result_id = :result_id";
+            $stmt = $conn->prepare($sql);
+            $stmt->bindParam(":result_id", $data['result_id']);
+            $stmt->execute();
+
+            // Get the lab request ID to update its status
+            $getRequestSql = "SELECT lab_request_id FROM tbl_lab_results WHERE result_id = :result_id";
+            $getRequestStmt = $conn->prepare($getRequestSql);
+            $getRequestStmt->bindParam(":result_id", $data['result_id']);
+            $getRequestStmt->execute();
+            $labRequestId = $getRequestStmt->fetchColumn();
+
+            if ($labRequestId) {
+                // Update lab request status to Delivered (16)
+                $updateRequestSql = "UPDATE tbl_lab_requests SET status_id = 16 WHERE lab_request_id = :lab_request_id";
+                $updateRequestStmt = $conn->prepare($updateRequestSql);
+                $updateRequestStmt->bindParam(":lab_request_id", $labRequestId);
+                $updateRequestStmt->execute();
+            }
+
+            return ['success' => true, 'message' => 'Lab result marked as delivered successfully!'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Failed to mark as delivered: ' . $e->getMessage()];
+        }
+    }
 }
 
 // Handle incoming request
@@ -283,6 +368,7 @@ $labResults = new LabResults();
 
 switch ($operation) {
     case "getAll":
+    case "getAllLabResults":
         echo json_encode($labResults->getAllLabResults());
         break;
     case "getById":
@@ -293,6 +379,10 @@ switch ($operation) {
         break;
     case "getByDoctor":
         echo json_encode($labResults->getLabResultsByDoctor($doctor_id));
+        break;
+    case "getByLabRequest":
+        $lab_request_id = $_GET['lab_request_id'] ?? ($_POST['lab_request_id'] ?? "");
+        echo json_encode($labResults->getByLabRequest($lab_request_id));
         break;
     case "add":
         echo json_encode($labResults->addLabResult($json));
@@ -309,6 +399,9 @@ switch ($operation) {
         } else {
             echo json_encode(['success' => false, 'message' => 'No file uploaded.']);
         }
+        break;
+    case "markAsDelivered":
+        echo json_encode($labResults->markAsDelivered($json));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);
