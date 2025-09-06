@@ -60,6 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             // First check if patient has paid consultations
             const hasPaidConsultation = await checkPaymentStatus();
+            console.log('Payment status check result:', hasPaidConsultation);
 
             if (!hasPaidConsultation) {
                 // Show payment required message
@@ -81,10 +82,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const response = await axios.get(`${labResultsApiUrl}?operation=getByPatient&patient_id=${patientId}`);
             if (response.data.success) {
+                console.log('All lab results for patient:', response.data.results);
                 // Filter to only show delivered results
                 allLabResults = (response.data.results || []).filter(result =>
                     result.status_name === 'Delivered'
                 );
+                console.log('Filtered delivered results:', allLabResults);
                 displayLabResults(allLabResults);
                 updateResultsCount(allLabResults.length);
             } else {

@@ -528,10 +528,8 @@ class Payments
             $stmt = $conn->prepare("
                 SELECT COUNT(*) as paid_count
                 FROM tbl_payments p
-                JOIN tbl_appointments a ON p.appointment_id = a.appointment_id
                 WHERE p.patient_id = :patient_id
                 AND p.status_id = 12
-                AND a.appointment_status = 'Completed'
             ");
             $stmt->bindParam(":patient_id", $patient_id);
             $stmt->execute();
