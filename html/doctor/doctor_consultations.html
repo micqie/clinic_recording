@@ -45,21 +45,28 @@
   <div class="d-flex">
     <nav id="sidebar-wrapper" role="navigation" aria-label="Sidebar menu" tabindex="0">
       <div class="list-group list-group-flush">
-        <a href="doctor_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
-        </a>
-        <a href="doctor_profile.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fas fa-user-edit me-2" aria-hidden="true"></i>My Profile
-        </a>
-        <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>My Appointments
-        </a>
-        <a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
-          <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
-        </a>
-        <a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
-          <i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>My Patients
-        </a>
+  	<a href="doctor_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
+					<i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
+				</a>
+				<a href="doctor_profile.html" class="list-group-item list-group-item-action py-3 ripple">
+					<i class="fas fa-user-edit me-2" aria-hidden="true"></i>My Profile
+				</a>
+				<a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
+					<i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>My Appointments
+				</a>
+				<a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple active">
+					<i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
+				</a>
+				<a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
+					<i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>My Patients
+				</a>
+
+				<a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
+					<i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Requests
+				</a>
+				<a href="doctor_lab_results.html" class="list-group-item list-group-item-action py-3 ripple ">
+					<i class="fa-solid fa-file-medical me-2" aria-hidden="true"></i>Lab Results
+				</a>
 
       </div>
     </nav>
@@ -136,17 +143,15 @@
               <div class="row g-3 mb-4">
                 <div class="col-12">
                   <label class="form-label">Condition</label>
-                  <select class="form-select" name="diagnosis" required>
-                    <option value="">Select condition</option>
-                    <option value="Cough">Cough</option>
-                    <option value="Common Cold">Common Cold</option>
-                    <option value="Fever">Fever</option>
-                    <option value="Hypertension">Hypertension</option>
-                    <option value="Type 2 Diabetes">Type 2 Diabetes</option>
-                    <option value="Upper Respiratory Tract Infection">Upper Respiratory Tract Infection</option>
-                    <option value="Gastroenteritis">Gastroenteritis</option>
-                    <option value="AGAY">AGAY</option>
-                  </select>
+                  <div class="input-group">
+                    <select class="form-select" name="diagnosis" required>
+                      <option value="">Select condition</option>
+                      <!-- Conditions will be loaded dynamically from API -->
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="addConditionBtn" title="Add new condition">
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
                   <div class="invalid-feedback">Please select a condition.</div>
                 </div>
                 <div class="col-12">
@@ -252,6 +257,31 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <script src="../../js/doctor_consultations.js" defer></script>
+
+  <!-- Add Condition Modal -->
+  <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addConditionModalLabel">Add New Condition</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addConditionForm">
+            <div class="mb-3">
+              <label for="newConditionName" class="form-label">Condition Name</label>
+              <input type="text" class="form-control" id="newConditionName" name="condition_name" required placeholder="Enter condition name">
+              <div class="invalid-feedback">Please enter a condition name.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveConditionBtn">Add Condition</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

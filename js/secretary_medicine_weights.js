@@ -45,7 +45,6 @@ document.addEventListener("DOMContentLoaded", () => {
             weights.forEach(weight => {
                 const row = document.createElement("tr");
                 row.innerHTML = `
-                    <td>${weight.weight_id}</td>
                     <td>${weight.weight_value}</td>
                     <td>
                         <div class="btn-group" role="group">

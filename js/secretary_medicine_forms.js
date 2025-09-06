@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
             forms.forEach(form => {
                 const row = document.createElement("tr");
                 row.innerHTML = `
-                    <td>${form.form_id}</td>
+
                     <td>${form.form_name}</td>
 
                     <td>

@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
         birthdate: document.getElementById('profileBirthdate'),
         age: document.getElementById('profileAge'),
         address: document.getElementById('profileAddress'),
-        patientId: document.getElementById('profilePatientId'),
         memberSince: document.getElementById('profileMemberSince'),
         lastUpdated: document.getElementById('profileLastUpdated')
     };
@@ -53,17 +52,31 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadPatientProfile() {
         try {
             console.log('Loading patient profile for user ID:', user.id);
-            // First get the patient record using user_id
-            const response = await axios.get(`${baseApiUrl}/patients.php?operation=get&id=${user.id}`);
+            // Use the user profile API to get patient information
+            const response = await axios.get(`${baseApiUrl}/user.php?operation=profile&user_id=${user.id}`);
             console.log('API response:', response.data);
 
-            if (response.data.success && response.data.data) {
-                const patient = response.data.data;
-                currentPatientData = patient; // Store the patient data
-                console.log('Patient data loaded:', patient);
-                displayProfile(patient);
+            if (response.data.success && response.data.user && response.data.context && response.data.context.patient) {
+                const userData = response.data.user;
+                const patient = response.data.context.patient;
+
+                // Combine user data with patient data
+                const combinedData = {
+                    ...userData,
+                    ...patient,
+                    full_name: userData.name,
+                    email: userData.email,
+                    patient_id: response.data.context.patient_id,
+                    // Use user created_at for member since, patient created_at for last updated
+                    created_at: userData.created_at, // Member since
+                    updated_at: patient.created_at   // Last updated (patients table doesn't have updated_at)
+                };
+
+                currentPatientData = combinedData; // Store the combined data
+                console.log('Patient data loaded:', combinedData);
+                displayProfile(combinedData);
             } else {
-                console.error('API returned success but no data:', response.data);
+                console.error('API returned success but no patient data:', response.data);
                 throw new Error(response.data.message || 'No patient data found');
             }
         } catch (error) {
@@ -72,7 +85,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Response status:', error.response.status);
                 console.error('Response data:', error.response.data);
             }
-            Swal.fire('Error', 'Failed to load profile information. Please try refreshing the page.', 'error');
+
+            // Show a more helpful error message
+            const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+            console.error('Full error details:', error);
+
+            Swal.fire({
+                title: 'Error Loading Profile',
+                text: `Failed to load profile information: ${errorMessage}`,
+                icon: 'error',
+                confirmButtonText: 'Try Again'
+            }).then(() => {
+                // Try to reload the page
+                window.location.reload();
+            });
         }
     }
 
@@ -95,7 +121,6 @@ document.addEventListener('DOMContentLoaded', () => {
         profileElements.birthdate.textContent = patient.birthdate ? new Date(patient.birthdate).toLocaleDateString() : 'N/A';
         profileElements.age.textContent = actualAge > 0 ? `${actualAge} years old` : 'N/A';
         profileElements.address.textContent = patient.address || 'N/A';
-        profileElements.patientId.textContent = patient.patient_id || 'N/A';
         profileElements.memberSince.textContent = patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'N/A';
         profileElements.lastUpdated.textContent = patient.updated_at ? new Date(patient.updated_at).toLocaleDateString() : 'N/A';
 

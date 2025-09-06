@@ -11,7 +11,7 @@ class Prescriptions
         try {
             $stmt = $conn->prepare("
                 SELECT pr.*,
-                       d.condition_name,
+                       c.diagnosis as condition_name,
                        a.appointment_date,
                        a.queue_number,
                        p.user_id as patient_user_id,
@@ -24,7 +24,7 @@ class Prescriptions
                        m.price,
                        mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
-                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                LEFT JOIN tbl_consultations c ON pr.consultation_id = c.consultation_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON pr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
@@ -52,7 +52,7 @@ class Prescriptions
         try {
             $stmt = $conn->prepare("
                 SELECT pr.*,
-                       d.condition_name,
+                       c.diagnosis as condition_name,
                        a.appointment_date,
                        a.queue_number,
                        doc.user_id as doctor_user_id,
@@ -63,7 +63,7 @@ class Prescriptions
                        m.price,
                        mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
-                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                LEFT JOIN tbl_consultations c ON pr.consultation_id = c.consultation_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
                 JOIN tbl_doctors doc ON pr.doctor_id = doc.doctor_id
                 JOIN tbl_users du ON doc.user_id = du.user_id
@@ -91,7 +91,7 @@ class Prescriptions
         try {
             $stmt = $conn->prepare("
                 SELECT pr.*,
-                       d.condition_name,
+                       c.diagnosis as condition_name,
                        a.appointment_date,
                        a.queue_number,
                        p.user_id as patient_user_id,
@@ -102,7 +102,7 @@ class Prescriptions
                        m.price,
                        mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
-                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                LEFT JOIN tbl_consultations c ON pr.consultation_id = c.consultation_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON pr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
@@ -130,7 +130,7 @@ class Prescriptions
         try {
             $stmt = $conn->prepare("
                 SELECT pr.*,
-                       d.condition_name,
+                       c.diagnosis as condition_name,
                        a.appointment_date,
                        a.queue_number,
                        p.user_id as patient_user_id,
@@ -143,7 +143,7 @@ class Prescriptions
                        m.price,
                        mp.packaging_name, mp.description as packaging_description
                 FROM tbl_prescriptions pr
-                JOIN tbl_diagnoses d ON pr.diagnosis_id = d.diagnosis_id
+                LEFT JOIN tbl_consultations c ON pr.consultation_id = c.consultation_id
                 JOIN tbl_appointments a ON pr.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON pr.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id

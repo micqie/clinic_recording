@@ -175,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         </div>
                         <div>
                             <div class="fw-semibold">${doctor.name}</div>
-                            <small class="text-muted">ID: ${doctor.doctor_id}</small>
                         </div>
                     </div>
                 </td>

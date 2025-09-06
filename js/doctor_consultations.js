@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
     const medicinesApi = `${baseApiUrl}/medicines.php`;
     const labTestTypesApi = `${baseApiUrl}/lab_test_types.php`;
+    const conditionsApi = `${baseApiUrl}/conditions.php`;
 
     // Form elements
     const form = document.getElementById('consultationForm');
@@ -1150,6 +1151,136 @@ document.addEventListener('DOMContentLoaded', () => {
     if (refreshQueueBtn) {
         refreshQueueBtn.addEventListener('click', async () => {
             await loadCurrentQueueStatus();
+        });
+    }
+
+    // Function to load conditions from API
+    async function loadConditions() {
+        try {
+            console.log('Loading conditions from API...');
+            const response = await axios.get(`${conditionsApi}?operation=getAll`);
+            console.log('Conditions API response:', response.data);
+
+            if (response.data.success) {
+                const conditionSelect = document.querySelector('select[name="diagnosis"]');
+                if (conditionSelect) {
+                    // Clear existing options except the first one
+                    conditionSelect.innerHTML = '<option value="">Select condition</option>';
+
+                    // Add conditions from API
+                    response.data.conditions.forEach(condition => {
+                        const option = document.createElement('option');
+                        option.value = condition.condition_name;
+                        option.textContent = condition.condition_name;
+                        conditionSelect.appendChild(option);
+                    });
+                    console.log(`Loaded ${response.data.conditions.length} conditions`);
+                }
+            } else {
+                console.error('API returned success=false:', response.data);
+                loadFallbackConditions();
+            }
+        } catch (error) {
+            console.error('Error loading conditions:', error);
+            // Fallback to hardcoded options if API fails
+            loadFallbackConditions();
+        }
+    }
+
+    // Fallback function for hardcoded conditions
+    function loadFallbackConditions() {
+        console.log('Using fallback hardcoded conditions');
+        const conditionSelect = document.querySelector('select[name="diagnosis"]');
+        if (conditionSelect) {
+            const fallbackConditions = [
+                'Cough', 'Common Cold', 'Fever', 'Hypertension',
+                'Type 2 Diabetes', 'Upper Respiratory Tract Infection',
+                'Gastroenteritis', 'AGAY'
+            ];
+
+            conditionSelect.innerHTML = '<option value="">Select condition</option>';
+            fallbackConditions.forEach(condition => {
+                const option = document.createElement('option');
+                option.value = condition;
+                option.textContent = condition;
+                conditionSelect.appendChild(option);
+            });
+        }
+    }
+
+    // Function to add new condition
+    async function addNewCondition() {
+        const conditionName = newConditionName.value.trim();
+
+        if (!conditionName) {
+            newConditionName.classList.add('is-invalid');
+            return;
+        }
+
+        try {
+            console.log('Adding condition:', conditionName);
+
+            // Send data as URL-encoded form data instead of FormData
+            const params = new URLSearchParams();
+            params.append('operation', 'add');
+            params.append('condition_name', conditionName);
+
+            console.log('Sending params:', params.toString());
+
+            const response = await axios.post(conditionsApi, params, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+            });
+
+            console.log('API response:', response.data);
+
+            if (response.data.success) {
+                Swal.fire('Success', 'Condition added successfully!', 'success');
+
+                // Clear the form
+                newConditionName.value = '';
+                newConditionName.classList.remove('is-invalid');
+
+                // Hide the modal
+                addConditionModal.hide();
+
+                // Reload conditions in the dropdown
+                await loadConditions();
+
+                // Select the newly added condition
+                const conditionSelect = document.querySelector('select[name="diagnosis"]');
+                if (conditionSelect) {
+                    conditionSelect.value = conditionName;
+                }
+            } else {
+                throw new Error(response.data.message || 'Failed to add condition');
+            }
+        } catch (error) {
+            console.error('Error adding condition:', error);
+            console.error('Error response:', error.response?.data);
+            Swal.fire('Error', error.response?.data?.message || 'Failed to add condition', 'error');
+        }
+    }
+
+    // Load conditions for the dropdown
+    loadConditions();
+
+    // Set up add condition button
+    const addConditionBtn = document.getElementById('addConditionBtn');
+    const addConditionModal = new bootstrap.Modal(document.getElementById('addConditionModal'));
+    const saveConditionBtn = document.getElementById('saveConditionBtn');
+    const newConditionName = document.getElementById('newConditionName');
+
+    if (addConditionBtn) {
+        addConditionBtn.addEventListener('click', () => {
+            addConditionModal.show();
+        });
+    }
+
+    if (saveConditionBtn) {
+        saveConditionBtn.addEventListener('click', async () => {
+            await addNewCondition();
         });
     }
 });

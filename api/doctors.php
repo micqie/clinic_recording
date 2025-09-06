@@ -290,7 +290,6 @@ class Doctors
             $checkTables = [
                 ["tbl_appointments", "doctor_id"],
                 ["tbl_lab_requests", "doctor_id"],
-                ["tbl_diagnoses", "doctor_id"],
                 ["tbl_prescriptions", "doctor_id"]
             ];
 
