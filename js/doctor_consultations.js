@@ -1045,7 +1045,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const c = res.data.consultation;
             document.getElementById('review_consultation_id').value = consultationId;
-            document.getElementById('review_symptoms_text').value = c.symptoms_text || '';
             document.getElementById('review_final_diagnosis').value = c.final_diagnosis || '';
             document.getElementById('review_consultation_notes').value = c.consultation_notes || '';
 
@@ -1081,7 +1080,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             consultation_id: consultationId,
             consultation_notes: document.getElementById('review_consultation_notes').value || '',
-            symptoms_text: document.getElementById('review_symptoms_text').value || null,
             final_diagnosis: document.getElementById('review_final_diagnosis').value || null,
         };
 
@@ -1721,16 +1719,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initial illnesses load
     loadIllnesses();
 
-    // Sync quick select to free-text final diagnosis
-    const finalDiagnosisSelect = document.getElementById('finalDiagnosisSelect');
-    const finalDiagnosisInput = document.getElementById('finalDiagnosisInput');
-    if (finalDiagnosisSelect && finalDiagnosisInput) {
-        finalDiagnosisSelect.addEventListener('change', () => {
-            if (finalDiagnosisSelect.value) {
-                finalDiagnosisInput.value = finalDiagnosisSelect.value;
-            }
-        });
-    }
+    // Final diagnosis free text only now
 
     // Set up add condition button
     const addConditionBtn = document.getElementById('addConditionBtn');

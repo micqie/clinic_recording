@@ -317,20 +317,8 @@
                 <div class="col-12">
                   <h6 class="text-secondary mb-3"><i class="fas fa-notes-medical me-2"></i>Clinical Summary</h6>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label">Final Diagnosis (quick select)</label>
-                  <select class="form-select" id="finalDiagnosisSelect">
-                    <option value="">Select conclusion</option>
-                    <option>Acid Reflux (GERD)</option>
-                    <option>Upper Respiratory Tract Infection</option>
-                    <option>Hypertension</option>
-                    <option>Type 2 Diabetes</option>
-                    <option>Gastroenteritis</option>
-                    <option>Viral Fever</option>
-                  </select>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label">Final Diagnosis (free text)</label>
+                <div class="col-12">
+                  <label class="form-label">Final Diagnosis</label>
                   <input type="text" class="form-control" name="final_diagnosis" id="finalDiagnosisInput" placeholder="e.g., The patient has ACID REFLUX" />
                 </div>
                 <div class="col-12">
@@ -513,10 +501,6 @@
         <div class="modal-body">
           <form id="reviewConsultationForm">
             <input type="hidden" id="review_consultation_id" />
-            <div class="mb-3">
-              <label class="form-label">Symptoms Summary</label>
-              <textarea class="form-control" id="review_symptoms_text" rows="2"></textarea>
-            </div>
             <div class="mb-3">
               <label class="form-label">Final Diagnosis</label>
               <input type="text" class="form-control" id="review_final_diagnosis" />
