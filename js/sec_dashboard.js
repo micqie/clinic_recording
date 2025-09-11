@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const elTotalPatients = document.getElementById('totalPatientsCount');
   const elAppointments = document.getElementById('appointmentsCount');
   const elPendingPayments = document.getElementById('pendingPaymentsAmount');
-  const elLowStock = document.getElementById('lowStockCount');
+
 
   try {
     const [pRes, aRes, payRes, mRes] = await Promise.all([
@@ -22,13 +22,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const patients = (pRes.data && pRes.data.data) || [];
     elTotalPatients && (elTotalPatients.textContent = patients.length.toString());
 
-    // Appointments today (exclude Cancelled)
+    // Appointments today
     const today = new Date().toISOString().slice(0, 10);
     const appointments = (aRes.data && aRes.data.data) || [];
     const todaysAppointments = appointments.filter(r => r.appointment_date === today && (r.appointment_status || '').toLowerCase() !== 'cancelled');
     elAppointments && (elAppointments.textContent = todaysAppointments.length.toString());
 
-    // Pending payments amount (sum known unpaid amounts)
+    // Pending payments amount 
     const paymentsRows = (payRes.data && payRes.data.data) || [];
     let unpaidSum = 0;
     let unpaidCount = 0;
@@ -57,5 +57,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('Dashboard load failed', err);
   }
 });
-
-

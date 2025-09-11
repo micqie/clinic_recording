@@ -3,7 +3,9 @@
  * Handles automatic logout based on user inactivity
  */
 
-class AutoLogoutManager {
+// Prevent duplicate class declaration and initialization
+if (typeof window.AutoLogoutManager === 'undefined') {
+window.AutoLogoutManager = class AutoLogoutManager {
     constructor() {
         this.timeoutId = null;
         this.warningTimeoutId = null;
@@ -208,11 +210,20 @@ class AutoLogoutManager {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem('user')) {
-        window.autoLogoutManager = new AutoLogoutManager();
-    }
+    // Add a small delay to ensure all other scripts are loaded
+    setTimeout(() => {
+        if (sessionStorage.getItem('user') && !window.autoLogoutManager) {
+            try {
+                window.autoLogoutManager = new window.AutoLogoutManager();
+                console.log('AutoLogoutManager initialized successfully');
+            } catch (error) {
+                console.error('Error initializing AutoLogoutManager:', error);
+            }
+        }
+    }, 100);
 });
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = AutoLogoutManager;
+    module.exports = window.AutoLogoutManager;
+}
 }

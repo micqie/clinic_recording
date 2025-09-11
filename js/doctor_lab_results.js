@@ -232,9 +232,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // Handle edit form submission
     editLabResultForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        // Check form validity
         if (!editLabResultForm.checkValidity()) {
             e.stopPropagation();
             editLabResultForm.classList.add('was-validated');
+            console.log('Form validation failed');
             return;
         }
         editLabResultForm.classList.remove('was-validated');
@@ -244,20 +247,38 @@ document.addEventListener("DOMContentLoaded", () => {
         const resultId = formData.get('result_id');
         const resultText = formData.get('result_text');
 
+        // Additional validation
+        if (!resultText || resultText.trim() === '') {
+            Swal.fire("Error", "Please enter lab results", "error");
+            return;
+        }
+
+        console.log('Form data:', {
+            labRequestId,
+            resultId,
+            resultText: resultText.trim()
+        });
+
         try {
             if (resultId) {
                 // Update existing result
-                const updatePayload = new URLSearchParams();
-                updatePayload.append('operation', 'update');
-                updatePayload.append('json', JSON.stringify({
+                const updateData = {
                     result_id: resultId,
                     result_text: resultText,
-                    status_id: 15 // Ready status
-                }));
+                    status_id: 16 // Delivered status
+                };
+
+                console.log('Updating lab result with data:', updateData);
+
+                const updatePayload = new URLSearchParams();
+                updatePayload.append('operation', 'update');
+                updatePayload.append('json', JSON.stringify(updateData));
 
                 const response = await axios.post(labResultsApiUrl, updatePayload);
+                console.log('Update response:', response.data);
+
                 if (response.data.success) {
-                    Swal.fire("Success", "Lab result updated successfully!", "success");
+                    Swal.fire("Success", "Lab result updated and marked as delivered!", "success");
                     editLabResultModal.hide();
                     loadLabRequests();
                 } else {
@@ -294,7 +315,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (error) {
             console.error("Error saving lab result:", error);
-            Swal.fire("Error", "Failed to save lab result", "error");
+            console.error("Error response:", error.response?.data);
+            Swal.fire("Error", error.response?.data?.message || "Failed to save lab result", "error");
         }
     });
 

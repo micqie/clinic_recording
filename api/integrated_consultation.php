@@ -26,7 +26,7 @@ class IntegratedConsultation
                 throw new Exception("Missing required fields: appointment_id, doctor_id, patient_id, diagnosis");
             }
 
-            // Create consultation
+            // Create consultation (core fields only)
             $consultationStmt = $this->conn->prepare("
                 INSERT INTO tbl_consultations (
                     appointment_id, doctor_id, patient_id, diagnosis,
@@ -51,6 +51,27 @@ class IntegratedConsultation
             $consultationStatus = $data['consultation_status'] ?? 'Active';
 
             $consultationStmt->bindParam(":consultation_notes", $consultationNotes);
+
+            // Collect new history and vitals fields (to be stored in separate tables)
+            $presentIllness = $data['present_illness'] ?? null;
+            $pastMedical = $data['past_medical_history'] ?? null;
+            $pastSurgical = $data['past_surgical_history'] ?? null;
+            $familyHistory = $data['family_history'] ?? null;
+            $socialHistory = $data['social_history'] ?? null;
+            $smokingStatus = $data['smoking_status'] ?? null;
+            $smokingPPD = $data['smoking_packs_per_day'] ?? null;
+            $alcoholUse = $data['alcohol_use'] ?? null;
+            $alcoholFreq = $data['alcohol_frequency'] ?? null;
+            $drugUse = $data['drug_use'] ?? null;
+            $drugType = $data['drug_type'] ?? null;
+            $sexualActivity = $data['sexual_activity'] ?? null;
+            $currentMeds = $data['current_medications'] ?? null;
+
+            $heightCm = isset($data['height_cm']) && $data['height_cm'] !== '' ? $data['height_cm'] : null;
+            $weightKg = isset($data['weight_kg']) && $data['weight_kg'] !== '' ? $data['weight_kg'] : null;
+            $bp = $data['blood_pressure_mmHg'] ?? null;
+            $hr = isset($data['heart_rate_bpm']) && $data['heart_rate_bpm'] !== '' ? $data['heart_rate_bpm'] : null;
+            $spo2 = isset($data['spo2_percent']) && $data['spo2_percent'] !== '' ? $data['spo2_percent'] : null;
             $consultationStmt->bindParam(":next_appointment_date", $nextAppointmentDate);
             $consultationStmt->bindParam(":next_appointment_notes", $nextAppointmentNotes);
             $consultationStmt->bindParam(":consultation_status", $consultationStatus);
@@ -63,6 +84,79 @@ class IntegratedConsultation
 
             $consultationId = $this->conn->lastInsertId();
             error_log("Created consultation with ID: " . $consultationId);
+
+            // Insert history if any provided
+            $hasHistory = $presentIllness || $pastMedical || $pastSurgical || $familyHistory || $socialHistory || $smokingStatus || $smokingPPD || $alcoholUse || $alcoholFreq || $drugUse || $drugType || $sexualActivity || $currentMeds;
+            if ($hasHistory) {
+                $histStmt = $this->conn->prepare("
+                    INSERT INTO tbl_consultation_history (
+                        consultation_id, present_illness, past_medical_history, past_surgical_history, family_history,
+                        social_history, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency,
+                        drug_use, drug_type, sexual_activity, current_medications
+                    ) VALUES (
+                        :consultation_id, :present_illness, :past_medical_history, :past_surgical_history, :family_history,
+                        :social_history, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency,
+                        :drug_use, :drug_type, :sexual_activity, :current_medications
+                    )
+                ");
+                $histStmt->bindValue(":consultation_id", $consultationId);
+                $histStmt->bindValue(":present_illness", $presentIllness);
+                $histStmt->bindValue(":past_medical_history", $pastMedical);
+                $histStmt->bindValue(":past_surgical_history", $pastSurgical);
+                $histStmt->bindValue(":family_history", $familyHistory);
+                $histStmt->bindValue(":social_history", $socialHistory);
+                $histStmt->bindValue(":smoking_status", $smokingStatus);
+                $histStmt->bindValue(":smoking_packs_per_day", $smokingPPD);
+                $histStmt->bindValue(":alcohol_use", $alcoholUse);
+                $histStmt->bindValue(":alcohol_frequency", $alcoholFreq);
+                $histStmt->bindValue(":drug_use", $drugUse);
+                $histStmt->bindValue(":drug_type", $drugType);
+                $histStmt->bindValue(":sexual_activity", $sexualActivity);
+                $histStmt->bindValue(":current_medications", $currentMeds);
+                if (!$histStmt->execute()) {
+                    $errorInfo = $histStmt->errorInfo();
+                    throw new Exception("Failed to insert consultation history: " . ($errorInfo[2] ?? 'Unknown error'));
+                }
+            }
+
+            // Insert vitals if any provided
+            $hasVitals = $heightCm !== null || $weightKg !== null || $bp !== null || $hr !== null || $spo2 !== null;
+            if ($hasVitals) {
+                $vitStmt = $this->conn->prepare("
+                    INSERT INTO tbl_consultation_vitals (
+                        consultation_id, height_cm, weight_kg, blood_pressure_mmHg, heart_rate_bpm, spo2_percent
+                    ) VALUES (
+                        :consultation_id, :height_cm, :weight_kg, :blood_pressure_mmHg, :heart_rate_bpm, :spo2_percent
+                    )
+                ");
+                $vitStmt->bindValue(":consultation_id", $consultationId);
+                $vitStmt->bindValue(":height_cm", $heightCm);
+                $vitStmt->bindValue(":weight_kg", $weightKg);
+                $vitStmt->bindValue(":blood_pressure_mmHg", $bp);
+                $vitStmt->bindValue(":heart_rate_bpm", $hr);
+                $vitStmt->bindValue(":spo2_percent", $spo2);
+                if (!$vitStmt->execute()) {
+                    $errorInfo = $vitStmt->errorInfo();
+                    throw new Exception("Failed to insert consultation vitals: " . ($errorInfo[2] ?? 'Unknown error'));
+                }
+            }
+
+            // Insert clinical summary if provided
+            $symptomsText = $data['symptoms_text'] ?? null;
+            $finalDiagnosis = $data['final_diagnosis'] ?? null;
+            if ($symptomsText !== null || $finalDiagnosis !== null) {
+                $sumStmt = $this->conn->prepare("
+                    INSERT INTO tbl_consultation_summary (consultation_id, symptoms_text, final_diagnosis)
+                    VALUES (:cid, :symptoms_text, :final_diagnosis)
+                ");
+                $sumStmt->bindValue(":cid", $consultationId);
+                $sumStmt->bindValue(":symptoms_text", $symptomsText);
+                $sumStmt->bindValue(":final_diagnosis", $finalDiagnosis);
+                if (!$sumStmt->execute()) {
+                    $errorInfo = $sumStmt->errorInfo();
+                    throw new Exception("Failed to insert consultation summary: " . ($errorInfo[2] ?? 'Unknown error'));
+                }
+            }
 
             // Create prescriptions if provided
             if (!empty($data['prescriptions']) && is_array($data['prescriptions'])) {
@@ -138,6 +232,38 @@ class IntegratedConsultation
                 }
             }
 
+            // Create lab results if provided
+            if (!empty($data['lab_results']) && is_array($data['lab_results'])) {
+                error_log("Creating " . count($data['lab_results']) . " lab results");
+                foreach ($data['lab_results'] as $labResult) {
+                    // Validate required lab result fields
+                    if (empty($labResult['lab_request_id']) || empty($labResult['result_text']) || empty($labResult['status_id'])) {
+                        throw new Exception("Missing required lab result fields: lab_request_id, result_text, status_id");
+                    }
+
+                    $labResultStmt = $this->conn->prepare("
+                        INSERT INTO tbl_lab_results (
+                            lab_request_id, patient_id, doctor_id, result_text, uploaded_by, status_id
+                        ) VALUES (
+                            :lab_request_id, :patient_id, :doctor_id, :result_text, :uploaded_by, :status_id
+                        )
+                    ");
+
+                    $labResultStmt->bindValue(":lab_request_id", $labResult['lab_request_id']);
+                    $labResultStmt->bindValue(":patient_id", $data['patient_id']);
+                    $labResultStmt->bindValue(":doctor_id", $data['doctor_id']);
+                    $labResultStmt->bindValue(":result_text", $labResult['result_text']);
+                    $labResultStmt->bindValue(":uploaded_by", $data['doctor_id']); // Doctor is uploading the result
+                    $labResultStmt->bindValue(":status_id", $labResult['status_id']);
+
+                    if (!$labResultStmt->execute()) {
+                        $errorInfo = $labResultStmt->errorInfo();
+                        error_log("Failed to create lab result: " . json_encode($errorInfo));
+                        throw new Exception("Failed to create lab result: " . ($errorInfo[2] ?? 'Unknown error'));
+                    }
+                }
+            }
+
             // Update appointment status to completed
             $completedStatusId = $this->getStatusId('Completed');
             error_log("Completed status ID: " . ($completedStatusId ?? 'null'));
@@ -190,13 +316,21 @@ class IntegratedConsultation
         try {
             // Get consultation
             $consultationStmt = $this->conn->prepare("
-                SELECT c.*, a.appointment_date, u.name AS patient_name, du.name AS doctor_name
+                SELECT c.*, a.appointment_date, u.name AS patient_name, du.name AS doctor_name,
+                       h.present_illness, h.past_medical_history, h.past_surgical_history, h.family_history,
+                       h.social_history, h.smoking_status, h.smoking_packs_per_day, h.alcohol_use, h.alcohol_frequency,
+                       h.drug_use, h.drug_type, h.sexual_activity, h.current_medications,
+                       v.height_cm, v.weight_kg, v.blood_pressure_mmHg, v.heart_rate_bpm, v.spo2_percent,
+                       s.symptoms_text, s.final_diagnosis
                 FROM tbl_consultations c
                 JOIN tbl_appointments a ON c.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON c.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
                 JOIN tbl_doctors d ON c.doctor_id = d.doctor_id
                 JOIN tbl_users du ON d.user_id = du.user_id
+                LEFT JOIN tbl_consultation_history h ON h.consultation_id = c.consultation_id
+                LEFT JOIN tbl_consultation_vitals v ON v.consultation_id = c.consultation_id
+                LEFT JOIN tbl_consultation_summary s ON s.consultation_id = c.consultation_id
                 WHERE c.consultation_id = :consultation_id
             ");
             $consultationStmt->bindParam(":consultation_id", $consultationId);
@@ -410,6 +544,7 @@ class IntegratedConsultation
     public function update_consultation($consultationId, $data)
     {
         try {
+            // Update core consultation fields
             $stmt = $this->conn->prepare("
                 UPDATE tbl_consultations
                 SET diagnosis = :diagnosis,
@@ -427,18 +562,89 @@ class IntegratedConsultation
             $stmt->bindParam(":next_appointment_date", $data['next_appointment_date'] ?? null);
             $stmt->bindParam(":next_appointment_notes", $data['next_appointment_notes'] ?? '');
             $stmt->bindParam(":consultation_status", $data['consultation_status'] ?? 'Active');
+            $stmt->execute();
 
-            if ($stmt->execute()) {
-                echo json_encode([
-                    "success" => true,
-                    "message" => "Consultation updated successfully"
-                ]);
-            } else {
-                echo json_encode([
-                    "success" => false,
-                    "message" => "Failed to update consultation"
-                ]);
-            }
+            // Upsert history table
+            $histUpsert = $this->conn->prepare("
+                INSERT INTO tbl_consultation_history (
+                    consultation_id, present_illness, past_medical_history, past_surgical_history, family_history,
+                    social_history, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency,
+                    drug_use, drug_type, sexual_activity, current_medications
+                ) VALUES (
+                    :consultation_id, :present_illness, :past_medical_history, :past_surgical_history, :family_history,
+                    :social_history, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency,
+                    :drug_use, :drug_type, :sexual_activity, :current_medications
+                )
+                ON DUPLICATE KEY UPDATE
+                    present_illness = VALUES(present_illness),
+                    past_medical_history = VALUES(past_medical_history),
+                    past_surgical_history = VALUES(past_surgical_history),
+                    family_history = VALUES(family_history),
+                    social_history = VALUES(social_history),
+                    smoking_status = VALUES(smoking_status),
+                    smoking_packs_per_day = VALUES(smoking_packs_per_day),
+                    alcohol_use = VALUES(alcohol_use),
+                    alcohol_frequency = VALUES(alcohol_frequency),
+                    drug_use = VALUES(drug_use),
+                    drug_type = VALUES(drug_type),
+                    sexual_activity = VALUES(sexual_activity),
+                    current_medications = VALUES(current_medications)
+            ");
+            $histUpsert->bindValue(":consultation_id", $consultationId);
+            $histUpsert->bindValue(":present_illness", $data['present_illness'] ?? null);
+            $histUpsert->bindValue(":past_medical_history", $data['past_medical_history'] ?? null);
+            $histUpsert->bindValue(":past_surgical_history", $data['past_surgical_history'] ?? null);
+            $histUpsert->bindValue(":family_history", $data['family_history'] ?? null);
+            $histUpsert->bindValue(":social_history", $data['social_history'] ?? null);
+            $histUpsert->bindValue(":smoking_status", $data['smoking_status'] ?? null);
+            $histUpsert->bindValue(":smoking_packs_per_day", $data['smoking_packs_per_day'] ?? null);
+            $histUpsert->bindValue(":alcohol_use", $data['alcohol_use'] ?? null);
+            $histUpsert->bindValue(":alcohol_frequency", $data['alcohol_frequency'] ?? null);
+            $histUpsert->bindValue(":drug_use", $data['drug_use'] ?? null);
+            $histUpsert->bindValue(":drug_type", $data['drug_type'] ?? null);
+            $histUpsert->bindValue(":sexual_activity", $data['sexual_activity'] ?? null);
+            $histUpsert->bindValue(":current_medications", $data['current_medications'] ?? null);
+            $histUpsert->execute();
+
+            // Upsert vitals table
+            $vitUpsert = $this->conn->prepare("
+                INSERT INTO tbl_consultation_vitals (
+                    consultation_id, height_cm, weight_kg, blood_pressure_mmHg, heart_rate_bpm, spo2_percent
+                ) VALUES (
+                    :consultation_id, :height_cm, :weight_kg, :blood_pressure_mmHg, :heart_rate_bpm, :spo2_percent
+                )
+                ON DUPLICATE KEY UPDATE
+                    height_cm = VALUES(height_cm),
+                    weight_kg = VALUES(weight_kg),
+                    blood_pressure_mmHg = VALUES(blood_pressure_mmHg),
+                    heart_rate_bpm = VALUES(heart_rate_bpm),
+                    spo2_percent = VALUES(spo2_percent)
+            ");
+            $vitUpsert->bindValue(":consultation_id", $consultationId);
+            $vitUpsert->bindValue(":height_cm", isset($data['height_cm']) && $data['height_cm'] !== '' ? $data['height_cm'] : null);
+            $vitUpsert->bindValue(":weight_kg", isset($data['weight_kg']) && $data['weight_kg'] !== '' ? $data['weight_kg'] : null);
+            $vitUpsert->bindValue(":blood_pressure_mmHg", $data['blood_pressure_mmHg'] ?? null);
+            $vitUpsert->bindValue(":heart_rate_bpm", isset($data['heart_rate_bpm']) && $data['heart_rate_bpm'] !== '' ? $data['heart_rate_bpm'] : null);
+            $vitUpsert->bindValue(":spo2_percent", isset($data['spo2_percent']) && $data['spo2_percent'] !== '' ? $data['spo2_percent'] : null);
+            $vitUpsert->execute();
+
+            // Upsert summary table
+            $sumUpsert = $this->conn->prepare("
+                INSERT INTO tbl_consultation_summary (consultation_id, symptoms_text, final_diagnosis)
+                VALUES (:cid, :symptoms_text, :final_diagnosis)
+                ON DUPLICATE KEY UPDATE
+                    symptoms_text = VALUES(symptoms_text),
+                    final_diagnosis = VALUES(final_diagnosis)
+            ");
+            $sumUpsert->bindValue(":cid", $consultationId);
+            $sumUpsert->bindValue(":symptoms_text", $data['symptoms_text'] ?? null);
+            $sumUpsert->bindValue(":final_diagnosis", $data['final_diagnosis'] ?? null);
+            $sumUpsert->execute();
+
+            echo json_encode([
+                "success" => true,
+                "message" => "Consultation updated successfully"
+            ]);
 
         } catch (Exception $e) {
             echo json_encode([

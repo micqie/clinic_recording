@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Bootstrap modal instances
     const addLabResultModal = new bootstrap.Modal(document.getElementById('addLabResultModal'));
     const viewLabResultModal = new bootstrap.Modal(document.getElementById('viewLabResultModal'));
+    const editLabResultModal = new bootstrap.Modal(document.getElementById('editLabResultModal'));
 
     let allLabResults = [];
 
@@ -101,8 +102,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     <button class="btn btn-sm btn-outline-info me-1" data-action="view" data-id="${r.result_id}" title="View Result">
                         <i class="fas fa-eye"></i>
                     </button>
-                    ${r.status_name === 'Ready' ? `<button class="btn btn-sm btn-outline-success me-1" data-action="deliver" data-id="${r.result_id}" title="Mark as Delivered">
-                        <i class="fas fa-check"></i>
+                    ${r.status_name === 'Ready' ? `<button class="btn btn-sm btn-outline-primary me-1" data-action="edit" data-id="${r.result_id}" title="Edit Result">
+                        <i class="fas fa-edit"></i>
                     </button>` : ''}
                 </td>
             `;
@@ -119,6 +120,46 @@ document.addEventListener("DOMContentLoaded", () => {
             default: return 'secondary';
         }
     }
+
+    // Edit lab result form
+    const editLabResultForm = document.getElementById('editLabResultForm');
+
+    // Edit lab result submit handler
+    editLabResultForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!editLabResultForm.checkValidity()) {
+            e.stopPropagation();
+            editLabResultForm.classList.add('was-validated');
+            return;
+        }
+        editLabResultForm.classList.remove('was-validated');
+
+        const formData = new FormData(editLabResultForm);
+        const resultId = formData.get('result_id');
+        const resultText = formData.get('result_text');
+
+        try {
+            const payload = new URLSearchParams();
+            payload.append('operation', 'update');
+            payload.append('json', JSON.stringify({
+                result_id: resultId,
+                result_text: resultText,
+                status_id: 16 // Delivered status
+            }));
+
+            const response = await axios.post(`${baseApiUrl}/lab_results.php`, payload);
+            if (response.data.success) {
+                Swal.fire("Success", "Lab result updated and marked as delivered!", "success");
+                editLabResultModal.hide();
+                loadLabResults();
+            } else {
+                Swal.fire("Error", response.data.message || 'Failed to update lab result', "error");
+            }
+        } catch (error) {
+            console.error("Error updating lab result:", error);
+            Swal.fire("Error", error?.response?.data?.message || 'Failed to update lab result', "error");
+        }
+    });
 
     // Add lab result submit handler
     addLabResultForm?.addEventListener("submit", async (e) => {
@@ -211,28 +252,28 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        if (action === 'deliver') {
-            const confirm = await Swal.fire({
-                icon: 'question',
-                title: 'Mark as Delivered?',
-                text: 'This will mark the lab result as delivered to the patient. Please ensure the patient has paid their consultation fee.',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, mark as delivered',
-                cancelButtonText: 'Cancel'
-            });
-            if (!confirm.isConfirmed) return;
+        if (action === 'edit') {
             try {
-                const payload = new URLSearchParams();
-                payload.append('operation', 'markAsDelivered');
-                payload.append('json', JSON.stringify({ result_id: id }));
-                const res = await axios.post(`${baseApiUrl}/lab_results.php`, payload);
-                if (res.data.success) {
-                    loadLabResults();
-                    Swal.fire('Success','Lab result marked as delivered','success');
+                const response = await axios.get(`${baseApiUrl}/lab_results.php?operation=getById&result_id=${id}`);
+                if (response.data.success) {
+                    const result = response.data.result;
+
+                    // Populate edit modal
+                    document.getElementById('editResultId').value = result.result_id;
+                    document.getElementById('editPatientName').textContent = result.patient_name || '-';
+                    document.getElementById('editTestType').textContent = result.lab_test_type_name || '-';
+                    document.getElementById('editResultDate').textContent = formatDate(result.uploaded_at);
+                    document.getElementById('editCurrentStatus').innerHTML = `<span class="badge bg-${getStatusBadgeColor(result.status_name)}">${result.status_name || 'Unknown'}</span>`;
+                    document.getElementById('editRequestDetails').textContent = result.request_text || 'No details available';
+                    document.getElementById('editResultText').value = result.result_text || '';
+
+                    editLabResultModal.show();
+                } else {
+                    Swal.fire('Error', response.data.message, 'error');
                 }
-                else Swal.fire('Error', res.data.message || 'Failed to mark as delivered', 'error');
-            } catch (err) {
-                Swal.fire('Error', err?.response?.data?.message || 'Failed to mark as delivered', 'error');
+            } catch (error) {
+                console.error("Error loading lab result:", error);
+                Swal.fire('Error', 'Failed to load lab result details', 'error');
             }
         }
     });

@@ -362,7 +362,31 @@ function registerPatient($json)
 
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($user && password_verify($data['password'], $user['password'])) {
+        $isAuthenticated = false;
+        if ($user) {
+            $stored = (string)$user['password'];
+            $input = (string)$data['password'];
+            if (str_starts_with($stored, '$2y$')) {
+                $isAuthenticated = password_verify($input, $stored);
+            } else {
+                // Fallback for initial seed where password may be stored in plaintext; upgrade to bcrypt if matched
+                if (hash_equals($stored, $input)) {
+                    $isAuthenticated = true;
+                    try {
+                        $newHash = password_hash($input, PASSWORD_DEFAULT);
+                        $up = $conn->prepare("UPDATE tbl_users SET password = :p WHERE user_id = :id");
+                        $up->bindParam(":p", $newHash);
+                        $up->bindParam(":id", $user['user_id']);
+                        $up->execute();
+                        $user['password'] = $newHash;
+                    } catch (PDOException $e) {
+                        // ignore upgrade failure; proceed with login
+                    }
+                }
+            }
+        }
+
+        if ($user && $isAuthenticated) {
             if ($hasActive && isset($user['is_active']) && (int)$user['is_active'] === 0) {
                 return ['success' => false, 'message' => 'Account is deactivated. Please contact the administrator.'];
             }

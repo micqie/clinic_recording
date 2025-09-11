@@ -236,6 +236,9 @@ class LabResults
             return ['success' => false, 'message' => 'Result ID is required.'];
         }
 
+        // Log the incoming data for debugging
+        error_log("Update lab result data: " . print_r($data, true));
+
         try {
             $sql = "UPDATE tbl_lab_results SET
                     result_file = :result_file,
@@ -248,6 +251,29 @@ class LabResults
             $stmt->bindValue(":status_id", isset($data['status_id']) ? (int)$data['status_id'] : 15, PDO::PARAM_INT);
             $stmt->bindValue(":result_id", (int)$data['result_id'], PDO::PARAM_INT);
             $stmt->execute();
+
+            // Check if any rows were affected
+            if ($stmt->rowCount() === 0) {
+                return ['success' => false, 'message' => 'No lab result found with the given ID.'];
+            }
+
+            // If status is being updated to Delivered (16), also update the lab request status
+            if (isset($data['status_id']) && (int)$data['status_id'] === 16) {
+                // Get the lab request ID to update its status
+                $getRequestSql = "SELECT lab_request_id FROM tbl_lab_results WHERE result_id = :result_id";
+                $getRequestStmt = $conn->prepare($getRequestSql);
+                $getRequestStmt->bindParam(":result_id", $data['result_id']);
+                $getRequestStmt->execute();
+                $labRequestId = $getRequestStmt->fetchColumn();
+
+                if ($labRequestId) {
+                    // Update lab request status to Delivered (16)
+                    $updateRequestSql = "UPDATE tbl_lab_requests SET status_id = 16 WHERE lab_request_id = :lab_request_id";
+                    $updateRequestStmt = $conn->prepare($updateRequestSql);
+                    $updateRequestStmt->bindParam(":lab_request_id", $labRequestId);
+                    $updateRequestStmt->execute();
+                }
+            }
 
             return ['success' => true, 'message' => 'Lab result updated successfully!'];
         } catch (PDOException $e) {

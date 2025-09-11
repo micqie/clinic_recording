@@ -74,16 +74,15 @@ document.addEventListener("DOMContentLoaded", () => {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${request.patient_name}</td>
-        <td>${request.appointment_date || ''}</td>
-        <td>${request.request_text}</td>
-        <td><span class="badge bg-${getStatusBadgeColor(request.status_name || request.status)}">${request.status_name || request.status}</span></td>
+        <td>
+          <div class="text-truncate" style="max-width: 200px;" title="${(request.request_text || '').replace(/"/g,'&quot;')}">
+            ${request.request_text || '-'}
+          </div>
+        </td>
         <td>${request.created_at ? new Date(request.created_at).toLocaleDateString() : ''}</td>
         <td>
-          <button class="btn btn-sm btn-outline-success me-1" onclick="updateStatus(${request.lab_request_id}, '${request.status}')">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-danger" onclick="deleteLabRequest(${request.lab_request_id})">
-            <i class="fas fa-trash"></i>
+          <button class="btn btn-sm btn-outline-info" onclick="viewLabRequest(${request.lab_request_id})" title="View Details">
+            <i class="fas fa-eye"></i>
           </button>
         </td>
       `;
@@ -91,15 +90,43 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function getStatusBadgeColor(status) {
-    switch (status) {
-      case 'Pending': return 'warning';
-      case 'Processing': return 'info';
-      case 'Ready': return 'success';
-      case 'Delivered': return 'primary';
-      default: return 'secondary';
+  // View lab request details
+  window.viewLabRequest = async (labRequestId) => {
+    try {
+      const response = await axios.get(`${baseApiUrl}/lab_requests.php?operation=getById&lab_request_id=${labRequestId}`);
+      if (response.data.success) {
+        const request = response.data.request;
+
+        // Show details in a SweetAlert modal
+        Swal.fire({
+          title: 'Lab Request Details',
+          html: `
+            <div class="text-start">
+              <p><strong>Patient:</strong> ${request.patient_name || '-'}</p>
+              <p><strong>Doctor:</strong> ${request.doctor_name || 'Not assigned'}</p>
+              <p><strong>Test Type:</strong> ${request.lab_test_type_name || '-'}</p>
+              <p><strong>Created Date:</strong> ${request.created_at ? new Date(request.created_at).toLocaleDateString() : '-'}</p>
+              <hr>
+              <p><strong>Request Details:</strong></p>
+              <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                <p class="mb-0">${request.request_text || 'No details available'}</p>
+              </div>
+            </div>
+          `,
+          width: '600px',
+          showConfirmButton: true,
+          confirmButtonText: 'Close',
+          confirmButtonColor: '#3085d6'
+        });
+      } else {
+        Swal.fire('Error', response.data.message, 'error');
+      }
+    } catch (error) {
+      console.error("Error loading lab request:", error);
+      Swal.fire('Error', 'Failed to load lab request details', 'error');
     }
-  }
+  };
+
 
   // Add new lab request
   addLabRequestForm?.addEventListener("submit", async (e) => {

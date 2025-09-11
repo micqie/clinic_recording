@@ -130,6 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = "html/change_password.html";
           } else {
             const roleRoutes = {
+              admin: "html/admin/admin_dashboard.html",
               doctor: "html/doctor/doctor_appointments.html",
               secretary: "html/secretary/secretary_dashboard.html",
               patient: "html/patient/patient_dashboard.html"

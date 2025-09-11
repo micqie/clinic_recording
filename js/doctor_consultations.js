@@ -1,4 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Wait for SweetAlert to be available
+    if (typeof Swal === 'undefined') {
+        console.error('SweetAlert2 is not loaded. Please check the script tag.');
+        // Create a fallback function
+        window.Swal = {
+            fire: (title, text, icon) => {
+                alert(`${title}: ${text}`);
+            }
+        };
+    }
+
     const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
     const integratedConsultationApi = `${baseApiUrl}/integrated_consultation.php`;
     const patientsApi = `${baseApiUrl}/patients.php`;
@@ -39,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let doctorId = null;
     let prescriptionCounter = 0;
     let labRequestCounter = 0;
+    let labResultCounter = 0;
 
     // Get doctor_id from user profile
     async function getDoctorId() {
@@ -675,6 +687,74 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(labRequestId).remove();
     };
 
+    // Add lab result field
+    function addLabResultField() {
+        const labResultId = `lab_result_${labResultCounter++}`;
+        const labResultHtml = `
+            <div class="card border mb-3" id="${labResultId}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 text-success">Lab Result ${labResultCounter}</h6>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeLabResult('${labResultId}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Lab Request</label>
+                            <select class="form-select" name="lab_results[${labResultCounter-1}][lab_request_id]" required>
+                                <option value="">Select lab request</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Result Status</label>
+                            <select class="form-select" name="lab_results[${labResultCounter-1}][status_id]" required>
+                                <option value="15">Ready</option>
+                                <option value="16">Delivered</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Result Text</label>
+                            <textarea class="form-control" name="lab_results[${labResultCounter-1}][result_text]" rows="3" placeholder="Enter lab result details, findings, values, etc." required></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        labResultsContainer.insertAdjacentHTML('beforeend', labResultHtml);
+
+        // Load lab requests for this result
+        loadLabRequestsForResult(labResultId);
+    }
+
+    // Load lab requests for lab result dropdown
+    async function loadLabRequestsForResult(labResultId) {
+        try {
+            const docId = await getDoctorId();
+            if (!docId) return;
+
+            const res = await axios.get(`${baseApiUrl}/lab_requests.php?operation=get_by_doctor&doctor_id=${docId}`);
+            const select = document.querySelector(`#${labResultId} select[name*="[lab_request_id]"]`);
+
+            if (res.data.success && Array.isArray(res.data.requests)) {
+                res.data.requests.forEach(request => {
+                    const opt = document.createElement('option');
+                    opt.value = request.lab_request_id;
+                    opt.textContent = `${request.type_name} - ${request.patient_name} (${request.request_date})`;
+                    opt.dataset.patientId = request.patient_id;
+                    select.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.error('Error loading lab requests for result:', e);
+        }
+    }
+
+    // Remove lab result field
+    window.removeLabResult = function(labResultId) {
+        document.getElementById(labResultId).remove();
+    };
+
     // Load consultations for the doctor
     async function loadMyConsultations() {
         try {
@@ -909,18 +989,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire({
                     title: 'Consultation Details',
                     html: `
-                        <div class="text-start">
-                            <p><strong>Patient:</strong> ${data.consultation.patient_name}</p>
-                            <p><strong>Date:</strong> ${data.consultation.appointment_date}</p>
-                            <p><strong>Conditions:</strong> ${diagnosisDisplay}</p>
-                            <p><strong>Notes:</strong> ${data.consultation.consultation_notes || 'None'}</p>
-                            <p><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date || 'None'}</p>
-                            <p><strong>Follow-up Notes:</strong> ${data.consultation.next_appointment_notes || 'None'}</p>
-                            ${prescriptionsHtml}
-                            ${labRequestsHtml}
+                        <div class="container-fluid text-start">
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <p><strong>Patient:</strong> ${data.consultation.patient_name}</p>
+                              <p><strong>Date:</strong> ${data.consultation.appointment_date}</p>
+                              <p><strong>Conditions:</strong> ${diagnosisDisplay}</p>
+                              <p><strong>Symptoms:</strong> ${data.consultation.symptoms_text || '—'}</p>
+                              <p><strong>Final Diagnosis:</strong> ${data.consultation.final_diagnosis || '—'}</p>
+                              <p><strong>Notes:</strong> ${data.consultation.consultation_notes || 'None'}</p>
+                              <p><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date || 'None'}</p>
+                              <p><strong>Follow-up Notes:</strong> ${data.consultation.next_appointment_notes || 'None'}</p>
+                              ${prescriptionsHtml}
+                            </div>
+                            <div class="col-md-6">
+                              <p class="mb-1"><strong>History</strong></p>
+                              <p class="mb-1"><strong>Present Illness:</strong> ${data.consultation.present_illness || '—'}</p>
+                              <p class="mb-1"><strong>PMH:</strong> ${data.consultation.past_medical_history || '—'}</p>
+                              <p class="mb-1"><strong>PSH:</strong> ${data.consultation.past_surgical_history || '—'}</p>
+                              <p class="mb-1"><strong>Family:</strong> ${data.consultation.family_history || '—'}</p>
+                              <p class="mb-3"><strong>Social:</strong> ${data.consultation.social_history || '—'}</p>
+                              <p class="mb-1"><strong>Smoking:</strong> ${(data.consultation.smoking_status || 'No')} ${data.consultation.smoking_packs_per_day ? `(Packs/Day: ${data.consultation.smoking_packs_per_day})` : ''}</p>
+                              <p class="mb-1"><strong>Alcohol:</strong> ${(data.consultation.alcohol_use || 'No')} ${data.consultation.alcohol_frequency ? `(Frequency: ${data.consultation.alcohol_frequency})` : ''}</p>
+                              <p class="mb-3"><strong>Drugs:</strong> ${(data.consultation.drug_use || 'No')} ${data.consultation.drug_type ? `(Type: ${data.consultation.drug_type})` : ''}</p>
+                              <p class="mb-1"><strong>Vitals</strong></p>
+                              <p class="mb-1"><strong>BP:</strong> ${data.consultation.blood_pressure_mmHg || '—'}</p>
+                              <p class="mb-1"><strong>HR:</strong> ${data.consultation.heart_rate_bpm ? data.consultation.heart_rate_bpm + ' bpm' : '—'}</p>
+                              <p class="mb-1"><strong>SpO₂:</strong> ${data.consultation.spo2_percent ? data.consultation.spo2_percent + ' %' : '—'}</p>
+                              <p class="mb-1"><strong>Height:</strong> ${data.consultation.height_cm ? data.consultation.height_cm + ' cm' : '—'}</p>
+                              <p class="mb-3"><strong>Weight:</strong> ${data.consultation.weight_kg ? data.consultation.weight_kg + ' kg' : '—'}</p>
+                              ${labRequestsHtml}
+                            </div>
+                          </div>
                         </div>
                     `,
-                    width: '600px'
+                    width: '900px'
                 });
             }
         } catch (e) {
@@ -929,15 +1032,112 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Edit consultation
-    window.editConsultation = function(consultationId) {
-        // TODO: Implement edit functionality
-        Swal.fire('Info', 'Edit functionality coming soon!', 'info');
+    // Edit consultation - open review modal populated with details
+    window.editConsultation = async function(consultationId) {
+        try {
+            const res = await axios.get(`${integratedConsultationApi}?operation=get_details&consultation_id=${consultationId}`);
+            if (!res.data?.success) {
+                Swal.fire('Error', res.data?.message || 'Failed to load consultation', 'error');
+                return;
+            }
+
+            const c = res.data.consultation;
+            document.getElementById('review_consultation_id').value = consultationId;
+            document.getElementById('review_symptoms_text').value = c.symptoms_text || '';
+            document.getElementById('review_final_diagnosis').value = c.final_diagnosis || '';
+            document.getElementById('review_consultation_notes').value = c.consultation_notes || '';
+
+            const vh = document.getElementById('reviewVitalsHistory');
+            if (vh) {
+                vh.innerHTML = `
+                    <div class="mt-3">
+                        <strong>Vitals:</strong>
+                        <div>BP: ${c.blood_pressure_mmHg || '—'}, HR: ${c.heart_rate_bpm || '—'} bpm, SpO₂: ${c.spo2_percent || '—'}%, H: ${c.height_cm || '—'} cm, W: ${c.weight_kg || '—'} kg</div>
+                        <strong>History:</strong>
+                        <div>Present Illness: ${c.present_illness || '—'}</div>
+                        <div>PMH: ${c.past_medical_history || '—'}</div>
+                        <div>PSH: ${c.past_surgical_history || '—'}</div>
+                        <div>Family: ${c.family_history || '—'}</div>
+                        <div>Social: ${c.social_history || '—'}</div>
+                    </div>
+                `;
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('reviewConsultationModal'));
+            modal.show();
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'Failed to load consultation details', 'error');
+        }
     };
+
+    // Save review changes
+    document.getElementById('saveReviewBtn').addEventListener('click', async () => {
+        const consultationId = document.getElementById('review_consultation_id').value;
+        if (!consultationId) return;
+
+        const payload = {
+            consultation_id: consultationId,
+            consultation_notes: document.getElementById('review_consultation_notes').value || '',
+            symptoms_text: document.getElementById('review_symptoms_text').value || null,
+            final_diagnosis: document.getElementById('review_final_diagnosis').value || null,
+        };
+
+        // Keep existing mandatory fields to satisfy update API
+        // Fetch the latest for diagnosis and status so we don't clear them
+        try {
+            const detail = await axios.get(`${integratedConsultationApi}?operation=get_details&consultation_id=${consultationId}`);
+            if (detail.data?.success) {
+                payload.diagnosis = detail.data.consultation.diagnosis || '';
+                payload.next_appointment_date = detail.data.consultation.next_appointment_date || null;
+                payload.next_appointment_notes = detail.data.consultation.next_appointment_notes || '';
+                payload.consultation_status = detail.data.consultation.consultation_status || 'Completed';
+
+                // Also include vitals/history to avoid clearing on upsert (API tolerates nulls, but safe to pass current)
+                const c = detail.data.consultation;
+                payload.present_illness = c.present_illness || null;
+                payload.past_medical_history = c.past_medical_history || null;
+                payload.past_surgical_history = c.past_surgical_history || null;
+                payload.family_history = c.family_history || null;
+                payload.social_history = c.social_history || null;
+                payload.smoking_status = c.smoking_status || null;
+                payload.smoking_packs_per_day = c.smoking_packs_per_day || null;
+                payload.alcohol_use = c.alcohol_use || null;
+                payload.alcohol_frequency = c.alcohol_frequency || null;
+                payload.drug_use = c.drug_use || null;
+                payload.drug_type = c.drug_type || null;
+                payload.sexual_activity = c.sexual_activity || null;
+                payload.current_medications = c.current_medications || null;
+                payload.height_cm = c.height_cm || null;
+                payload.weight_kg = c.weight_kg || null;
+                payload.blood_pressure_mmHg = c.blood_pressure_mmHg || null;
+                payload.heart_rate_bpm = c.heart_rate_bpm || null;
+                payload.spo2_percent = c.spo2_percent || null;
+            }
+        } catch {}
+
+        try {
+            const form = new FormData();
+            form.append('operation', 'update');
+            form.append('json', JSON.stringify(payload));
+            const res = await axios.post(integratedConsultationApi, form);
+            if (res.data?.success) {
+                Swal.fire('Saved', 'Consultation updated.', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('reviewConsultationModal'))?.hide();
+                await loadMyConsultations();
+            } else {
+                Swal.fire('Error', res.data?.message || 'Failed to update', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            Swal.fire('Error', 'Failed to update', 'error');
+        }
+    });
 
     // Event listeners
     addPrescriptionBtn.addEventListener('click', addPrescriptionField);
     addLabRequestBtn.addEventListener('click', addLabRequestField);
+    document.getElementById('addLabResultBtn').addEventListener('click', addLabResultField);
     refreshQueueBtn?.addEventListener('click', loadCurrentQueueStatus);
 
     // Form submission
@@ -975,6 +1175,28 @@ document.addEventListener('DOMContentLoaded', () => {
             diagnosis: selectedConditions.join(', '), // Join multiple conditions with comma
             conditions: selectedConditions, // Also send as array for backend processing
             consultation_notes: formData.get('consultation_notes') || '',
+            symptoms_text: formData.get('symptoms_text') || null,
+            final_diagnosis: (formData.get('final_diagnosis') || '').trim() || null,
+            // History fields
+            present_illness: formData.get('present_illness') || null,
+            past_medical_history: formData.get('past_medical_history') || null,
+            past_surgical_history: formData.get('past_surgical_history') || null,
+            family_history: formData.get('family_history') || null,
+            social_history: formData.get('social_history') || null,
+            smoking_status: formData.get('smoking_status') || null,
+            smoking_packs_per_day: formData.get('smoking_packs_per_day') || null,
+            alcohol_use: formData.get('alcohol_use') || null,
+            alcohol_frequency: formData.get('alcohol_frequency') || null,
+            drug_use: formData.get('drug_use') || null,
+            drug_type: formData.get('drug_type') || null,
+            sexual_activity: formData.get('sexual_activity') || null,
+            current_medications: formData.get('current_medications') || null,
+            // Vitals
+            height_cm: formData.get('height_cm') || null,
+            weight_kg: formData.get('weight_kg') || null,
+            blood_pressure_mmHg: formData.get('blood_pressure_mmHg') || null,
+            heart_rate_bpm: formData.get('heart_rate_bpm') || null,
+            spo2_percent: formData.get('spo2_percent') || null,
             next_appointment_date: formData.get('next_appointment_date') || null,
             next_appointment_notes: formData.get('next_appointment_notes') || '',
             consultation_status: 'Completed'
@@ -1088,11 +1310,46 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Collect lab results
+        const labResults = [];
+        const labResultElements = document.getElementById('labResultsContainer').querySelectorAll('.card');
+
+        for (let i = 0; i < labResultElements.length; i++) {
+            const element = labResultElements[i];
+
+            // Get lab result elements with null checks
+            const labRequestIdElement = element.querySelector('select[name*="[lab_request_id]"]');
+            const statusIdElement = element.querySelector('select[name*="[status_id]"]');
+            const resultTextElement = element.querySelector('textarea[name*="[result_text]"]');
+
+            // Check if elements exist
+            if (!labRequestIdElement || !statusIdElement || !resultTextElement) {
+                console.error('Missing required elements in lab result form');
+                continue;
+            }
+
+            const labRequestId = labRequestIdElement.value;
+            const statusId = statusIdElement.value;
+            const resultText = resultTextElement.value;
+
+            if (labRequestId && statusId && resultText) {
+                labResults.push({
+                    lab_request_id: labRequestId,
+                    status_id: statusId,
+                    result_text: resultText
+                });
+            }
+        }
+
         // Always include prescriptions (required)
         data.prescriptions = prescriptions;
 
         if (labRequests.length > 0) {
             data.lab_requests = labRequests;
+        }
+
+        if (labResults.length > 0) {
+            data.lab_results = labResults;
         }
 
         try {
@@ -1110,13 +1367,26 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('API Response:', res.data);
 
             if (res.data.success) {
-                Swal.fire('Success', 'Consultation completed successfully!', 'success');
+                try {
+                    await Swal.fire({
+                        title: 'Success',
+                        text: 'Consultation completed successfully!',
+                        icon: 'success',
+                        confirmButtonText: 'OK'
+                    });
+                } catch (swalError) {
+                    console.error('SweetAlert error:', swalError);
+                    alert('Consultation completed successfully!');
+                }
+
                 form.reset();
                 form.classList.remove('was-validated');
                 prescriptionsContainer.innerHTML = '';
                 labRequestsContainer.innerHTML = '';
+                document.getElementById('labResultsContainer').innerHTML = '';
                 prescriptionCounter = 0;
                 labRequestCounter = 0;
+                labResultCounter = 0;
                 selectedConditions = []; // Clear selected conditions
                 updateSelectedConditionsDisplay();
                 loadMyConsultations();
@@ -1154,6 +1424,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load - load queue status first to display current patient
     async function initialize() {
+        // Add a small delay to ensure all scripts are loaded
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         await loadCurrentQueueStatus();
         await loadMyConsultations();
 
@@ -1167,7 +1440,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     }
 
-    initialize();
+    // Initialize after a short delay to ensure all scripts are loaded
+    setTimeout(initialize, 200);
 
     // Set up refresh for queue status
     if (refreshQueueBtn) {
@@ -1363,6 +1637,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load conditions for the dropdown
     loadConditions();
+
+    // Sync quick select to free-text final diagnosis
+    const finalDiagnosisSelect = document.getElementById('finalDiagnosisSelect');
+    const finalDiagnosisInput = document.getElementById('finalDiagnosisInput');
+    if (finalDiagnosisSelect && finalDiagnosisInput) {
+        finalDiagnosisSelect.addEventListener('change', () => {
+            if (finalDiagnosisSelect.value) {
+                finalDiagnosisInput.value = finalDiagnosisSelect.value;
+            }
+        });
+    }
 
     // Set up add condition button
     const addConditionBtn = document.getElementById('addConditionBtn');
