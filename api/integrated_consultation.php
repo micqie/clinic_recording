@@ -58,13 +58,6 @@ class IntegratedConsultation
             $pastSurgical = $data['past_surgical_history'] ?? null;
             $familyHistory = $data['family_history'] ?? null;
             $socialHistory = $data['social_history'] ?? null;
-            $smokingStatus = $data['smoking_status'] ?? null;
-            $smokingPPD = $data['smoking_packs_per_day'] ?? null;
-            $alcoholUse = $data['alcohol_use'] ?? null;
-            $alcoholFreq = $data['alcohol_frequency'] ?? null;
-            $drugUse = $data['drug_use'] ?? null;
-            $drugType = $data['drug_type'] ?? null;
-            $sexualActivity = $data['sexual_activity'] ?? null;
             $currentMeds = $data['current_medications'] ?? null;
 
             $heightCm = isset($data['height_cm']) && $data['height_cm'] !== '' ? $data['height_cm'] : null;
@@ -86,17 +79,15 @@ class IntegratedConsultation
             error_log("Created consultation with ID: " . $consultationId);
 
             // Insert history if any provided
-            $hasHistory = $presentIllness || $pastMedical || $pastSurgical || $familyHistory || $socialHistory || $smokingStatus || $smokingPPD || $alcoholUse || $alcoholFreq || $drugUse || $drugType || $sexualActivity || $currentMeds;
+            $hasHistory = $presentIllness || $pastMedical || $pastSurgical || $familyHistory || $socialHistory || $currentMeds;
             if ($hasHistory) {
                 $histStmt = $this->conn->prepare("
                     INSERT INTO tbl_consultation_history (
                         consultation_id, present_illness, past_medical_history, past_surgical_history, family_history,
-                        social_history, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency,
-                        drug_use, drug_type, sexual_activity, current_medications
+                        social_history, current_medications
                     ) VALUES (
                         :consultation_id, :present_illness, :past_medical_history, :past_surgical_history, :family_history,
-                        :social_history, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency,
-                        :drug_use, :drug_type, :sexual_activity, :current_medications
+                        :social_history, :current_medications
                     )
                 ");
                 $histStmt->bindValue(":consultation_id", $consultationId);
@@ -105,17 +96,37 @@ class IntegratedConsultation
                 $histStmt->bindValue(":past_surgical_history", $pastSurgical);
                 $histStmt->bindValue(":family_history", $familyHistory);
                 $histStmt->bindValue(":social_history", $socialHistory);
-                $histStmt->bindValue(":smoking_status", $smokingStatus);
-                $histStmt->bindValue(":smoking_packs_per_day", $smokingPPD);
-                $histStmt->bindValue(":alcohol_use", $alcoholUse);
-                $histStmt->bindValue(":alcohol_frequency", $alcoholFreq);
-                $histStmt->bindValue(":drug_use", $drugUse);
-                $histStmt->bindValue(":drug_type", $drugType);
-                $histStmt->bindValue(":sexual_activity", $sexualActivity);
                 $histStmt->bindValue(":current_medications", $currentMeds);
                 if (!$histStmt->execute()) {
                     $errorInfo = $histStmt->errorInfo();
                     throw new Exception("Failed to insert consultation history: " . ($errorInfo[2] ?? 'Unknown error'));
+                }
+            }
+
+            // Insert lifestyle if provided
+            $smokingStatus = $data['smoking_status'] ?? null;
+            $smokingPPD = $data['smoking_packs_per_day'] ?? null;
+            $alcoholUse = $data['alcohol_use'] ?? null;
+            $alcoholFreq = $data['alcohol_frequency'] ?? null;
+            $drugUse = $data['drug_use'] ?? null;
+            $drugType = $data['drug_type'] ?? null;
+            $sexualActivity = $data['sexual_activity'] ?? null;
+            if ($smokingStatus !== null || $smokingPPD !== null || $alcoholUse !== null || $alcoholFreq !== null || $drugUse !== null || $drugType !== null || $sexualActivity !== null) {
+                $lifeStmt = $this->conn->prepare("
+                    INSERT INTO tbl_consultation_lifestyle (consultation_id, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency, drug_use, drug_type, sexual_activity)
+                    VALUES (:cid, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency, :drug_use, :drug_type, :sexual_activity)
+                ");
+                $lifeStmt->bindValue(":cid", $consultationId);
+                $lifeStmt->bindValue(":smoking_status", $smokingStatus);
+                $lifeStmt->bindValue(":smoking_packs_per_day", $smokingPPD);
+                $lifeStmt->bindValue(":alcohol_use", $alcoholUse);
+                $lifeStmt->bindValue(":alcohol_frequency", $alcoholFreq);
+                $lifeStmt->bindValue(":drug_use", $drugUse);
+                $lifeStmt->bindValue(":drug_type", $drugType);
+                $lifeStmt->bindValue(":sexual_activity", $sexualActivity);
+                if (!$lifeStmt->execute()) {
+                    $errorInfo = $lifeStmt->errorInfo();
+                    throw new Exception("Failed to insert lifestyle: " . ($errorInfo[2] ?? 'Unknown error'));
                 }
             }
 
@@ -318,10 +329,10 @@ class IntegratedConsultation
             $consultationStmt = $this->conn->prepare("
                 SELECT c.*, a.appointment_date, u.name AS patient_name, du.name AS doctor_name,
                        h.present_illness, h.past_medical_history, h.past_surgical_history, h.family_history,
-                       h.social_history, h.smoking_status, h.smoking_packs_per_day, h.alcohol_use, h.alcohol_frequency,
-                       h.drug_use, h.drug_type, h.sexual_activity, h.current_medications,
+                       h.social_history, h.current_medications,
                        v.height_cm, v.weight_kg, v.blood_pressure_mmHg, v.heart_rate_bpm, v.spo2_percent,
-                       s.symptoms_text, s.final_diagnosis
+                       s.symptoms_text, s.final_diagnosis,
+                       lf.smoking_status, lf.smoking_packs_per_day, lf.alcohol_use, lf.alcohol_frequency, lf.drug_use, lf.drug_type, lf.sexual_activity
                 FROM tbl_consultations c
                 JOIN tbl_appointments a ON c.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON c.patient_id = p.patient_id
@@ -331,6 +342,7 @@ class IntegratedConsultation
                 LEFT JOIN tbl_consultation_history h ON h.consultation_id = c.consultation_id
                 LEFT JOIN tbl_consultation_vitals v ON v.consultation_id = c.consultation_id
                 LEFT JOIN tbl_consultation_summary s ON s.consultation_id = c.consultation_id
+                LEFT JOIN tbl_consultation_lifestyle lf ON lf.consultation_id = c.consultation_id
                 WHERE c.consultation_id = :consultation_id
             ");
             $consultationStmt->bindParam(":consultation_id", $consultationId);
@@ -568,12 +580,10 @@ class IntegratedConsultation
             $histUpsert = $this->conn->prepare("
                 INSERT INTO tbl_consultation_history (
                     consultation_id, present_illness, past_medical_history, past_surgical_history, family_history,
-                    social_history, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency,
-                    drug_use, drug_type, sexual_activity, current_medications
+                    social_history, current_medications
                 ) VALUES (
                     :consultation_id, :present_illness, :past_medical_history, :past_surgical_history, :family_history,
-                    :social_history, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency,
-                    :drug_use, :drug_type, :sexual_activity, :current_medications
+                    :social_history, :current_medications
                 )
                 ON DUPLICATE KEY UPDATE
                     present_illness = VALUES(present_illness),
@@ -581,13 +591,6 @@ class IntegratedConsultation
                     past_surgical_history = VALUES(past_surgical_history),
                     family_history = VALUES(family_history),
                     social_history = VALUES(social_history),
-                    smoking_status = VALUES(smoking_status),
-                    smoking_packs_per_day = VALUES(smoking_packs_per_day),
-                    alcohol_use = VALUES(alcohol_use),
-                    alcohol_frequency = VALUES(alcohol_frequency),
-                    drug_use = VALUES(drug_use),
-                    drug_type = VALUES(drug_type),
-                    sexual_activity = VALUES(sexual_activity),
                     current_medications = VALUES(current_medications)
             ");
             $histUpsert->bindValue(":consultation_id", $consultationId);
@@ -596,15 +599,34 @@ class IntegratedConsultation
             $histUpsert->bindValue(":past_surgical_history", $data['past_surgical_history'] ?? null);
             $histUpsert->bindValue(":family_history", $data['family_history'] ?? null);
             $histUpsert->bindValue(":social_history", $data['social_history'] ?? null);
-            $histUpsert->bindValue(":smoking_status", $data['smoking_status'] ?? null);
-            $histUpsert->bindValue(":smoking_packs_per_day", $data['smoking_packs_per_day'] ?? null);
-            $histUpsert->bindValue(":alcohol_use", $data['alcohol_use'] ?? null);
-            $histUpsert->bindValue(":alcohol_frequency", $data['alcohol_frequency'] ?? null);
-            $histUpsert->bindValue(":drug_use", $data['drug_use'] ?? null);
-            $histUpsert->bindValue(":drug_type", $data['drug_type'] ?? null);
-            $histUpsert->bindValue(":sexual_activity", $data['sexual_activity'] ?? null);
             $histUpsert->bindValue(":current_medications", $data['current_medications'] ?? null);
             $histUpsert->execute();
+
+            // Upsert lifestyle table
+            $lifeUpsert = $this->conn->prepare("
+                INSERT INTO tbl_consultation_lifestyle (
+                    consultation_id, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency, drug_use, drug_type, sexual_activity
+                ) VALUES (
+                    :consultation_id, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency, :drug_use, :drug_type, :sexual_activity
+                )
+                ON DUPLICATE KEY UPDATE
+                    smoking_status = VALUES(smoking_status),
+                    smoking_packs_per_day = VALUES(smoking_packs_per_day),
+                    alcohol_use = VALUES(alcohol_use),
+                    alcohol_frequency = VALUES(alcohol_frequency),
+                    drug_use = VALUES(drug_use),
+                    drug_type = VALUES(drug_type),
+                    sexual_activity = VALUES(sexual_activity)
+            ");
+            $lifeUpsert->bindValue(":consultation_id", $consultationId);
+            $lifeUpsert->bindValue(":smoking_status", $data['smoking_status'] ?? null);
+            $lifeUpsert->bindValue(":smoking_packs_per_day", $data['smoking_packs_per_day'] ?? null);
+            $lifeUpsert->bindValue(":alcohol_use", $data['alcohol_use'] ?? null);
+            $lifeUpsert->bindValue(":alcohol_frequency", $data['alcohol_frequency'] ?? null);
+            $lifeUpsert->bindValue(":drug_use", $data['drug_use'] ?? null);
+            $lifeUpsert->bindValue(":drug_type", $data['drug_type'] ?? null);
+            $lifeUpsert->bindValue(":sexual_activity", $data['sexual_activity'] ?? null);
+            $lifeUpsert->execute();
 
             // Upsert vitals table
             $vitUpsert = $this->conn->prepare("

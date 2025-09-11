@@ -158,8 +158,21 @@
                   <h6 class="text-secondary mb-3"><i class="fas fa-notes-medical me-2"></i>History</h6>
                 </div>
                 <div class="col-12">
-                  <label class="form-label">Present Illness</label>
-                  <textarea class="form-control" name="present_illness" rows="2" placeholder="Chief complaint and history of present illness"></textarea>
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Present Illness <small class="text-muted">(pick up to 5)</small></label>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addNewIllnessBtn" title="Add new illness">
+                      <i class="fas fa-plus-circle me-1"></i>Add New Illness
+                    </button>
+                  </div>
+                  <div class="input-group">
+                    <select class="form-select" id="illnessSelect" name="present_illness_select">
+                      <option value="">Select illness</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="addIllnessBtn" title="Add selected illness">
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                  <div class="mt-2" id="selectedIllnessesDisplay"></div>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Past Medical History</label>
@@ -278,7 +291,7 @@
               <div class="row g-3 mb-4">
                 <div class="col-12">
                   <div class="d-flex justify-content-between align-items-center mb-2">
-                    <label class="form-label mb-0">Condition <small class="text-muted">(Maximum 5 conditions)</small></label>
+                    <label class="form-label mb-0">Diagnosed Condition(s) <small class="text-muted">(pick up to 5)</small></label>
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="addNewConditionBtn" title="Add new condition">
                       <i class="fas fa-plus-circle me-1"></i>Add New Condition
                     </button>
@@ -297,20 +310,12 @@
                   </div>
                   <div class="invalid-feedback">Please add at least one condition.</div>
                 </div>
-                <div class="col-12">
-                  <label class="form-label">Consultation Notes</label>
-                  <textarea class="form-control" name="consultation_notes" rows="4" placeholder="Detailed consultation notes, symptoms, findings, etc."></textarea>
-                </div>
               </div>
 
-              <!-- Clinical Summary Section (Symptoms & Final Diagnosis) -->
+              <!-- Clinical Summary Section (Final Diagnosis & Summary) -->
               <div class="row g-3 mb-4">
                 <div class="col-12">
                   <h6 class="text-secondary mb-3"><i class="fas fa-notes-medical me-2"></i>Clinical Summary</h6>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Symptoms Summary</label>
-                  <textarea class="form-control" name="symptoms_text" rows="2" placeholder="Brief summary of symptoms from history and exam"></textarea>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Final Diagnosis (quick select)</label>
@@ -327,6 +332,10 @@
                 <div class="col-md-6">
                   <label class="form-label">Final Diagnosis (free text)</label>
                   <input type="text" class="form-control" name="final_diagnosis" id="finalDiagnosisInput" placeholder="e.g., The patient has ACID REFLUX" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Consultation Notes</label>
+                  <textarea class="form-control" name="consultation_notes" rows="3" placeholder="Use this for short clinical summary; avoid duplicating history."></textarea>
                 </div>
               </div>
 
@@ -464,6 +473,30 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-primary" id="saveConditionBtn">Add Condition</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Add Illness Modal -->
+  <div class="modal fade" id="addIllnessModal" tabindex="-1" aria-labelledby="addIllnessModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addIllnessModalLabel">Add New Illness</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addIllnessForm">
+            <div class="mb-3">
+              <label for="newIllnessName" class="form-label">Illness Name</label>
+              <input type="text" class="form-control" id="newIllnessName" name="illness_name" required placeholder="Enter illness name">
+              <div class="invalid-feedback">Please enter an illness name.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveIllnessBtn">Add Illness</button>
         </div>
       </div>
     </div>

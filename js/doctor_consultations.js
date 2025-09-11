@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const medicinesApi = `${baseApiUrl}/medicines.php`;
     const labTestTypesApi = `${baseApiUrl}/lab_test_types.php`;
     const conditionsApi = `${baseApiUrl}/conditions.php`;
+    const illnessesApi = `${baseApiUrl}/illnesses.php`;
 
     // Form elements
     const form = document.getElementById('consultationForm');
@@ -51,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let prescriptionCounter = 0;
     let labRequestCounter = 0;
     let labResultCounter = 0;
+    // Present Illness selections (multi-select badges)
+    let selectedIllnesses = [];
 
     // Get doctor_id from user profile
     async function getDoctorId() {
@@ -992,15 +995,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="container-fluid text-start">
                           <div class="row g-3">
                             <div class="col-md-6">
-                              <p><strong>Patient:</strong> ${data.consultation.patient_name}</p>
-                              <p><strong>Date:</strong> ${data.consultation.appointment_date}</p>
-                              <p><strong>Conditions:</strong> ${diagnosisDisplay}</p>
-                              <p><strong>Symptoms:</strong> ${data.consultation.symptoms_text || '—'}</p>
+                            <p><strong>Patient:</strong> ${data.consultation.patient_name}</p>
+                            <p><strong>Date:</strong> ${data.consultation.appointment_date}</p>
+                            <p><strong>Conditions:</strong> ${diagnosisDisplay}</p>
                               <p><strong>Final Diagnosis:</strong> ${data.consultation.final_diagnosis || '—'}</p>
-                              <p><strong>Notes:</strong> ${data.consultation.consultation_notes || 'None'}</p>
-                              <p><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date || 'None'}</p>
-                              <p><strong>Follow-up Notes:</strong> ${data.consultation.next_appointment_notes || 'None'}</p>
-                              ${prescriptionsHtml}
+                              <p><strong>Summary:</strong> ${data.consultation.consultation_notes || 'None'}</p>
+                            <p><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date || 'None'}</p>
+                            <p><strong>Follow-up Notes:</strong> ${data.consultation.next_appointment_notes || 'None'}</p>
+                            ${prescriptionsHtml}
                             </div>
                             <div class="col-md-6">
                               <p class="mb-1"><strong>History</strong></p>
@@ -1018,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
                               <p class="mb-1"><strong>SpO₂:</strong> ${data.consultation.spo2_percent ? data.consultation.spo2_percent + ' %' : '—'}</p>
                               <p class="mb-1"><strong>Height:</strong> ${data.consultation.height_cm ? data.consultation.height_cm + ' cm' : '—'}</p>
                               <p class="mb-3"><strong>Weight:</strong> ${data.consultation.weight_kg ? data.consultation.weight_kg + ' kg' : '—'}</p>
-                              ${labRequestsHtml}
+                            ${labRequestsHtml}
                             </div>
                           </div>
                         </div>
@@ -1175,10 +1177,10 @@ document.addEventListener('DOMContentLoaded', () => {
             diagnosis: selectedConditions.join(', '), // Join multiple conditions with comma
             conditions: selectedConditions, // Also send as array for backend processing
             consultation_notes: formData.get('consultation_notes') || '',
-            symptoms_text: formData.get('symptoms_text') || null,
+            // symptoms_text removed from UI; use consultation_notes for concise summary
             final_diagnosis: (formData.get('final_diagnosis') || '').trim() || null,
             // History fields
-            present_illness: formData.get('present_illness') || null,
+            present_illness: selectedIllnesses.join(', ') || null,
             past_medical_history: formData.get('past_medical_history') || null,
             past_surgical_history: formData.get('past_surgical_history') || null,
             family_history: formData.get('family_history') || null,
@@ -1389,6 +1391,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 labResultCounter = 0;
                 selectedConditions = []; // Clear selected conditions
                 updateSelectedConditionsDisplay();
+                selectedIllnesses = [];
+                updateSelectedIllnessesDisplay();
                 loadMyConsultations();
                 loadCurrentQueueStatus();
             } else {
@@ -1637,6 +1641,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load conditions for the dropdown
     loadConditions();
+
+    // Illness (Present Illness) helpers
+    async function loadIllnesses() {
+        try {
+            const res = await axios.get(`${illnessesApi}?operation=getAll`);
+            const select = document.getElementById('illnessSelect');
+            if (!select) return;
+            select.innerHTML = '<option value="">Select illness</option>';
+            const list = res.data?.illnesses || [];
+            list.forEach(row => {
+                const opt = document.createElement('option');
+                opt.value = row.illness_name;
+                opt.textContent = row.illness_name;
+                select.appendChild(opt);
+            });
+        } catch (e) { console.error('Failed to load illnesses', e); }
+    }
+
+    function updateSelectedIllnessesDisplay() {
+        const displayDiv = document.getElementById('selectedIllnessesDisplay');
+        if (!displayDiv) return;
+        if (selectedIllnesses.length === 0) {
+            displayDiv.innerHTML = '<small class="text-muted">No illness selected</small>';
+            return;
+        }
+        let html = '<div class="d-flex flex-wrap gap-2">';
+        selectedIllnesses.forEach((name, index) => {
+            html += `
+                <span class="badge bg-info d-flex align-items-center gap-1">
+                    ${name}
+                    <button type="button" class="btn-close btn-close-white" style="font-size: 0.7em;" onclick="removeIllness(${index})" title="Remove"></button>
+                </span>
+            `;
+        });
+        html += '</div>';
+        displayDiv.innerHTML = html;
+    }
+
+    window.removeIllness = function(index) {
+        selectedIllnesses.splice(index, 1);
+        updateSelectedIllnessesDisplay();
+    };
+
+    document.getElementById('addIllnessBtn')?.addEventListener('click', () => {
+        const sel = document.getElementById('illnessSelect');
+        const val = sel?.value || '';
+        if (!val) { Swal.fire('Warning','Please select an illness','warning'); return; }
+        if (selectedIllnesses.length >= 5) { Swal.fire('Warning','Maximum of 5 illnesses allowed','warning'); return; }
+        if (selectedIllnesses.includes(val)) { Swal.fire('Info','This illness is already added','info'); return; }
+        selectedIllnesses.push(val);
+        sel.value = '';
+        updateSelectedIllnessesDisplay();
+    });
+
+    const addIllnessModalEl = document.getElementById('addIllnessModal');
+    const addIllnessModal = addIllnessModalEl ? new bootstrap.Modal(addIllnessModalEl) : null;
+    document.getElementById('addNewIllnessBtn')?.addEventListener('click', ()=> addIllnessModal?.show());
+    document.getElementById('saveIllnessBtn')?.addEventListener('click', async ()=>{
+        const input = document.getElementById('newIllnessName');
+        const name = (input?.value || '').trim();
+        if (!name) { input.classList.add('is-invalid'); return; }
+        try {
+            const fd = new URLSearchParams();
+            fd.append('operation','add');
+            fd.append('illness_name', name);
+            const res = await axios.post(illnessesApi, fd, { headers: { 'Content-Type':'application/x-www-form-urlencoded' }});
+            if (!res.data?.success) throw new Error(res.data?.message || 'Failed');
+            addIllnessModal?.hide();
+            input.value='';
+            await loadIllnesses();
+            if (selectedIllnesses.length < 5 && !selectedIllnesses.includes(name)) {
+                selectedIllnesses.push(name);
+                updateSelectedIllnessesDisplay();
+            }
+        } catch(e){ console.error(e); Swal.fire('Error','Failed to add illness','error'); }
+    });
+
+    // Initial illnesses load
+    loadIllnesses();
 
     // Sync quick select to free-text final diagnosis
     const finalDiagnosisSelect = document.getElementById('finalDiagnosisSelect');

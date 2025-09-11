@@ -1,26 +1,6 @@
 START TRANSACTION;
 
 -- Normalized tables for consultation history and vitals (no procedures)
-CREATE TABLE IF NOT EXISTS `tbl_consultation_history` (
-  `consultation_id` INT(11) NOT NULL,
-  `present_illness` TEXT NULL,
-  `past_medical_history` TEXT NULL,
-  `past_surgical_history` TEXT NULL,
-  `family_history` TEXT NULL,
-  `social_history` TEXT NULL,
-  `smoking_status` ENUM('Yes','No') NULL,
-  `smoking_packs_per_day` VARCHAR(10) NULL,
-  `alcohol_use` ENUM('Yes','No') NULL,
-  `alcohol_frequency` VARCHAR(50) NULL,
-  `drug_use` ENUM('Yes','No') NULL,
-  `drug_type` VARCHAR(100) NULL,
-  `sexual_activity` ENUM('Active','Not Active') NULL,
-  `current_medications` TEXT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP(),
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
-  PRIMARY KEY (`consultation_id`),
-  CONSTRAINT `fk_history_consultation` FOREIGN KEY (`consultation_id`) REFERENCES `tbl_consultations` (`consultation_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 CREATE TABLE IF NOT EXISTS `tbl_consultation_vitals` (
   `consultation_id` INT(11) NOT NULL,
@@ -95,3 +75,71 @@ CREATE TABLE IF NOT EXISTS `tbl_consultation_summary` (
   PRIMARY KEY (`consultation_id`),
   CONSTRAINT `fk_summary_consultation` FOREIGN KEY (`consultation_id`) REFERENCES `tbl_consultations` (`consultation_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Split lifestyle data to its own table
+CREATE TABLE IF NOT EXISTS `tbl_consultation_lifestyle` (
+  `lifestyle_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `consultation_id` INT(11) NOT NULL,
+  `smoking_status` ENUM('Yes','No') NULL,
+  `smoking_packs_per_day` VARCHAR(10) NULL,
+  `alcohol_use` ENUM('Yes','No') NULL,
+  `alcohol_frequency` VARCHAR(50) NULL,
+  `drug_use` ENUM('Yes','No') NULL,
+  `drug_type` VARCHAR(100) NULL,
+  `sexual_activity` ENUM('Active','Not Active') NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP(),
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`lifestyle_id`),
+  KEY `idx_lifestyle_consultation` (`consultation_id`),
+  CONSTRAINT `fk_lifestyle_consultation` FOREIGN KEY (`consultation_id`) REFERENCES `tbl_consultations` (`consultation_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Illness catalog table (for Present Illness dropdown)
+CREATE TABLE IF NOT EXISTS `tbl_illnesses` (
+  `illness_id` INT(11) NOT NULL AUTO_INCREMENT,
+  `illness_name` VARCHAR(150) NOT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`illness_id`),
+  UNIQUE KEY `uk_illness_name` (`illness_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Mapping table: consultations to illnesses (many-to-many)
+-- No mapping table required. Ensure any legacy mapping table is removed.
+DROP TABLE IF EXISTS `tbl_consultation_illnesses`;
+
+-- Seed common illnesses (idempotent)
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Cough');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Common Cold');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Fever');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Sore Throat');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Headache');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Abdominal Pain');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Nausea');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Vomiting');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Diarrhea');
+INSERT INTO `tbl_illnesses` (`illness_name`) VALUES ('Dizziness');
+
+-- Ensure simplified consultation history table exists (without lifestyle fields)
+CREATE TABLE IF NOT EXISTS `tbl_consultation_history` (
+  `consultation_id` INT(11) NOT NULL,
+  `present_illness` TEXT NULL,
+  `past_medical_history` TEXT NULL,
+  `past_surgical_history` TEXT NULL,
+  `family_history` TEXT NULL,
+  `social_history` TEXT NULL,
+  `current_medications` TEXT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP(),
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP() ON UPDATE CURRENT_TIMESTAMP(),
+  PRIMARY KEY (`consultation_id`),
+  CONSTRAINT `fk_history_consultation_simple` FOREIGN KEY (`consultation_id`) REFERENCES `tbl_consultations` (`consultation_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Clean up legacy lifestyle columns from history (safe on MySQL 8+)
+ALTER TABLE `tbl_consultation_history`
+  DROP COLUMN IF EXISTS `smoking_status`,
+  DROP COLUMN IF EXISTS `smoking_packs_per_day`,
+  DROP COLUMN IF EXISTS `alcohol_use`,
+  DROP COLUMN IF EXISTS `alcohol_frequency`,
+  DROP COLUMN IF EXISTS `drug_use`,
+  DROP COLUMN IF EXISTS `drug_type`,
+  DROP COLUMN IF EXISTS `sexual_activity`;
