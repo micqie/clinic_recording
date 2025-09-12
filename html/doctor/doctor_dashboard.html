@@ -15,6 +15,33 @@
   <script src="../../js/auto-logout.js" defer></script>
 <link rel="stylesheet" href="../../css/dashboard.css">
 <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
+<style>
+  .loading {
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .refresh-spinning {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .kpi-value {
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
 </head>
 
 <body>
@@ -78,7 +105,12 @@
       </button>
 
       <div class="content-container mt-5 p-4">
-        <h1 class="mb-4 fw-bold text-secondary">Doctor Dashboard Overview</h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1 class="fw-bold text-secondary">Doctor Dashboard Overview</h1>
+          <button class="btn btn-outline-primary" id="refreshDashboard" title="Refresh Data">
+            <i class="fas fa-sync-alt me-2"></i>Refresh
+          </button>
+        </div>
 
         <section id="dashboard-content" class="content-section fade-in" aria-live="polite" aria-atomic="true">
           <div class="row g-4">
@@ -89,7 +121,7 @@
                     <h5 id="todayAppointmentsTitle" class="card-title kpi-label">Today's Appointments</h5>
                     <div class="icon-bubble bg-primary-light text-primary"><i class="fas fa-calendar-check fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="todayAppointmentsCount"></h2>
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="todayAppointmentsCount">0</h2>
                   <small class="text-success kpi-trend" aria-label="Appointments today">
                     <i class="fas fa-clock me-1"></i>Scheduled today
                   </small>
@@ -104,7 +136,7 @@
                     <h5 id="pendingAppointmentsTitle" class="card-title kpi-label">Pending Appointments</h5>
                     <div class="icon-bubble bg-success-light text-success"><i class="fas fa-clock fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="pendingAppointmentsCount"></h2>
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="pendingAppointmentsCount">0</h2>
                   <small class="text-success kpi-trend" aria-label="Awaiting consultation">
                     <i class="fas fa-user-clock me-1"></i>Awaiting consultation
                   </small>
@@ -119,7 +151,7 @@
                     <h5 id="activePrescriptionsTitle" class="card-title kpi-label">Active Prescriptions</h5>
                     <div class="icon-bubble bg-warning-light text-warning"><i class="fas fa-pills fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="activePrescriptionsCount"></h2>
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="activePrescriptionsCount">0</h2>
                   <small class="text-warning kpi-trend" aria-label="Current prescriptions">
                     <i class="fas fa-prescription me-1"></i>Current prescriptions
                   </small>
@@ -134,7 +166,7 @@
                     <h5 id="labRequestsTitle" class="card-title kpi-label">Lab Requests</h5>
                     <div class="icon-bubble bg-danger-light text-danger"><i class="fas fa-flask fs-1" aria-hidden="true"></i></div>
                   </div>
-                  <h2 class="card-text fw-bold mt-2 kpi-value" id="labRequestsCount"></h2>
+                  <h2 class="card-text fw-bold mt-2 kpi-value" id="labRequestsCount">0</h2>
                   <small class="text-danger kpi-trend" aria-label="Pending results">
                     <i class="fas fa-microscope me-1"></i>Pending results
                   </small>

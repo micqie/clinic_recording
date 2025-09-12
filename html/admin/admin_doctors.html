@@ -1,41 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Admin - Doctors</title>
-    <link href="../../css/index.css" rel="stylesheet" />
-    <link href="../../css/dashboard.css" rel="stylesheet" />
-    <link href="../../css/table.css" rel="stylesheet" />
-    <link rel="icon" type="image/x-icon" href="../../logo/favicon.ico" />
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCSTUFFIN's - Doctor Management</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" >
+  <script src="../../js/logout.js" defer></script>
+  <script src="../../js/auto-logout.js" defer></script>
+  <link rel="stylesheet" href="../../css/dashboard.css">
+  <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
 </head>
+
 <body>
-<nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="main-navbar">
-  <div class="container-fluid">
-    <a class="navbar-brand d-flex align-items-center" href="#">
-      <i class="fas fa-stethoscope me-2 fs-3 text-primary"></i>
-      <span class="fs-4 fw-bold text-primary">MCSTUFFIN's</span>
-    </a>
-    <div class="dropdown ms-auto">
-      <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
-        <span class="fw-semibold">Admin</span>
-      </a>
-      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
-        <li><a class="dropdown-item" href="admin_dashboard.html">Dashboard</a></li>
-        <li><a class="dropdown-item" href="admin_users.html">Users</a></li>
-        <li><a class="dropdown-item" href="admin_secretaries.html">Secretaries</a></li>
-        <li><a class="dropdown-item" href="admin_patients.html">Patients</a></li>
-        <li><a class="dropdown-item" href="admin_reports.html">Reports</a></li>
-        <li><hr class="dropdown-divider"/></li>
-        <li><button type="button" class="dropdown-item text-danger" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i> Logout</button></li>
-      </ul>
+
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="main-navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <i class="fas fa-stethoscope me-2 fs-3 text-primary"></i>
+            <span class="fs-4 fw-bold text-primary">MCSTUFFIN's</span>
+        </a>
+
+        <div class="dropdown ms-auto">
+            <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
+                <span class="fw-semibold">Owner</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
+                <li>
+                    <button type="button" class="dropdown-item text-danger" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt me-2"></i> Logout
+                    </button>
+                </li>
+            </ul>
+        </div>
     </div>
-  </div>
+
+
 </nav>
 
 <div class="d-flex">
@@ -44,16 +50,14 @@
       <a href="admin_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
         <i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
       </a>
-      <a href="admin_users.html" class="list-group-item list-group-item-action py-3 ripple">
-        <i class="fa-solid fa-users-gear me-2" aria-hidden="true"></i>All Users
-      </a>
-      <a href="admin_doctors.html" class="list-group-item list-group-item-action py-3 ripple active" aria-current="page">
+
+      <a href="admin_doctors.html" class="list-group-item list-group-item-action py-3 ripple active">
         <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Doctors
       </a>
       <a href="admin_secretaries.html" class="list-group-item list-group-item-action py-3 ripple">
         <i class="fa-solid fa-user-tie me-2" aria-hidden="true"></i>Secretaries
       </a>
-      <a href="admin_patients.html" class="list-group-item list-group-item-action py-3 ripple">
+      <a href="admin_patients.html" class="list-group-item list-group-item-action py-3 ripple " aria-current="page">
         <i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>Patients
       </a>
       <a href="admin_reports.html" class="list-group-item list-group-item-action py-3 ripple">
@@ -62,152 +66,153 @@
     </div>
   </nav>
 
-  <main id="page-content-wrapper" class="pt-5" tabindex="-1">
-  <div class="content-container mt-5 p-4 container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="m-0">Doctor List</h3>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAdd">Add Doctor</button>
-    </div>
 
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped table-hover align-middle">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>License Number</th>
-                <th>Specialization</th>
-                <th>Experience</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-doctors"><tr><td colspan="7" class="text-center text-muted">Loading...</td></tr></tbody>
-          </table>
+
+
+
+    <main id="page-content-wrapper" class="pt-5" tabindex="-1">
+      <button class="btn btn-primary d-lg-none offcanvas-toggle-btn" type="button" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <div class="content-container mt-5 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1 class="fw-bold text-secondary">Doctor Management</h1>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDoctorModal">
+            <i class="fas fa-plus me-2"></i>Add New Doctor
+          </button>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-hover" id="doctorsTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>License Number</th>
+                    <th>Specialization</th>
+                    <th>Experience</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="doctorsTableBody">
+                  <!-- Data will be loaded here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Doctor Modal -->
+  <div class="modal fade" id="addDoctorModal" tabindex="-1" aria-labelledby="addDoctorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addDoctorModalLabel">Add New Doctor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addDoctorForm">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="doctorName" class="form-label">Full Name *</label>
+                <input type="text" class="form-control" id="doctorName" name="name" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="doctorEmail" class="form-label">Email *</label>
+                <input type="email" class="form-control" id="doctorEmail" name="email" required>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="doctorPassword" class="form-label">Password *</label>
+                <input type="password" class="form-control" id="doctorPassword" name="password" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="doctorLicense" class="form-label">License Number *</label>
+                <input type="text" class="form-control" id="doctorLicense" name="license_number" required>
+              </div>
+            </div>
+            <div class="row">
+                             <div class="col-md-6 mb-3">
+                <label for="doctorSpecialization" class="form-label">Specialization *</label>
+ <select class="form-control" id="doctorSpecialization" name="specialization_id" required>
+   <option value="">-- Select Specialization --</option>
+ </select>
+               </div>
+              <div class="col-md-6 mb-3">
+                <label for="doctorExperience" class="form-label">Years of Experience</label>
+                <input type="number" class="form-control" id="doctorExperience" name="years_experience" min="0" max="50">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveDoctorBtn">Save Doctor</button>
         </div>
       </div>
     </div>
   </div>
-  </main>
-</div>
 
-<!-- Add Modal -->
-<div class="modal fade" id="modalAdd" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Add Doctor</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <div class="row g-2">
-          <div class="col-12"><input id="doc-name" class="form-control" placeholder="Name" /></div>
-          <div class="col-12"><input id="doc-email" class="form-control" placeholder="Email" /></div>
-          <div class="col-12"><input id="doc-pass" class="form-control" placeholder="Temp Password" value="password123" /></div>
-          <div class="col-12"><input id="doc-license" class="form-control" placeholder="License #" /></div>
-          <div class="col-6"><input id="doc-spec" class="form-control" placeholder="Specialization ID (optional)" /></div>
-          <div class="col-6"><input id="doc-years" class="form-control" placeholder="Years Experience (optional)" /></div>
+  <!-- Edit Doctor Modal -->
+  <div class="modal fade" id="editDoctorModal" tabindex="-1" aria-labelledby="editDoctorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editDoctorModalLabel">Edit Doctor</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        <button id="btn-add-doctor" class="btn btn-primary">Save</button>
+        <div class="modal-body">
+          <form id="editDoctorForm">
+            <input type="hidden" id="editDoctorId" name="doctor_id">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="editDoctorName" class="form-label">Full Name *</label>
+                <input type="text" class="form-control" id="editDoctorName" name="name" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="editDoctorEmail" class="form-label">Email *</label>
+                <input type="email" class="form-control" id="editDoctorEmail" name="email" required>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="editDoctorLicense" class="form-label">License Number *</label>
+                <input type="text" class="form-control" id="editDoctorLicense" name="license_number" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="editDoctorSpecialization" class="form-label">Specialization *</label>
+                <select class="form-control" id="editDoctorSpecialization" name="specialization_id" required>
+                  <option value="">-- Select Specialization --</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="editDoctorExperience" class="form-label">Years of Experience</label>
+                <input type="number" class="form-control" id="editDoctorExperience" name="years_experience" min="0" max="50">
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="updateDoctorBtn">Update Doctor</button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<script>
-  (function(){
-    const baseApiUrl = sessionStorage.getItem("baseAPIUrl") || "http://localhost/clinic_recording/api";
-    const userRaw = sessionStorage.getItem("user");
-    let user = null; try { user = JSON.parse(userRaw || '{}'); } catch (e) {}
-    if (!user || (user.role||'').toLowerCase() !== 'admin') {
-      Swal.fire({icon:'error', title:'Not Authorized', text:'Admin access required.'}).then(()=>{ window.location.href='../../index.html'; });
-      return;
-    }
-
-    async function load(){
-      const resp = await axios.get(`${baseApiUrl}/admin_users.php?operation=list_users&role=doctor`);
-      const rows = Array.isArray(resp.data?.users) ? resp.data.users : [];
-      const tbody = document.getElementById('tbl-doctors');
-      if(!rows.length){ tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No doctors</td></tr>'; return; }
-      tbody.innerHTML = rows.map((u)=>{
-        const active = (u.is_active? 'Active':'Inactive');
-        const badge = `<span class=\"badge ${u.is_active? 'bg-success':'bg-secondary'}\">${active}</span>`;
-        const btn = u.is_active ? `<button class=\"btn btn-sm btn-outline-danger\" data-id=\"${u.user_id}\" data-active=\"0\">Deactivate</button>` : `<button class=\"btn btn-sm btn-outline-success\" data-id=\"${u.user_id}\" data-active=\"1\">Activate</button>`;
-        return `<tr>
-          <td>${u.name||''}</td>
-          <td>${u.email||''}</td>
-          <td><span class=\"badge bg-info\">${u.license_number || '-'}</span></td>
-          <td>${u.specialization_name || '-'}</td>
-          <td>${u.years_experience || '-'}</td>
-          <td>${badge}</td>
-          <td>${btn}</td>
-        </tr>`;
-      }).join('');
-      tbody.querySelectorAll('button[data-id]').forEach(btn=>{
-        btn.addEventListener('click', async (e)=>{
-          const id = e.currentTarget.getAttribute('data-id');
-          const active = e.currentTarget.getAttribute('data-active');
-          const actionText = active === '1' ? 'activate' : 'deactivate';
-          const result = await Swal.fire({
-            title: `Confirm ${actionText}`,
-            text: `Are you sure you want to ${actionText} this account?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes',
-            cancelButtonText: 'Cancel'
-          });
-          if (!result.isConfirmed) return;
-          const payload = new FormData();
-          payload.append('operation','set_active');
-          payload.append('json', JSON.stringify({ user_id: parseInt(id,10), is_active: parseInt(active,10) }));
-          try {
-            Swal.fire({title:'Updating...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
-            const resp = await axios.post(`${baseApiUrl}/admin_users.php`, payload);
-            if(resp.data?.success){ Swal.close(); await load(); Swal.fire('Updated','Status changed successfully','success'); }
-            else { Swal.fire('Error', resp.data?.message || 'Update failed', 'error'); }
-          } catch(err){ Swal.fire('Error', 'Update failed', 'error'); }
-        });
-      });
-    }
-
-    document.getElementById('btn-add-doctor').addEventListener('click', async ()=>{
-      const name = document.getElementById('doc-name').value.trim();
-      const email = document.getElementById('doc-email').value.trim();
-      const pass = document.getElementById('doc-pass').value;
-      const license = document.getElementById('doc-license').value.trim();
-      if (!name || !email || !pass || !license) {
-        Swal.fire('Missing fields','Name, Email, Password and License are required.','warning');
-        return;
-      }
-      const payload = new FormData();
-      payload.append('operation','create_user');
-      payload.append('json', JSON.stringify({
-        role: 'doctor',
-        name: name,
-        email: email,
-        password: pass,
-        license_number: license,
-        specialization_id: document.getElementById('doc-spec').value || null,
-        years_experience: document.getElementById('doc-years').value || null
-      }));
-      try {
-        Swal.fire({title:'Saving...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
-        const resp = await axios.post(`${baseApiUrl}/admin_users.php`, payload);
-        Swal.close();
-        if (resp.data?.success) { Swal.fire('Success','Doctor created','success'); document.querySelector('#modalAdd .btn-close').click(); load(); }
-        else { Swal.fire('Error', resp.data?.message||'Failed','error'); }
-      } catch(err){ Swal.fire('Error','Failed to save','error'); }
-    });
-
-    load();
-  })();
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-<script src="../../js/logout.js" defer></script>
-<script src="../../js/auto-logout.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="../../js/secretary_doctors.js" defer></script>
 </body>
+
 </html>
