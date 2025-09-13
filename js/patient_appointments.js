@@ -74,43 +74,122 @@ document.addEventListener('DOMContentLoaded', async () => {
       const resp = await axios.get(`${apptApi}?operation=get_by_patient&patient_id=${patientId}`);
       const appts = resp.data.data || [];
       list.innerHTML = '';
-      appts.forEach(a => {
-      const li = document.createElement('li');
-      li.className = 'list-group-item';
-      // Format the reason display
-      let reasonDisplay = a.reason_name || '-';
-      let notesDisplay = '';
 
-      if (a.appointment_notes && a.appointment_notes.startsWith('Reason:')) {
-        const lines = a.appointment_notes.split('\n\n');
-        const customReason = lines[0].replace('Reason: ', '');
-        reasonDisplay = `Other: ${customReason}`;
-        if (lines.length > 1) {
-          notesDisplay = lines.slice(1).join('\n\n');
-        }
-      } else if (a.appointment_notes) {
-        notesDisplay = a.appointment_notes;
+      if (appts.length === 0) {
+        document.getElementById('noAppointments').style.display = 'block';
+        return;
       }
 
-      li.innerHTML = `<div class="d-flex justify-content-between align-items-start">
-        <div class="flex-grow-1">
-          <div class="fw-semibold">${a.appointment_date}</div>
-          <div class="small text-muted mb-1">Status: ${a.appointment_status}</div>
-          <div class="small text-primary">Reason: ${reasonDisplay}</div>
-          ${notesDisplay ? `<div class="small text-muted">Notes: ${notesDisplay}</div>` : ''}
-        </div>
-        <div class="text-end ms-3">
-          <div>${a.doctor_name || '-'}</div>
-          <div class="small">Queue: ${a.queue_number || '-'}</div>
-        </div>
-      </div>`;
-      list.appendChild(li);
-    });
+      document.getElementById('noAppointments').style.display = 'none';
+
+      appts.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'appointment-card card';
+
+        // Format the reason display
+        let reasonDisplay = a.reason_name || '-';
+        let notesDisplay = '';
+
+        if (a.appointment_notes && a.appointment_notes.startsWith('Reason:')) {
+          const lines = a.appointment_notes.split('\n\n');
+          const customReason = lines[0].replace('Reason: ', '');
+          reasonDisplay = `Other: ${customReason}`;
+          if (lines.length > 1) {
+            notesDisplay = lines.slice(1).join('\n\n');
+          }
+        } else if (a.appointment_notes) {
+          notesDisplay = a.appointment_notes;
+        }
+
+        // Get status class for styling
+        const statusClass = getStatusClass(a.appointment_status);
+        const statusIcon = getStatusIcon(a.appointment_status);
+
+        card.innerHTML = `
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <div class="flex-grow-1">
+                <h6 class="card-title mb-1">
+                  <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                  ${formatDate(a.appointment_date)}
+                </h6>
+                <span class="status-badge ${statusClass}">
+                  <i class="${statusIcon} me-1"></i>${a.appointment_status}
+                </span>
+              </div>
+              <div class="text-end">
+                <div class="fw-semibold text-secondary">${a.doctor_name || 'TBD'}</div>
+                <small class="text-muted">Queue: ${a.queue_number || '-'}</small>
+              </div>
+            </div>
+
+            <div class="row g-2">
+              <div class="col-12">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="fas fa-stethoscope me-2 text-info"></i>
+                  <span class="text-muted">Reason:</span>
+                  <span class="ms-2 fw-semibold text-primary">${reasonDisplay}</span>
+                </div>
+                ${notesDisplay ? `
+                <div class="d-flex align-items-start">
+                  <i class="fas fa-sticky-note me-2 text-warning mt-1"></i>
+                  <div>
+                    <span class="text-muted">Notes:</span>
+                    <div class="ms-2 text-dark">${notesDisplay}</div>
+                  </div>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+        list.appendChild(card);
+      });
     } catch (err) {
       console.error('Failed to load appointments list', err?.response?.data || err);
       if (list) {
-        list.innerHTML = '<li class="list-group-item text-danger">Failed to load appointments.</li>';
+        list.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Failed to load appointments. Please try again.</div>';
       }
+    }
+  }
+
+  // Helper function to get status class
+  function getStatusClass(status) {
+    const statusMap = {
+      'pending': 'status-pending',
+      'confirmed': 'status-confirmed',
+      'completed': 'status-completed',
+      'cancelled': 'status-cancelled',
+      'in consultation': 'status-in-consultation',
+      'in_consultation': 'status-in-consultation'
+    };
+    return statusMap[status?.toLowerCase()] || 'status-pending';
+  }
+
+  // Helper function to get status icon
+  function getStatusIcon(status) {
+    const iconMap = {
+      'pending': 'fas fa-clock',
+      'confirmed': 'fas fa-check-circle',
+      'completed': 'fas fa-check-double',
+      'cancelled': 'fas fa-times-circle',
+      'in consultation': 'fas fa-user-md',
+      'in_consultation': 'fas fa-user-md'
+    };
+    return iconMap[status?.toLowerCase()] || 'fas fa-clock';
+  }
+
+  // Helper function to format date
+  function formatDate(dateString) {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
     }
   }
 

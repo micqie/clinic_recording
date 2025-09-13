@@ -306,17 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="col-md-3">
                             <label class="form-label">Packaging Unit</label>
                             <select class="form-select" name="prescriptions[${prescriptionCounter-1}][packaging_unit]" id="packaging_${prescriptionId}" required>
-                                <option value="tablet">Tablet</option>
-                                <option value="capsule">Capsule</option>
-                                <option value="ml">ml (Liquid)</option>
-                                <option value="mg">mg (Powder)</option>
-                                <option value="piece">Piece</option>
-                                <option value="blister pack">Blister Pack</option>
                                 <option value="box">Box</option>
-                                <option value="bottle">Bottle</option>
-                                <option value="tube">Tube</option>
-                                <option value="vial">Vial</option>
-                                <option value="sachet">Sachet</option>
                                 <option value="strip">Strip</option>
                             </select>
                         </div>
@@ -593,20 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         case 'box':
                             multiplier = 1.20; // 20% markup
                             break;
-                        case 'bottle':
-                            multiplier = 1.15; // 15% markup
-                            break;
-                        case 'blister pack':
                         case 'strip':
-                            multiplier = 1.10; // 10% markup
-                            break;
-                        case 'sachet':
-                            multiplier = 1.05; // 5% markup
-                            break;
-                        case 'vial':
-                            multiplier = 1.15; // 15% markup
-                            break;
-                        case 'tube':
                             multiplier = 1.10; // 10% markup
                             break;
                         default:
@@ -955,15 +932,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         let totalCost = unitPrice * quantity;
 
                         // Apply packaging unit multiplier if needed
-                        const packagingUnit = p.packaging_unit || 'tablet';
+                        const packagingUnit = p.packaging_unit || 'strip';
                         switch (packagingUnit) {
                             case 'box':
                                 totalCost = totalCost * 1.2; // 20% markup
                                 break;
-                            case 'bottle':
-                                totalCost = totalCost * 1.15; // 15% markup
-                                break;
-                            case 'blister pack':
+                            case 'strip':
                                 totalCost = totalCost * 1.1; // 10% markup
                                 break;
                         }
@@ -1013,7 +987,6 @@ document.addEventListener('DOMContentLoaded', () => {
                               <p class="mb-3"><strong>Social:</strong> ${data.consultation.social_history || '—'}</p>
                               <p class="mb-1"><strong>Smoking:</strong> ${(data.consultation.smoking_status || 'No')} ${data.consultation.smoking_packs_per_day ? `(Packs/Day: ${data.consultation.smoking_packs_per_day})` : ''}</p>
                               <p class="mb-1"><strong>Alcohol:</strong> ${(data.consultation.alcohol_use || 'No')} ${data.consultation.alcohol_frequency ? `(Frequency: ${data.consultation.alcohol_frequency})` : ''}</p>
-                              <p class="mb-3"><strong>Drugs:</strong> ${(data.consultation.drug_use || 'No')} ${data.consultation.drug_type ? `(Type: ${data.consultation.drug_type})` : ''}</p>
                               <p class="mb-1"><strong>Vitals</strong></p>
                               <p class="mb-1"><strong>BP:</strong> ${data.consultation.blood_pressure_mmHg || '—'}</p>
                               <p class="mb-1"><strong>HR:</strong> ${data.consultation.heart_rate_bpm ? data.consultation.heart_rate_bpm + ' bpm' : '—'}</p>
@@ -1104,8 +1077,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 payload.smoking_packs_per_day = c.smoking_packs_per_day || null;
                 payload.alcohol_use = c.alcohol_use || null;
                 payload.alcohol_frequency = c.alcohol_frequency || null;
-                payload.drug_use = c.drug_use || null;
-                payload.drug_type = c.drug_type || null;
                 payload.sexual_activity = c.sexual_activity || null;
                 payload.current_medications = c.current_medications || null;
                 payload.height_cm = c.height_cm || null;
@@ -1187,8 +1158,6 @@ document.addEventListener('DOMContentLoaded', () => {
             smoking_packs_per_day: formData.get('smoking_packs_per_day') || null,
             alcohol_use: formData.get('alcohol_use') || null,
             alcohol_frequency: formData.get('alcohol_frequency') || null,
-            drug_use: formData.get('drug_use') || null,
-            drug_type: formData.get('drug_type') || null,
             sexual_activity: formData.get('sexual_activity') || null,
             current_medications: formData.get('current_medications') || null,
             // Vitals

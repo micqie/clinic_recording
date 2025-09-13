@@ -230,7 +230,14 @@
           </div>
           <div class="col-12 col-md-6">
             <label for="register-password" class="form-label fw-bold">Password</label>
-            <input type="password" class="form-control" id="register-password" name="password" required>
+            <input type="password" class="form-control" id="register-password" name="password" minlength="12" pattern="(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}" title="Minimum 12 characters, at least 1 uppercase letter, 1 number, and 1 symbol" aria-describedby="passwordHelp" required>
+            <div id="passwordHelp" class="form-text text-muted">Minimum 12 characters, include at least 1 uppercase letter, 1 number, and 1 symbol.</div>
+            <div id="passwordStrength" class="small mt-1"></div>
+          </div>
+          <div class="col-12 col-md-6">
+            <label for="register-confirm-password" class="form-label fw-bold">Confirm Password</label>
+            <input type="password" class="form-control" id="register-confirm-password" name="confirm_password" minlength="12" required>
+            <div id="passwordMatch" class="small mt-1"></div>
           </div>
           <div class="col-12 col-md-6">
             <label for="register-sex" class="form-label fw-bold">Sex</label>
@@ -250,7 +257,8 @@
           </div>
           <div class="col-12 col-md-3">
             <label for="register-age" class="form-label fw-bold">Age</label>
-            <input type="number" min="0" class="form-control" id="register-age" name="age" required>
+            <input type="number" min="0" class="form-control" id="register-age" name="age" readonly required>
+            <div class="form-text text-muted">Automatically calculated from birth date</div>
           </div>
           <div class="col-12">
             <label for="register-address" class="form-label fw-bold">Address</label>

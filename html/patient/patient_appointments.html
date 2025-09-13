@@ -16,6 +16,189 @@
   <script src="../../js/logout.js" defer></script>
   <script src="../../js/auto-logout.js" defer></script>
   <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
+  <style>
+    /* Responsive layout with sidebar toggle support */
+    .content-container {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 auto !important;
+      padding: 2rem !important;
+      transition: all 0.3s ease !important;
+    }
+
+    #page-content-wrapper {
+      width: 100% !important;
+      max-width: none !important;
+      transition: all 0.3s ease !important;
+    }
+
+    /* Sidebar open state */
+    body.sidebar-open .content-container {
+      margin-left: 0 !important;
+    }
+
+    /* Center content when sidebar is closed */
+    @media (min-width: 992px) {
+      .content-container {
+        max-width: 1200px !important;
+        margin: 0 auto !important;
+      }
+    }
+
+    /* Enhanced appointment cards */
+    .appointment-card {
+      border: none !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07) !important;
+      transition: all 0.3s ease !important;
+      margin-bottom: 1rem !important;
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+    }
+
+    .appointment-card:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .appointment-card .card-body {
+      padding: 1.5rem !important;
+    }
+
+    /* Status badges */
+    .status-badge {
+      font-size: 0.75rem !important;
+      font-weight: 600 !important;
+      padding: 0.5rem 1rem !important;
+      border-radius: 20px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+    }
+
+    .status-pending {
+      background: linear-gradient(135deg, #ffc107, #ff8f00) !important;
+      color: white !important;
+    }
+
+    .status-confirmed {
+      background: linear-gradient(135deg, #28a745, #20c997) !important;
+      color: white !important;
+    }
+
+    .status-completed {
+      background: linear-gradient(135deg, #6c757d, #495057) !important;
+      color: white !important;
+    }
+
+    .status-cancelled {
+      background: linear-gradient(135deg, #dc3545, #c82333) !important;
+      color: white !important;
+    }
+
+    .status-in-consultation {
+      background: linear-gradient(135deg, #17a2b8, #138496) !important;
+      color: white !important;
+    }
+
+    /* Enhanced header */
+    .page-header {
+      background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+      color: white !important;
+      padding: 2rem !important;
+      border-radius: 12px !important;
+      margin-bottom: 2rem !important;
+    }
+
+    .page-header h1 {
+      color: white !important;
+      font-size: 2.5rem !important;
+      font-weight: 700 !important;
+      margin-bottom: 0.5rem !important;
+    }
+
+    .page-header p {
+      color: rgba(255, 255, 255, 0.9) !important;
+      font-size: 1.1rem !important;
+    }
+
+    /* Enhanced buttons */
+    .btn-primary {
+      background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+      border: none !important;
+      border-radius: 8px !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 600 !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px) !important;
+      box-shadow: 0 8px 25px rgba(13, 110, 253, 0.4) !important;
+    }
+
+    .btn-outline-secondary {
+      border: 2px solid #6c757d !important;
+      border-radius: 8px !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 600 !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .btn-outline-secondary:hover {
+      background: #6c757d !important;
+      transform: translateY(-2px) !important;
+    }
+
+    /* Enhanced form */
+    .form-control, .form-select {
+      border-radius: 8px !important;
+      border: 2px solid #e9ecef !important;
+      padding: 0.75rem 1rem !important;
+      transition: all 0.3s ease !important;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: #0d6efd !important;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+    }
+
+    /* Grid layout for appointments */
+    .appointments-grid {
+      display: grid !important;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)) !important;
+      gap: 1.5rem !important;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      .appointments-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .content-container {
+        padding: 1rem !important;
+      }
+
+      .page-header {
+        padding: 1.5rem !important;
+      }
+
+      .page-header h1 {
+        font-size: 2rem !important;
+      }
+    }
+
+    /* Loading animation */
+    .loading-shimmer {
+      background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%) !important;
+      background-size: 200% 100% !important;
+      animation: shimmer 1.5s infinite !important;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+  </style>
 </head>
 <body>
   <!-- Top Navigation -->
@@ -81,16 +264,20 @@
     <!-- Main Content -->
     <main id="page-content-wrapper" class="pt-5" tabindex="-1">
       <div class="content-container mt-5 p-4">
-        <!-- Header Section -->
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-          <div>
-            <h1 class="fw-bold text-secondary mb-1">My Appointments</h1>
-            <p class="text-muted mb-0">Manage your scheduled appointments</p>
-          </div>
-          <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#requestForm" aria-expanded="false">
-              <i class="fas fa-plus me-2"></i>Request New
-            </button>
+        <!-- Enhanced Header Section -->
+        <div class="page-header">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+              <h1 class="mb-1">
+                <i class="fas fa-calendar-check me-3"></i>My Appointments
+              </h1>
+              <p class="mb-0">Manage your scheduled appointments and view your consultation history</p>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-light" type="button" data-bs-toggle="collapse" data-bs-target="#requestForm" aria-expanded="false">
+                <i class="fas fa-plus me-2"></i>Request New Appointment
+              </button>
+            </div>
           </div>
         </div>
 
@@ -143,25 +330,34 @@
           </div>
         </div>
 
-        <!-- Appointments List -->
+        <!-- Enhanced Appointments Section -->
         <div class="card border-0 shadow-sm">
-          <div class="card-header bg-light d-flex align-items-center justify-content-between">
-            <h5 class="mb-0 fw-bold text-secondary">
-              <i class="fas fa-calendar-check me-2"></i>Appointment History
+          <div class="card-header bg-gradient text-white d-flex align-items-center justify-content-between" style="background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;">
+            <h5 class="mb-0 fw-bold">
+              <i class="fas fa-history me-2"></i>Appointment History
             </h5>
             <div class="d-flex gap-2">
-              <select class="form-select form-select-sm" id="statusFilter" style="width: auto;">
+              <select class="form-select form-select-sm" id="statusFilter" style="width: auto; background: white; color: #333;">
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="in_consultation">In Consultation</option>
               </select>
             </div>
           </div>
-          <div class="card-body p-0">
-            <div class="list-group list-group-flush" id="appt_list">
+          <div class="card-body p-4">
+            <div class="appointments-grid" id="appt_list">
               <!-- Appointments will be loaded here -->
+            </div>
+            <div id="noAppointments" class="text-center py-5" style="display: none;">
+              <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+              <h5 class="text-muted">No appointments found</h5>
+              <p class="text-muted">You haven't scheduled any appointments yet.</p>
+              <button class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#requestForm">
+                <i class="fas fa-plus me-2"></i>Request Your First Appointment
+              </button>
             </div>
           </div>
         </div>
@@ -203,6 +399,12 @@
 
       toggleBtn?.addEventListener('click', () => {
         sidebar.classList.toggle('show');
+        // Update body class for layout adjustments
+        if (sidebar.classList.contains('show')) {
+          document.body.classList.add('sidebar-open');
+        } else {
+          document.body.classList.remove('sidebar-open');
+        }
       });
 
       // Close sidebar when clicking outside on mobile
@@ -212,6 +414,7 @@
             !sidebar.contains(e.target) &&
             !toggleBtn.contains(e.target)) {
           sidebar.classList.remove('show');
+          document.body.classList.remove('sidebar-open');
         }
       });
 
@@ -225,6 +428,11 @@
       fab?.addEventListener('mousedown', () => {
         pressTimer = setTimeout(() => {
           sidebar?.classList.toggle('show');
+          if (sidebar.classList.contains('show')) {
+            document.body.classList.add('sidebar-open');
+          } else {
+            document.body.classList.remove('sidebar-open');
+          }
         }, 600);
       });
       fab?.addEventListener('mouseup', () => clearTimeout(pressTimer));

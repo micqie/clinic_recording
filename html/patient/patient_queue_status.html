@@ -16,27 +16,119 @@
     <link rel="stylesheet" href="../../css/patient_mobile.css">
     <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
     <style>
+        /* Responsive layout with sidebar toggle support */
+        .content-container {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 auto !important;
+            padding: 2rem !important;
+            transition: all 0.3s ease !important;
+        }
+
+        #page-content-wrapper {
+            width: 100% !important;
+            max-width: none !important;
+            transition: all 0.3s ease !important;
+        }
+
+        /* Sidebar open state */
+        body.sidebar-open .content-container {
+            margin-left: 0 !important;
+        }
+
+        /* Center content when sidebar is closed */
+        @media (min-width: 992px) {
+            .content-container {
+                max-width: 1200px !important;
+                margin: 0 auto !important;
+            }
+        }
+
+        /* Enhanced header */
+        .page-header {
+            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+            color: white !important;
+            padding: 2rem !important;
+            border-radius: 12px !important;
+            margin-bottom: 2rem !important;
+        }
+
+        .page-header h1 {
+            color: white !important;
+            font-size: 2.5rem !important;
+            font-weight: 700 !important;
+            margin-bottom: 0.5rem !important;
+        }
+
+        .page-header p {
+            color: rgba(255, 255, 255, 0.9) !important;
+            font-size: 1.1rem !important;
+        }
+
+        /* Enhanced buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 0.75rem 1.5rem !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 25px rgba(13, 110, 253, 0.4) !important;
+        }
+
+        .btn-outline-primary {
+            border: 2px solid #0d6efd !important;
+            border-radius: 8px !important;
+            padding: 0.75rem 1.5rem !important;
+            font-weight: 600 !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .btn-outline-primary:hover {
+            background: #0d6efd !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Enhanced form */
+        .form-control, .form-select {
+            border-radius: 8px !important;
+            border: 2px solid #e9ecef !important;
+            padding: 0.75rem 1rem !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #0d6efd !important;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+        }
+
         .queue-status-card {
-            border: none;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            border: none !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07) !important;
+            transition: all 0.3s ease !important;
+            margin-bottom: 1rem !important;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
         }
         .queue-status-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
         }
         .current-consultation {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%) !important;
+            color: white !important;
         }
         .waiting-status {
-            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
-            color: white;
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%) !important;
+            color: white !important;
         }
         .completed-status {
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-            color: white;
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+            color: white !important;
         }
         .queue-number {
             font-size: 4rem;
@@ -95,6 +187,35 @@
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
+        }
+
+        /* Enhanced stats cards */
+        .stats-card {
+            border: none !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07) !important;
+            transition: all 0.3s ease !important;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .content-container {
+                padding: 1rem !important;
+            }
+
+            .page-header {
+                padding: 1.5rem !important;
+            }
+
+            .page-header h1 {
+                font-size: 2rem !important;
+            }
         }
     </style>
 </head>
@@ -166,23 +287,45 @@
             </button>
 
             <div class="content-container mt-5 p-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">
-                        <i class="fas fa-list-ol me-2"></i>
-                        Queue Status
-                    </h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <button type="button" class="btn btn-outline-primary" onclick="loadQueueStatus()">
-                            <i class="fas fa-sync-alt me-2"></i>Refresh
-                        </button>
+                <!-- Enhanced Header Section -->
+                <div class="page-header">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div>
+                            <h1 class="mb-1">
+                                <i class="fas fa-list-ol me-3"></i>Queue Status
+                            </h1>
+                            <p class="mb-0">Track your position in the consultation queue and monitor wait times</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-light" onclick="loadQueueStatus()">
+                                <i class="fas fa-sync-alt me-2"></i>Refresh Queue
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Date Selector -->
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <label for="queueDate" class="form-label">Select Date</label>
-                        <input type="date" class="form-control" id="queueDate" onchange="loadQueueStatus()">
+                <!-- Enhanced Date Selector -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="row align-items-end">
+                            <div class="col-md-4">
+                                <label for="queueDate" class="form-label fw-semibold">
+                                    <i class="fas fa-calendar-alt me-2 text-primary"></i>Select Date
+                                </label>
+                                <input type="date" class="form-control" id="queueDate" onchange="loadQueueStatus()">
+                                <div class="form-text">Choose the date to view queue status</div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="setToday()">
+                                        <i class="fas fa-calendar-day me-1"></i>Today
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setTomorrow()">
+                                        <i class="fas fa-calendar-plus me-1"></i>Tomorrow
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -224,40 +367,48 @@
                     </div>
                 </div>
 
-                <!-- Queue Statistics -->
+                <!-- Enhanced Queue Statistics -->
                 <div class="row mt-4" id="queueStatsContainer" style="display: none;">
                     <div class="col-md-3">
-                        <div class="card text-center">
+                        <div class="card stats-card text-center">
                             <div class="card-body">
-                                <i class="fas fa-users fa-2x text-primary mb-2"></i>
-                                <h4 id="totalPatients">0</h4>
+                                <div class="mb-3">
+                                    <i class="fas fa-users fa-3x text-primary"></i>
+                                </div>
+                                <h3 class="fw-bold text-secondary mb-1" id="totalPatients">0</h3>
                                 <p class="text-muted mb-0">Total Patients</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card text-center">
+                        <div class="card stats-card text-center">
                             <div class="card-body">
-                                <i class="fas fa-user-md fa-2x text-success mb-2"></i>
-                                <h4 id="inConsultation">0</h4>
+                                <div class="mb-3">
+                                    <i class="fas fa-user-md fa-3x text-success"></i>
+                                </div>
+                                <h3 class="fw-bold text-secondary mb-1" id="inConsultation">0</h3>
                                 <p class="text-muted mb-0">In Consultation</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card text-center">
+                        <div class="card stats-card text-center">
                             <div class="card-body">
-                                <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                                <h4 id="waiting">0</h4>
+                                <div class="mb-3">
+                                    <i class="fas fa-clock fa-3x text-warning"></i>
+                                </div>
+                                <h3 class="fw-bold text-secondary mb-1" id="waiting">0</h3>
                                 <p class="text-muted mb-0">Waiting</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card text-center">
+                        <div class="card stats-card text-center">
                             <div class="card-body">
-                                <i class="fas fa-check-circle fa-2x text-secondary mb-2"></i>
-                                <h4 id="completed">0</h4>
+                                <div class="mb-3">
+                                    <i class="fas fa-check-circle fa-3x text-secondary"></i>
+                                </div>
+                                <h3 class="fw-bold text-secondary mb-1" id="completed">0</h3>
                                 <p class="text-muted mb-0">Completed</p>
                             </div>
                         </div>
@@ -283,14 +434,37 @@
   <script src="../../js/auto-logout.js" defer></script>
     <script src="../../js/patient_queue_status.js"></script>
     <script>
+      // Date selector helper functions
+      function setToday() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('queueDate').value = today;
+        loadQueueStatus();
+      }
+
+      function setTomorrow() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('queueDate').value = tomorrow.toISOString().split('T')[0];
+        loadQueueStatus();
+      }
+
       // Keep body class in sync & FAB behavior
       document.addEventListener('DOMContentLoaded', () => {
         const sidebar = document.getElementById('sidebar-wrapper');
         const toggleBtn = document.getElementById('sidebarToggle');
 
+        // Set today's date by default
+        setToday();
+
         // Toggle handler (desktop and mobile)
         toggleBtn?.addEventListener('click', () => {
           sidebar.classList.toggle('show');
+          // Update body class for layout adjustments
+          if (sidebar.classList.contains('show')) {
+            document.body.classList.add('sidebar-open');
+          } else {
+            document.body.classList.remove('sidebar-open');
+          }
         });
 
         // Close sidebar when clicking outside on mobile
@@ -300,6 +474,7 @@
               !sidebar.contains(e.target) &&
               !toggleBtn.contains(e.target)) {
             sidebar.classList.remove('show');
+            document.body.classList.remove('sidebar-open');
           }
         });
 
@@ -315,7 +490,16 @@
         const fab = document.getElementById('patientFab');
         let pressTimer;
         fab?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-        fab?.addEventListener('mousedown', () => { pressTimer = setTimeout(() => sidebar?.classList.toggle('show'), 600); });
+        fab?.addEventListener('mousedown', () => {
+          pressTimer = setTimeout(() => {
+            sidebar?.classList.toggle('show');
+            if (sidebar.classList.contains('show')) {
+              document.body.classList.add('sidebar-open');
+            } else {
+              document.body.classList.remove('sidebar-open');
+            }
+          }, 600);
+        });
         ['mouseup','mouseleave'].forEach(ev => fab?.addEventListener(ev, () => clearTimeout(pressTimer)));
       });
     </script>

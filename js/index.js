@@ -5,19 +5,128 @@ document.addEventListener("DOMContentLoaded", () => {
   const registerBirthdate = document.getElementById("register-birthdate");
   const registerAge = document.getElementById("register-age");
 
+  // Password validation functions
+  function validatePassword(password) {
+    const minLength = 12;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[^A-Za-z0-9]/.test(password);
+
+    return {
+      isValid: password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar,
+      minLength: password.length >= minLength,
+      hasUpperCase,
+      hasLowerCase,
+      hasNumbers,
+      hasSpecialChar
+    };
+  }
+
+  function updatePasswordStrength(password) {
+    const strengthDiv = document.getElementById('passwordStrength');
+    if (!strengthDiv) return;
+
+    const validation = validatePassword(password);
+    let strength = 0;
+    let message = '';
+
+    if (validation.minLength) strength++;
+    if (validation.hasUpperCase) strength++;
+    if (validation.hasLowerCase) strength++;
+    if (validation.hasNumbers) strength++;
+    if (validation.hasSpecialChar) strength++;
+
+    const strengthLevels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    const strengthColors = ['text-danger', 'text-danger', 'text-warning', 'text-info', 'text-success'];
+
+    message = strengthLevels[strength - 1] || 'Very Weak';
+    const colorClass = strengthColors[strength - 1] || 'text-danger';
+
+    strengthDiv.innerHTML = `<span class="${colorClass}">Password Strength: ${message}</span>`;
+  }
+
+  function checkPasswordMatch() {
+    const password = document.getElementById('register-password')?.value || '';
+    const confirmPassword = document.getElementById('register-confirm-password')?.value || '';
+    const matchDiv = document.getElementById('passwordMatch');
+
+    if (!matchDiv) return;
+
+    if (confirmPassword === '') {
+      matchDiv.innerHTML = '';
+      return;
+    }
+
+    if (password === confirmPassword) {
+      matchDiv.innerHTML = '<span class="text-success">✓ Passwords match</span>';
+    } else {
+      matchDiv.innerHTML = '<span class="text-danger">✗ Passwords do not match</span>';
+    }
+  }
+
+  // Add event listeners for password validation
+  document.getElementById('register-password')?.addEventListener('input', (e) => {
+    updatePasswordStrength(e.target.value);
+    checkPasswordMatch();
+  });
+
+  document.getElementById('register-confirm-password')?.addEventListener('input', checkPasswordMatch);
+
+  // Age calculation function
+  function calculateAge(birthdate) {
+    if (!birthdate) return '';
+
+    const today = new Date();
+    const birth = new Date(birthdate);
+
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+
+    return age >= 0 ? age : '';
+  }
+
+  // Add event listener for birthdate change
+  document.getElementById('register-birthdate')?.addEventListener('change', (e) => {
+    const ageField = document.getElementById('register-age');
+    if (ageField && e.target.value) {
+      const calculatedAge = calculateAge(e.target.value);
+      ageField.value = calculatedAge;
+    }
+  });
+
   // Registration form handling
   registerForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const formData = new FormData(registerForm);
+    const password = formData.get('password') || '';
+    const confirmPassword = formData.get('confirm_password') || '';
 
     // Validate required fields
-    const requiredFields = ['name', 'email', 'password', 'sex', 'contact_num', 'birthdate', 'age', 'address'];
+    const requiredFields = ['name', 'email', 'password', 'confirm_password', 'sex', 'contact_num', 'birthdate', 'age', 'address'];
     for (let field of requiredFields) {
       if (!formData.get(field)) {
         Swal.fire("Error", `Please fill in the ${field.replace('_', ' ')} field.`, "error");
         return;
       }
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      Swal.fire("Error", "Password must be at least 12 characters long and include uppercase letters, lowercase letters, numbers, and special characters.", "error");
+      return;
+    }
+
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+      Swal.fire("Error", "Passwords do not match. Please check your password confirmation.", "error");
+      return;
     }
 
     const jsonPayload = JSON.stringify({
@@ -124,27 +233,23 @@ document.addEventListener("DOMContentLoaded", () => {
           timer: 1500
         });
 
-        // Redirect based on must_change_password or role
+        // Redirect based on role
         setTimeout(() => {
-          if (user.must_change_password === 1) {
-            window.location.href = "html/change_password.html";
-          } else {
-            const roleRoutes = {
-              admin: "html/admin/admin_dashboard.html",
-              doctor: "html/doctor/doctor_appointments.html",
-              secretary: "html/secretary/secretary_dashboard.html",
-              patient: "html/patient/patient_dashboard.html"
-            };
+          const roleRoutes = {
+            admin: "html/admin/admin_dashboard.html",
+            doctor: "html/doctor/doctor_appointments.html",
+            secretary: "html/secretary/secretary_dashboard.html",
+            patient: "html/patient/patient_dashboard.html"
+          };
 
-            if (roleRoutes[user.role]) {
-              window.location.href = roleRoutes[user.role];
-            } else {
-              Swal.fire({
-                icon: "error",
-                title: "Unknown Role",
-                text: `User role "${user.role}" is not recognized.`
-              });
-            }
+          if (roleRoutes[user.role]) {
+            window.location.href = roleRoutes[user.role];
+          } else {
+            Swal.fire({
+              icon: "error",
+              title: "Unknown Role",
+              text: `User role "${user.role}" is not recognized.`
+            });
           }
         }, 1500);
       } else {

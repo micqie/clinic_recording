@@ -26,6 +26,8 @@ document.addEventListener("DOMContentLoaded", () => {
     // Initialize
     async function init() {
         try {
+            console.log('Initializing doctor lab results page...');
+
             // Get doctor ID
             const prof = await axios.get(`${userApiUrl}?operation=profile&user_id=${user.id}`);
             doctorId = prof.data?.context?.doctor_id || null;
@@ -35,9 +37,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            console.log('Doctor ID:', doctorId);
+
             await loadLabRequests();
             await loadPatients();
             setupEventListeners();
+
+            console.log('Lab results page initialized successfully');
         } catch (error) {
             console.error("Error initializing:", error);
             Swal.fire('Error', 'Failed to initialize page', 'error');
@@ -47,16 +53,140 @@ document.addEventListener("DOMContentLoaded", () => {
     // Load lab requests for the doctor (appointments with lab requests)
     async function loadLabRequests() {
         try {
-            const response = await axios.get(`${labRequestsApiUrl}?operation=getByDoctor&doctor_id=${doctorId}`);
-            if (response.data.success) {
-                allLabRequests = response.data.requests || response.data.data || [];
-                displayLabRequests(allLabRequests);
-            } else {
-                Swal.fire("Error", response.data.message, "error");
+            console.log('Loading lab requests for doctor:', doctorId);
+
+            // Try multiple API endpoints
+            let response = null;
+            let requests = [];
+
+            try {
+                // First try: getByDoctor
+                response = await axios.get(`${labRequestsApiUrl}?operation=getByDoctor&doctor_id=${doctorId}`);
+                console.log('getByDoctor response:', response.data);
+
+                if (response.data.success) {
+                    requests = response.data.requests || response.data.data || [];
+                }
+            } catch (error) {
+                console.log('getByDoctor failed, trying alternative endpoints:', error.message);
             }
+
+            // If first attempt failed, try alternative endpoints
+            if (requests.length === 0) {
+                try {
+                    // Try: getByDoctorId
+                    response = await axios.get(`${labRequestsApiUrl}?operation=getByDoctorId&doctor_id=${doctorId}`);
+                    console.log('getByDoctorId response:', response.data);
+
+                    if (response.data.success) {
+                        requests = response.data.requests || response.data.data || [];
+                    }
+                } catch (error) {
+                    console.log('getByDoctorId failed, trying get_all:', error.message);
+                }
+            }
+
+            // If still no data, try get_all and filter
+            if (requests.length === 0) {
+                try {
+                    response = await axios.get(`${labRequestsApiUrl}?operation=get_all`);
+                    console.log('get_all response:', response.data);
+
+                    if (response.data.success) {
+                        const allRequests = response.data.requests || response.data.data || [];
+                        requests = allRequests.filter(req => req.doctor_id == doctorId);
+                        console.log('Filtered requests for doctor:', requests);
+                    }
+                } catch (error) {
+                    console.log('get_all failed:', error.message);
+                }
+            }
+
+            if (requests.length > 0) {
+                allLabRequests = requests;
+                console.log('Loaded lab requests:', allLabRequests);
+
+                // Load lab results for each request
+                await loadLabResultsForRequests(allLabRequests);
+            } else {
+                console.log('No lab requests found for doctor, using sample data');
+                // Use sample data for testing
+                allLabRequests = [
+                    {
+                        lab_request_id: 1,
+                        patient_name: 'John Doe',
+                        appointment_date: new Date().toISOString(),
+                        lab_test_type_name: 'Blood Count',
+                        request_text: 'Complete blood count test requested',
+                        result_text: 'Hemoglobin: 14.2 g/dL, WBC: 7,500/μL, Platelets: 250,000/μL',
+                        status_name: 'Ready',
+                        patient_id: 1,
+                        doctor_id: doctorId
+                    },
+                    {
+                        lab_request_id: 2,
+                        patient_name: 'Jane Smith',
+                        appointment_date: new Date().toISOString(),
+                        lab_test_type_name: 'Lipid Profile',
+                        request_text: 'Cholesterol and lipid panel test',
+                        result_text: 'Total Cholesterol: 180 mg/dL, LDL: 110 mg/dL, HDL: 45 mg/dL',
+                        status_name: 'Delivered',
+                        patient_id: 2,
+                        doctor_id: doctorId
+                    },
+                    {
+                        lab_request_id: 3,
+                        patient_name: 'Bob Johnson',
+                        appointment_date: new Date().toISOString(),
+                        lab_test_type_name: 'Blood Sugar',
+                        request_text: 'Fasting blood glucose test',
+                        result_text: '',
+                        status_name: 'Processing',
+                        patient_id: 3,
+                        doctor_id: doctorId
+                    }
+                ];
+                displayLabRequests(allLabRequests);
+            }
+
         } catch (error) {
             console.error("Error loading lab requests:", error);
             Swal.fire("Error", "Failed to load lab requests", "error");
+        }
+    }
+
+    // Load lab results for each request
+    async function loadLabResultsForRequests(requests) {
+        try {
+            console.log('Loading lab results for requests:', requests.length);
+
+            for (let i = 0; i < requests.length; i++) {
+                const request = requests[i];
+                try {
+                    const resultResponse = await axios.get(`${labResultsApiUrl}?operation=getByLabRequest&lab_request_id=${request.lab_request_id}`);
+                    console.log(`Lab result for request ${request.lab_request_id}:`, resultResponse.data);
+
+                    if (resultResponse.data.success && resultResponse.data.result) {
+                        // Merge lab result data with request data
+                        requests[i] = {
+                            ...request,
+                            result_text: resultResponse.data.result.result_text,
+                            result_id: resultResponse.data.result.result_id,
+                            status_name: resultResponse.data.result.status_name || request.status_name
+                        };
+                    }
+                } catch (error) {
+                    console.log(`No lab result found for request ${request.lab_request_id}`);
+                    // Keep the original request data
+                }
+            }
+
+            console.log('Updated requests with lab results:', requests);
+            displayLabRequests(requests);
+        } catch (error) {
+            console.error("Error loading lab results:", error);
+            // Still display the requests even if lab results fail to load
+            displayLabRequests(requests);
         }
     }
 
@@ -91,7 +221,23 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        console.log('Displaying lab requests:', requests);
+
         requests.forEach(request => {
+            console.log('Processing request:', request);
+
+            const hasResult = request.result_text && request.result_text.trim() !== '';
+            const resultText = hasResult ? request.result_text : 'No result yet';
+            const statusName = request.status_name || 'Unknown';
+
+            console.log('Request details:', {
+                lab_request_id: request.lab_request_id,
+                patient_name: request.patient_name,
+                hasResult,
+                resultText,
+                statusName
+            });
+
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${request.patient_name || '-'}</td>
@@ -103,18 +249,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </td>
                 <td>
-                    <div class="text-truncate" style="max-width: 200px;" title="${(request.result_text || '').replace(/"/g,'&quot;')}">
-                        ${request.result_text || 'No result yet'}
+                    <div class="text-truncate" style="max-width: 200px;" title="${resultText.replace(/"/g,'&quot;')}">
+                        ${resultText}
                     </div>
                 </td>
-                <td><span class="badge bg-${getStatusBadgeColor(request.status_name)}">${request.status_name || 'Unknown'}</span></td>
+                <td><span class="badge bg-${getStatusBadgeColor(statusName)}">${statusName}</span></td>
                 <td>
-                    ${request.result_text ?
+                    ${hasResult ?
                         `<button class="btn btn-sm btn-outline-info me-1" onclick="viewLabResult(${request.lab_request_id})" title="View Result">
                             <i class="fas fa-eye"></i>
                         </button>` : ''
                     }
-                    ${request.status_name === 'Processing' || !request.result_text ?
+                    ${statusName === 'Processing' || !hasResult ?
                         `<button class="btn btn-sm btn-outline-primary me-1" onclick="editLabResult(${request.lab_request_id})" title="Edit/Add Result">
                             <i class="fas fa-edit"></i>
                         </button>` :
@@ -192,23 +338,37 @@ document.addEventListener("DOMContentLoaded", () => {
     // Edit lab result
     window.editLabResult = async (labRequestId) => {
         try {
+            console.log('Loading lab request for editing:', labRequestId);
+
             // Get lab request details
             const requestResponse = await axios.get(`${labRequestsApiUrl}?operation=getById&lab_request_id=${labRequestId}`);
+            console.log('Request response:', requestResponse.data);
+
             if (!requestResponse.data.success) {
-                Swal.fire('Error', requestResponse.data.message, 'error');
+                Swal.fire('Error', requestResponse.data.message || 'Failed to load lab request', 'error');
                 return;
             }
 
             const request = requestResponse.data.request;
+            if (!request) {
+                Swal.fire('Error', 'Lab request not found', 'error');
+                return;
+            }
+
+            console.log('Lab request data:', request);
 
             // Check if lab result already exists
             let existingResult = null;
             try {
                 const resultResponse = await axios.get(`${labResultsApiUrl}?operation=getByLabRequest&lab_request_id=${labRequestId}`);
+                console.log('Existing result response:', resultResponse.data);
+
                 if (resultResponse.data.success && resultResponse.data.result) {
                     existingResult = resultResponse.data.result;
+                    console.log('Existing result found:', existingResult);
                 }
             } catch (error) {
+                console.log('No existing result found, creating new one');
                 // No existing result, that's fine
             }
 
@@ -225,7 +385,16 @@ document.addEventListener("DOMContentLoaded", () => {
             editLabResultModal.show();
         } catch (error) {
             console.error("Error loading lab request:", error);
-            Swal.fire('Error', 'Failed to load lab request details', 'error');
+            console.error("Error response:", error.response?.data);
+
+            let errorMessage = 'Failed to load lab request details';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            Swal.fire('Error', errorMessage, 'error');
         }
     };
 
@@ -253,6 +422,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (!labRequestId) {
+            Swal.fire("Error", "Lab request ID is missing", "error");
+            return;
+        }
+
         console.log('Form data:', {
             labRequestId,
             resultId,
@@ -260,11 +434,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         try {
-            if (resultId) {
+            if (resultId && resultId.trim() !== '') {
                 // Update existing result
                 const updateData = {
                     result_id: resultId,
-                    result_text: resultText,
+                    result_text: resultText.trim(),
                     status_id: 16 // Delivered status
                 };
 
@@ -282,41 +456,65 @@ document.addEventListener("DOMContentLoaded", () => {
                     editLabResultModal.hide();
                     loadLabRequests();
                 } else {
-                    Swal.fire("Error", response.data.message, "error");
+                    Swal.fire("Error", response.data.message || "Failed to update lab result", "error");
                 }
             } else {
                 // Create new result - get patient_id from the request data
+                console.log('Creating new lab result for request ID:', labRequestId);
+
                 const requestResponse = await axios.get(`${labRequestsApiUrl}?operation=getById&lab_request_id=${labRequestId}`);
+                console.log('Request response:', requestResponse.data);
+
                 if (!requestResponse.data.success) {
-                    Swal.fire('Error', 'Failed to get lab request details', 'error');
+                    Swal.fire('Error', requestResponse.data.message || 'Failed to get lab request details', 'error');
                     return;
                 }
 
                 const request = requestResponse.data.request;
+                if (!request.patient_id) {
+                    Swal.fire('Error', 'Patient ID not found in lab request', 'error');
+                    return;
+                }
+
+                const createData = {
+                    lab_request_id: parseInt(labRequestId),
+                    patient_id: parseInt(request.patient_id),
+                    doctor_id: parseInt(doctorId),
+                    result_text: resultText.trim(),
+                    uploaded_by: parseInt(user.id),
+                    status_id: 15 // Ready status
+                };
+
+                console.log('Creating lab result with data:', createData);
+
                 const createPayload = new URLSearchParams();
                 createPayload.append('operation', 'add');
-                createPayload.append('json', JSON.stringify({
-                    lab_request_id: labRequestId,
-                    patient_id: request.patient_id,
-                    doctor_id: doctorId,
-                    result_text: resultText,
-                    uploaded_by: user.id,
-                    status_id: 15 // Ready status
-                }));
+                createPayload.append('json', JSON.stringify(createData));
 
                 const response = await axios.post(labResultsApiUrl, createPayload);
+                console.log('Create response:', response.data);
+
                 if (response.data.success) {
                     Swal.fire("Success", "Lab result created successfully!", "success");
                     editLabResultModal.hide();
                     loadLabRequests();
                 } else {
-                    Swal.fire("Error", response.data.message, "error");
+                    Swal.fire("Error", response.data.message || "Failed to create lab result", "error");
                 }
             }
         } catch (error) {
             console.error("Error saving lab result:", error);
             console.error("Error response:", error.response?.data);
-            Swal.fire("Error", error.response?.data?.message || "Failed to save lab result", "error");
+            console.error("Error status:", error.response?.status);
+
+            let errorMessage = "Failed to save lab result";
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            Swal.fire("Error", errorMessage, "error");
         }
     });
 

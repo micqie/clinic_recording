@@ -108,21 +108,17 @@ class IntegratedConsultation
             $smokingPPD = $data['smoking_packs_per_day'] ?? null;
             $alcoholUse = $data['alcohol_use'] ?? null;
             $alcoholFreq = $data['alcohol_frequency'] ?? null;
-            $drugUse = $data['drug_use'] ?? null;
-            $drugType = $data['drug_type'] ?? null;
             $sexualActivity = $data['sexual_activity'] ?? null;
-            if ($smokingStatus !== null || $smokingPPD !== null || $alcoholUse !== null || $alcoholFreq !== null || $drugUse !== null || $drugType !== null || $sexualActivity !== null) {
+            if ($smokingStatus !== null || $smokingPPD !== null || $alcoholUse !== null || $alcoholFreq !== null || $sexualActivity !== null) {
                 $lifeStmt = $this->conn->prepare("
-                    INSERT INTO tbl_consultation_lifestyle (consultation_id, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency, drug_use, drug_type, sexual_activity)
-                    VALUES (:cid, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency, :drug_use, :drug_type, :sexual_activity)
+                    INSERT INTO tbl_consultation_lifestyle (consultation_id, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency, sexual_activity)
+                    VALUES (:cid, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency, :sexual_activity)
                 ");
                 $lifeStmt->bindValue(":cid", $consultationId);
                 $lifeStmt->bindValue(":smoking_status", $smokingStatus);
                 $lifeStmt->bindValue(":smoking_packs_per_day", $smokingPPD);
                 $lifeStmt->bindValue(":alcohol_use", $alcoholUse);
                 $lifeStmt->bindValue(":alcohol_frequency", $alcoholFreq);
-                $lifeStmt->bindValue(":drug_use", $drugUse);
-                $lifeStmt->bindValue(":drug_type", $drugType);
                 $lifeStmt->bindValue(":sexual_activity", $sexualActivity);
                 if (!$lifeStmt->execute()) {
                     $errorInfo = $lifeStmt->errorInfo();
@@ -332,7 +328,7 @@ class IntegratedConsultation
                        h.social_history, h.current_medications,
                        v.height_cm, v.weight_kg, v.blood_pressure_mmHg, v.heart_rate_bpm, v.spo2_percent,
                        s.symptoms_text, s.final_diagnosis,
-                       lf.smoking_status, lf.smoking_packs_per_day, lf.alcohol_use, lf.alcohol_frequency, lf.drug_use, lf.drug_type, lf.sexual_activity
+                       lf.smoking_status, lf.smoking_packs_per_day, lf.alcohol_use, lf.alcohol_frequency, lf.sexual_activity
                 FROM tbl_consultations c
                 JOIN tbl_appointments a ON c.appointment_id = a.appointment_id
                 JOIN tbl_patients p ON c.patient_id = p.patient_id
@@ -605,17 +601,15 @@ class IntegratedConsultation
             // Upsert lifestyle table
             $lifeUpsert = $this->conn->prepare("
                 INSERT INTO tbl_consultation_lifestyle (
-                    consultation_id, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency, drug_use, drug_type, sexual_activity
+                    consultation_id, smoking_status, smoking_packs_per_day, alcohol_use, alcohol_frequency, sexual_activity
                 ) VALUES (
-                    :consultation_id, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency, :drug_use, :drug_type, :sexual_activity
+                    :consultation_id, :smoking_status, :smoking_packs_per_day, :alcohol_use, :alcohol_frequency, :sexual_activity
                 )
                 ON DUPLICATE KEY UPDATE
                     smoking_status = VALUES(smoking_status),
                     smoking_packs_per_day = VALUES(smoking_packs_per_day),
                     alcohol_use = VALUES(alcohol_use),
                     alcohol_frequency = VALUES(alcohol_frequency),
-                    drug_use = VALUES(drug_use),
-                    drug_type = VALUES(drug_type),
                     sexual_activity = VALUES(sexual_activity)
             ");
             $lifeUpsert->bindValue(":consultation_id", $consultationId);
@@ -623,8 +617,6 @@ class IntegratedConsultation
             $lifeUpsert->bindValue(":smoking_packs_per_day", $data['smoking_packs_per_day'] ?? null);
             $lifeUpsert->bindValue(":alcohol_use", $data['alcohol_use'] ?? null);
             $lifeUpsert->bindValue(":alcohol_frequency", $data['alcohol_frequency'] ?? null);
-            $lifeUpsert->bindValue(":drug_use", $data['drug_use'] ?? null);
-            $lifeUpsert->bindValue(":drug_type", $data['drug_type'] ?? null);
             $lifeUpsert->bindValue(":sexual_activity", $data['sexual_activity'] ?? null);
             $lifeUpsert->execute();
 

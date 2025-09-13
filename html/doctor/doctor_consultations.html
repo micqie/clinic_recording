@@ -70,9 +70,7 @@
 				<a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple active">
 					<i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
 				</a>
-				<a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
-					<i class="fa-solid fa-people-group me-2" aria-hidden="true"></i>My Patients
-				</a>
+
 
 				<a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
 					<i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Requests
@@ -224,23 +222,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label d-block">Drugs</label>
-                  <div class="d-flex gap-3 align-items-center">
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="drug_use" id="drug_yes" value="Yes">
-                      <label class="form-check-label" for="drug_yes">Yes</label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="drug_use" id="drug_no" value="No" checked>
-                      <label class="form-check-label" for="drug_no">No</label>
-                    </div>
-                    <div class="ms-auto" style="min-width:200px;">
-                      <label class="form-label mb-0">Type</label>
-                      <input type="text" class="form-control" name="drug_type" placeholder="Specify type if yes">
-                    </div>
-                  </div>
-                </div>
+
                 <div class="col-md-6">
                   <label class="form-label d-block">Sexual Activity</label>
                   <div class="d-flex gap-3">
@@ -439,7 +421,7 @@
     });
   </script>
   <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-  <script src="../../js/doctor_consultations.js" defer></script>
+  <script src="../../js/doctor_consultations.js?v=2" defer></script>
 
   <!-- Add Condition Modal -->
   <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel" aria-hidden="true">

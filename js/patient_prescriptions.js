@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Patient Prescriptions JS v3.0 - Clean layout loaded');
     const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
     const prescriptionReceiptApi = `${baseApiUrl}/prescription_receipt.php`;
     const integratedConsultationApi = `${baseApiUrl}/integrated_consultation.php`;
@@ -44,7 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
             prescriptionsTableBody.innerHTML = '';
 
             if (res.data.success && Array.isArray(res.data.data)) {
+                console.log('Loading prescriptions:', res.data.data.length, 'items');
                 res.data.data.forEach(consultation => {
+                    console.log('Creating row for consultation ID:', consultation.consultation_id);
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td>
@@ -60,11 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 ${consultation.diagnosis}
                             </span>
                         </td>
-                        <td>-</td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-primary" onclick="viewPrescriptionDetails(${consultation.consultation_id})" title="View Details">
-                                    <i class="fas fa-eye"></i>
+                                <button class="btn btn-outline-primary view-details-btn" data-consultation-id="${consultation.consultation_id}" title="View Prescription Details">
+                                    <i class="fas fa-eye me-1"></i>View Details
                                 </button>
                             </div>
                         </td>
@@ -72,60 +74,228 @@ document.addEventListener('DOMContentLoaded', () => {
                     prescriptionsTableBody.appendChild(tr);
                 });
             } else {
-                prescriptionsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No prescriptions found</td></tr>';
+                prescriptionsTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">No prescriptions found</td></tr>';
             }
         } catch (e) {
             console.error('Failed to load prescriptions:', e);
             const prescriptionsTableBody = document.getElementById('prescriptionsTableBody');
             if (prescriptionsTableBody) {
-                prescriptionsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Failed to load prescriptions</td></tr>';
+                prescriptionsTableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-4">Failed to load prescriptions</td></tr>';
             }
         }
     }
 
     // View prescription details
-    window.viewPrescriptionDetails = async function(consultationId) {
+    async function viewPrescriptionDetails(consultationId) {
+        console.log('viewPrescriptionDetails called with ID:', consultationId);
+        console.log('Using NEW card-based layout for prescriptions');
         try {
             const res = await axios.get(`${integratedConsultationApi}?operation=get_details&consultation_id=${consultationId}`);
             if (res.data.success) {
                 const data = res.data;
 
+                // Calculate total cost
+                const prescriptionCost = calculatePrescriptionSubtotal(data.prescriptions || []);
+                const labCost = calculateLabSubtotal(data.lab_requests || []);
+                const totalCost = prescriptionCost + labCost;
+
                 let prescriptionsHtml = '';
                 if (data.prescriptions && data.prescriptions.length > 0) {
-                    prescriptionsHtml = '<h6 class="text-primary">Prescriptions:</h6><div class="table-responsive"><table class="table table-sm">';
-                    prescriptionsHtml += '<thead><tr><th>Medicine</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Instructions</th></tr></thead><tbody>';
-                    data.prescriptions.forEach(p => {
-                        prescriptionsHtml += `<tr><td><strong>${p.generic_name}</strong></td><td>${p.dosage}</td><td>${p.frequency}</td><td>${p.duration}</td><td>${p.instructions || 'None'}</td></tr>`;
+                    console.log('Generating NEW card-based prescription layout for', data.prescriptions.length, 'prescriptions');
+                    prescriptionsHtml = `
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-pills me-2"></i>Prescribed Medications
+                            </h6>
+                    `;
+                    data.prescriptions.forEach((p, index) => {
+                        const unitPrice = parseFloat(p.price || 0);
+                        const quantity = parseInt(p.quantity || 1);
+                        const cost = unitPrice * quantity;
+                        const strength = p.strength || p.dosage || '';
+                        const form = p.form || '';
+                        const packagingUnit = p.packaging_unit || p.packaging_name || 'unit';
+
+                        prescriptionsHtml += `
+                            <div class="card mb-3 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-12 mb-3">
+                                            <h6 class="fw-bold text-dark mb-2">Medicine</h6>
+                                            <div class="form-control-plaintext bg-light p-2 rounded">
+                                                <strong>${p.generic_name}${strength ? ' - ' + strength : ''}${form ? ' ' + form : ''}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Generic Name:</label>
+                                            <div class="form-control-plaintext">${p.generic_name}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Strength:</label>
+                                            <div class="form-control-plaintext">${strength || '-'}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Form:</label>
+                                            <div class="form-control-plaintext">${form || '-'}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Unit Price:</label>
+                                            <div class="form-control-plaintext text-primary fw-bold">₱${unitPrice.toFixed(2)}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Quantity:</label>
+                                            <div class="form-control-plaintext">${quantity} ${packagingUnit}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Total Cost:</label>
+                                            <div class="form-control-plaintext text-success fw-bold">₱${cost.toFixed(2)}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Packaging Unit:</label>
+                                            <div class="form-control-plaintext">${packagingUnit}</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label fw-bold">Frequency:</label>
+                                            <div class="form-control-plaintext">${p.frequency || '-'}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Duration:</label>
+                                            <div class="form-control-plaintext">${p.duration || '-'}</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Instructions:</label>
+                                            <div class="form-control-plaintext">${p.instructions || '-'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
                     });
-                    prescriptionsHtml += '</tbody></table></div>';
+                    prescriptionsHtml += `
+                        </div>
+                    `;
                 }
 
                 let labRequestsHtml = '';
                 if (data.lab_requests && data.lab_requests.length > 0) {
-                    labRequestsHtml = '<h6 class="text-info">Lab Requests:</h6><ul>';
-                    data.lab_requests.forEach(l => {
-                        labRequestsHtml += `<li><strong>${l.type_name}</strong> - ${l.request_text}</li>`;
+                    labRequestsHtml = `
+                        <div class="mb-4">
+                            <h6 class="text-info mb-3">
+                                <i class="fas fa-flask me-2"></i>Laboratory Tests
+                            </h6>
+                    `;
+                    data.lab_requests.forEach((l, index) => {
+                        const price = parseFloat(l.price) || 0;
+                        labRequestsHtml += `
+                            <div class="card mb-3 border-0 shadow-sm">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-12 mb-3">
+                                            <h6 class="fw-bold text-dark mb-2">Laboratory Test</h6>
+                                            <div class="form-control-plaintext bg-light p-2 rounded">
+                                                <strong>${l.type_name}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Test Name:</label>
+                                            <div class="form-control-plaintext">${l.type_name}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Description:</label>
+                                            <div class="form-control-plaintext">${l.description || 'N/A'}</div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label fw-bold">Cost:</label>
+                                            <div class="form-control-plaintext text-primary fw-bold">₱${price.toFixed(2)}</div>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold">Request Notes:</label>
+                                            <div class="form-control-plaintext">${l.request_text || 'N/A'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
                     });
-                    labRequestsHtml += '</ul>';
+                    labRequestsHtml += `
+                        </div>
+                    `;
                 }
 
-                Swal.fire({
-                    title: 'Prescription Details',
-                    html: `
-                        <div class="text-start">
-                            <p><strong>Patient:</strong> ${data.consultation.patient_name}</p>
-                            <p><strong>Date:</strong> ${data.consultation.appointment_date}</p>
-                            <p><strong>Diagnosis:</strong> ${data.consultation.diagnosis}</p>
-                            <p><strong>Notes:</strong> ${data.consultation.consultation_notes || 'None'}</p>
-                            <p><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date || 'None'}</p>
-                            <p><strong>Follow-up Notes:</strong> ${data.consultation.next_appointment_notes || 'None'}</p>
+                // Update modal content
+                const modalBody = document.getElementById('receiptModalBody');
+                if (modalBody) {
+                    console.log('Updating modal content with NEW layout');
+                    modalBody.innerHTML = `
+                        <div class="prescription-details-container">
+                            <!-- Header -->
+                            <div class="text-center mb-4">
+                                <h4 class="text-primary mb-1">
+                                    <i class="fas fa-stethoscope me-2"></i>MCSTUFFIN's Clinic
+                                </h4>
+                                <p class="text-muted mb-0">Prescription Details</p>
+                            </div>
+
+                            <!-- Patient & Doctor Info -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Patient Information</h6>
+                                    <p class="mb-1"><strong>Name:</strong> ${data.consultation.patient_name}</p>
+                                    <p class="mb-0"><strong>Date:</strong> ${data.consultation.appointment_date}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Doctor Information</h6>
+                                    <p class="mb-1"><strong>Name:</strong> ${data.consultation.doctor_name}</p>
+                                    <p class="mb-1"><strong>Specialization:</strong> ${data.consultation.specialization_name || 'General'}</p>
+                                    <p class="mb-0"><strong>Diagnosis:</strong> ${data.consultation.diagnosis}</p>
+                                </div>
+                            </div>
+
+                            <!-- Consultation Notes -->
+                            ${data.consultation.consultation_notes ? `
+                            <div class="mb-4">
+                                <h6 class="text-primary">Consultation Notes</h6>
+                                <p class="text-muted">${data.consultation.consultation_notes}</p>
+                            </div>
+                            ` : ''}
+
+                            <!-- Prescriptions -->
                             ${prescriptionsHtml}
+
+                            <!-- Lab Requests -->
                             ${labRequestsHtml}
+
+                            <!-- Total Cost -->
+                            <div class="row justify-content-center">
+                                <div class="col-md-8">
+                                    <div class="alert alert-success text-center">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-receipt me-2"></i>
+                                            <strong>Total Cost: ₱${totalCost.toFixed(2)}</strong>
+                                        </h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Follow-up Information -->
+                            ${data.consultation.next_appointment_date ? `
+                            <div class="mt-4 pt-3 border-top">
+                                <h6 class="text-primary">Follow-up Information</h6>
+                                <p class="mb-1"><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date}</p>
+                                ${data.consultation.next_appointment_notes ? `<p class="mb-0"><strong>Notes:</strong> ${data.consultation.next_appointment_notes}</p>` : ''}
+                            </div>
+                            ` : ''}
                         </div>
-                    `,
-                    width: '700px',
-                    confirmButtonText: 'Close'
-                });
+                    `;
+                }
+
+                // Show modal
+                const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
+                receiptModal.show();
             }
         } catch (e) {
             console.error('Failed to load prescription details:', e);
@@ -485,6 +655,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('dateFilter')?.addEventListener('change', applyFilters);
     document.getElementById('doctorFilter')?.addEventListener('change', applyFilters);
     document.getElementById('statusFilter')?.addEventListener('change', applyFilters);
+
+    // Event delegation for view details buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.view-details-btn')) {
+            console.log('View details button clicked');
+            const button = e.target.closest('.view-details-btn');
+            const consultationId = button.getAttribute('data-consultation-id');
+            console.log('Consultation ID:', consultationId);
+            if (consultationId) {
+                viewPrescriptionDetails(parseInt(consultationId));
+            }
+        }
+    });
 
     // Initial load
     loadPrescriptions();
