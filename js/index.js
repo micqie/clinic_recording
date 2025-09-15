@@ -163,12 +163,27 @@ document.addEventListener("DOMContentLoaded", () => {
           timer: 2000
         });
 
-        // Reset form and close modal
-        registerForm.reset();
-
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById("registerModal"));
-        modal?.hide();
+        // If API returns a user object (self-registration), log them in and redirect to role dashboard
+        const registeredUser = response.data?.user;
+        if (registeredUser) {
+          registeredUser.role = (registeredUser.role || "").toLowerCase();
+          sessionStorage.setItem("user", JSON.stringify(registeredUser));
+          setTimeout(() => {
+            const roleRoutes = {
+              admin: "html/admin/admin_dashboard.html",
+              doctor: "html/doctor/doctor_appointments.html",
+              secretary: "html/secretary/secretary_dashboard.html",
+              patient: "html/patient/patient_dashboard.html"
+            };
+            const route = roleRoutes[registeredUser.role] || "index.html";
+            window.location.href = route;
+          }, 1000);
+        } else {
+          // Otherwise just reset and close the modal (e.g., admin/secretary-created account)
+          registerForm.reset();
+          const modal = bootstrap.Modal.getInstance(document.getElementById("registerModal"));
+          modal?.hide();
+        }
       } else {
         Swal.fire({
           icon: "error",
@@ -233,8 +248,12 @@ document.addEventListener("DOMContentLoaded", () => {
           timer: 1500
         });
 
-        // Redirect based on role
+        // Redirect based on role or force password change
         setTimeout(() => {
+          if (Number(user.must_change_password) === 1) {
+            window.location.href = "html/change_password.html";
+            return;
+          }
           const roleRoutes = {
             admin: "html/admin/admin_dashboard.html",
             doctor: "html/doctor/doctor_appointments.html",
