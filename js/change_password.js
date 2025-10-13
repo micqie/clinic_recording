@@ -53,7 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const roleRoutes = {
             doctor: '/clinic_recording/html/doctor/doctor_appointments.html',
             secretary: '/clinic_recording/html/secretary/secretary_dashboard.html',
-            patient: '/clinic_recording/html/patient/patient_dashboard.html'
+            patient: '/clinic_recording/html/patient/patient_dashboard.html',
+            nurse: '/clinic_recording/html/nurse/nurse_dashboard.html'
           };
           const route = roleRoutes[(user.role || '').toLowerCase()] || '/clinic_recording/index.html';
           window.location.href = route;

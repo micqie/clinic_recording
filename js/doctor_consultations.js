@@ -1160,12 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alcohol_frequency: formData.get('alcohol_frequency') || null,
             sexual_activity: formData.get('sexual_activity') || null,
             current_medications: formData.get('current_medications') || null,
-            // Vitals
-            height_cm: formData.get('height_cm') || null,
-            weight_kg: formData.get('weight_kg') || null,
-            blood_pressure_mmHg: formData.get('blood_pressure_mmHg') || null,
-            heart_rate_bpm: formData.get('heart_rate_bpm') || null,
-            spo2_percent: formData.get('spo2_percent') || null,
+            // Vitals removed - now handled by nurse
             next_appointment_date: formData.get('next_appointment_date') || null,
             next_appointment_notes: formData.get('next_appointment_notes') || '',
             consultation_status: 'Completed'

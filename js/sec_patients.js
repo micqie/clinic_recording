@@ -63,12 +63,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const formData = new FormData(addPatientForm);
 
+    const useDefaultPassword = formData.get("use_default_password") === "on";
     const password = formData.get("password");
     const confirmPassword = formData.get("confirm_password");
 
-    if (password !== confirmPassword) {
-      Swal.fire("Error", "Passwords do not match.", "error");
-      return;
+    // Validate password only if not using default password
+    if (!useDefaultPassword) {
+      if (password !== confirmPassword) {
+        Swal.fire("Error", "Passwords do not match.", "error");
+        return;
+      }
+      if (!password || password.trim() === '') {
+        Swal.fire("Error", "Please enter a password or select default password option.", "error");
+        return;
+      }
     }
 
     const jsonPayload = JSON.stringify({
@@ -79,7 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
       birthdate: formData.get("birthdate"),
       age: formData.get("age"),
       address: formData.get("address"),
-      password: password
+      password: useDefaultPassword ? "12345" : password,
+      use_default_password: useDefaultPassword
     });
 
     const payload = new FormData();

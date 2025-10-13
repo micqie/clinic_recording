@@ -170,7 +170,6 @@ document.addEventListener("DOMContentLoaded", () => {
           sessionStorage.setItem("user", JSON.stringify(registeredUser));
           setTimeout(() => {
             const roleRoutes = {
-              admin: "html/admin/admin_dashboard.html",
               doctor: "html/doctor/doctor_appointments.html",
               secretary: "html/secretary/secretary_dashboard.html",
               patient: "html/patient/patient_dashboard.html"
@@ -258,7 +257,8 @@ document.addEventListener("DOMContentLoaded", () => {
             admin: "html/admin/admin_dashboard.html",
             doctor: "html/doctor/doctor_appointments.html",
             secretary: "html/secretary/secretary_dashboard.html",
-            patient: "html/patient/patient_dashboard.html"
+            patient: "html/patient/patient_dashboard.html",
+            nurse: "html/nurse/nurse_dashboard.html"
           };
 
           if (roleRoutes[user.role]) {

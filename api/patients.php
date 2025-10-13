@@ -103,8 +103,8 @@ class Patient
         include "connection.php";
         $data = json_decode($json, true);
 
-        if (empty($data['full_name']) || empty($data['email']) || empty($data['password'])) {
-            return ['success' => false, 'message' => 'Full name, email, and password are required.'];
+        if (empty($data['full_name']) || empty($data['email'])) {
+            return ['success' => false, 'message' => 'Full name and email are required.'];
         }
 
         // Validate email format strictly
@@ -115,7 +115,14 @@ class Patient
 
         $defaultRoleId = 3; // Patient role
 
-        $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
+        // Handle password - use default "12345" if use_default_password is true, otherwise use provided password
+        $password = isset($data['use_default_password']) && $data['use_default_password'] ? '12345' : $data['password'];
+
+        if (empty($password)) {
+            return ['success' => false, 'message' => 'Password is required.'];
+        }
+
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
         $conn->beginTransaction();
 
@@ -166,7 +173,13 @@ class Patient
 
             $conn->commit();
 
-            return ['success' => true, 'message' => 'Patient added successfully.'];
+            // Customize success message based on password type
+            $message = 'Patient added successfully.';
+            if (isset($data['use_default_password']) && $data['use_default_password']) {
+                $message = 'Patient added successfully with default password (12345). Patient will be required to change password on first login.';
+            }
+
+            return ['success' => true, 'message' => $message];
         } catch (Exception $e) {
             $conn->rollBack();
             return ['success' => false, 'message' => 'Failed to add patient: ' . $e->getMessage()];
