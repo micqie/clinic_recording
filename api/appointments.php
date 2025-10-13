@@ -200,17 +200,17 @@ class Appointments
         $nextQueue = intval($stmt->fetchColumn()) + 1;
         if ($nextQueue > 15) { echo json_encode(["success" => false, "message" => "Fully Booked"]); return; }
 
-        $confirmedId = $this->getAppointmentStatusId('Confirmed');
-        if (!$confirmedId) { echo json_encode(["success" => false, "message" => "Confirmed status not configured."]); return; }
+        $waitingForNurseId = $this->getAppointmentStatusId('Waiting for Nurse');
+        if (!$waitingForNurseId) { echo json_encode(["success" => false, "message" => "Waiting for Nurse status not configured."]); return; }
 
         try {
             $stmt = $this->conn->prepare("UPDATE tbl_appointments SET doctor_id = :doc, queue_number = :q, status_id = :sid WHERE appointment_id = :aid");
             $stmt->bindParam(":doc", $data['doctor_id']);
             $stmt->bindParam(":q", $nextQueue);
-            $stmt->bindParam(":sid", $confirmedId);
+            $stmt->bindParam(":sid", $waitingForNurseId);
             $stmt->bindParam(":aid", $data['appointment_id']);
             if ($stmt->execute()) {
-                echo json_encode(["success" => true, "message" => "Appointment approved.", "queue_number" => $nextQueue]);
+                echo json_encode(["success" => true, "message" => "Appointment approved. Patient will be routed to nurse first.", "queue_number" => $nextQueue]);
             } else {
                 $err = $stmt->errorInfo();
                 echo json_encode(["success" => false, "message" => ($err[2] ?? 'Approval failed.')]);

@@ -38,7 +38,7 @@ class QueueManagement
             LEFT JOIN tbl_specializations sp ON d.specialization_id = sp.specialization_id
             JOIN tbl_status s ON a.status_id = s.status_id
             WHERE a.appointment_date = :date
-            AND s.status_name IN ('Confirmed', 'In Consultation', 'Completed')
+            AND s.status_name IN ('Waiting for Nurse', 'Nurse Assessment', 'Waiting for Doctor', 'In Consultation', 'Completed')
             ORDER BY a.queue_number ASC
         ");
 
@@ -50,14 +50,22 @@ class QueueManagement
         $currentConsultation = null;
         $nextInQueue = null;
         $completedCount = 0;
+        $waitingForNurse = [];
+        $nurseAssessment = [];
+        $waitingForDoctor = [];
 
         foreach ($appointments as $apt) {
             if ($apt['appointment_status'] === 'In Consultation') {
                 $currentConsultation = $apt;
             } elseif ($apt['appointment_status'] === 'Completed') {
                 $completedCount++;
-            } elseif ($apt['appointment_status'] === 'Confirmed' && !$nextInQueue) {
-                $nextInQueue = $apt;
+            } elseif ($apt['appointment_status'] === 'Waiting for Nurse') {
+                $waitingForNurse[] = $apt;
+                if (!$nextInQueue) $nextInQueue = $apt;
+            } elseif ($apt['appointment_status'] === 'Nurse Assessment') {
+                $nurseAssessment[] = $apt;
+            } elseif ($apt['appointment_status'] === 'Waiting for Doctor') {
+                $waitingForDoctor[] = $apt;
             }
         }
 
@@ -67,6 +75,9 @@ class QueueManagement
             "current_consultation" => $currentConsultation,
             "next_in_queue" => $nextInQueue,
             "completed_count" => $completedCount,
+            "waiting_for_nurse" => $waitingForNurse,
+            "nurse_assessment" => $nurseAssessment,
+            "waiting_for_doctor" => $waitingForDoctor,
             "all_appointments" => $appointments
         ]);
     }

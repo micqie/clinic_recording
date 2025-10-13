@@ -1,385 +1,550 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MCSTUFFIN's Enhanced Doctor Consultations</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../../css/dashboard.css">
-    <link rel="stylesheet" href="../../css/table.css">
-    <script src="../../js/logout.js" defer></script>
-    <script src="../../js/auto-logout.js" defer></script>
-    <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="main-navbar">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <i class="fas fa-user-doctor me-2 fs-3 text-primary"></i>
-                <span class="fs-4 fw-bold text-primary">MCSTUFFIN's</span>
-            </a>
 
-            <div class="dropdown ms-auto">
-                <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" id="doctorDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
-                    <span class="fw-semibold">Doctor</span>
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="doctorDropdown">
-                    <li>
-                        <button type="button" class="dropdown-item text-danger" id="logoutBtn">
-                            <i class="fas fa-sign-out-alt me-2"></i> Logout
-                        </button>
-                    </li>
-                </ul>
-            </div>
-        </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCSTUFFIN's Doctor - Enhanced Consultations</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" >
+  <script src="../../js/logout.js" defer></script>
+  <script src="../../js/auto-logout.js" defer></script>
+  <link rel="stylesheet" href="../../css/dashboard.css">
+  <link rel="stylesheet" href="../../css/table.css">
+  <link rel="icon" href="../../logo/apple-touch-icon.png" type="image/x-icon" />
+  <style>
+    .badge .btn-close {
+      font-size: 0.6em;
+      padding: 0;
+      margin-left: 4px;
+    }
+    .badge .btn-close:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+    #selectedConditionsDisplay {
+      min-height: 40px;
+    }
+    .nurse-data-section {
+      background-color: #f8f9fa;
+      border-radius: 0.375rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-left: 4px solid #17a2b8;
+    }
+    .read-only-field {
+      background-color: #e9ecef;
+      border: 1px solid #ced4da;
+      border-radius: 0.375rem;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .vital-item {
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      text-align: center;
+    }
+    .vital-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #495057;
+    }
+    .vital-label {
+      font-size: 0.875rem;
+      color: #6c757d;
+      margin-bottom: 0.25rem;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="main-navbar">
+    <div class="container-fluid">
+      <a class="navbar-brand d-flex align-items-center" href="#">
+        <i class="fas fa-stethoscope me-2 fs-3 text-primary"></i>
+        <span class="fs-4 fw-bold text-primary">MCSTUFFIN's</span>
+      </a>
+
+      <div class="dropdown ms-auto">
+        <a class="d-flex align-items-center text-decoration-none dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fas fa-user-circle fa-2x text-primary me-2"></i>
+          <span class="fw-semibold">Doctor</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminDropdown">
+          <li>
+            <button type="button" class="dropdown-item text-danger" id="logoutBtn">
+              <i class="fas fa-sign-out-alt me-2"></i> Logout
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="d-flex">
+    <nav id="sidebar-wrapper" role="navigation" aria-label="Sidebar menu" tabindex="0">
+      <div class="list-group list-group-flush">
+        <a href="doctor_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
+        </a>
+        <a href="doctor_profile.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fas fa-user-edit me-2" aria-hidden="true"></i>My Profile
+        </a>
+        <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-calendar-check me-2" aria-hidden="true"></i>My Appointments
+        </a>
+        <a href="doctor_consultations.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Consultations
+        </a>
+        <a href="doctor_enhanced_consultations.html" class="list-group-item list-group-item-action py-3 ripple active">
+          <i class="fa-solid fa-user-doctor me-2" aria-hidden="true"></i>Enhanced Consultations
+        </a>
+        <a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
+          <i class="fa-solid fa-flask me-2" aria-hidden="true"></i>Lab Requests
+        </a>
+        <a href="doctor_lab_results.html" class="list-group-item list-group-item-action py-3 ripple ">
+          <i class="fa-solid fa-file-medical me-2" aria-hidden="true"></i>Lab Results
+        </a>
+      </div>
     </nav>
 
-    <div class="d-flex">
-        <nav id="sidebar-wrapper" role="navigation" aria-label="Sidebar menu" tabindex="0">
-            <div class="list-group list-group-flush">
-                <a href="doctor_dashboard.html" class="list-group-item list-group-item-action py-3 ripple">
-                    <i class="fas fa-tachometer-alt me-2" aria-hidden="true"></i>Dashboard
-                </a>
-                <a href="doctor_appointments.html" class="list-group-item list-group-item-action py-3 ripple">
-                    <i class="fas fa-calendar-check me-2" aria-hidden="true"></i>Appointments
-                </a>
-                <a href="doctor_enhanced_consultations.html" class="list-group-item list-group-item-action py-3 ripple active">
-                    <i class="fas fa-stethoscope me-2" aria-hidden="true"></i>Consultations
-                </a>
-                <a href="doctor_patients.html" class="list-group-item list-group-item-action py-3 ripple">
-                    <i class="fas fa-users me-2" aria-hidden="true"></i>Patients
-                </a>
-                <a href="doctor_lab_requests.html" class="list-group-item list-group-item-action py-3 ripple">
-                    <i class="fas fa-vial me-2" aria-hidden="true"></i>Lab Requests
-                </a>
-                <a href="doctor_lab_results.html" class="list-group-item list-group-item-action py-3 ripple">
-                    <i class="fas fa-file-medical me-2" aria-hidden="true"></i>Lab Results
-                </a>
-                <a href="doctor_profile.html" class="list-group-item list-group-item-action py-3 ripple">
-                    <i class="fas fa-user me-2" aria-hidden="true"></i>Profile
-                </a>
-            </div>
-        </nav>
+    <main id="page-content-wrapper" class="pt-5" tabindex="-1">
+      <button class="btn btn-primary d-lg-none offcanvas-toggle-btn" type="button" aria-label="Toggle menu">
+        <i class="fas fa-bars"></i>
+      </button>
 
-        <main id="page-content-wrapper" class="pt-5" tabindex="-1">
-            <button class="btn btn-primary d-lg-none offcanvas-toggle-btn" type="button" aria-label="Toggle menu">
-                <i class="fas fa-bars"></i>
+      <div class="content-container mt-5 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h1 class="fw-bold text-secondary">Enhanced Consultations</h1>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary" id="refreshQueueBtn">
+              <i class="fas fa-sync-alt me-2"></i>Refresh Queue
             </button>
-
-            <div class="content-container mt-5 p-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h1 class="fw-bold text-secondary">Doctor Consultations</h1>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-outline-primary" id="refreshBtn">
-                            <i class="fas fa-sync-alt me-2"></i>Refresh
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Current Patient Card -->
-                <div class="card border-0 shadow-sm mb-4" id="currentPatientCard" style="display: none;">
-                    <div class="card-header bg-success text-white">
-                        <strong><i class="fas fa-user-injured me-2"></i>Current Patient</strong>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h5 id="currentPatientName">Patient Name</h5>
-                                <p class="text-muted mb-0" id="currentPatientDetails">Queue #1 • Age: 25 • Male</p>
-                                <div id="abnormalVitalsAlert" class="mt-2" style="display: none;">
-                                    <span class="badge bg-danger">
-                                        <i class="fas fa-exclamation-triangle me-1"></i>Abnormal Vitals Detected
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <button class="btn btn-success" id="startConsultationBtn">
-                                    <i class="fas fa-play me-2"></i>Start Consultation
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Today's Consultations -->
-                <div class="card border-0 shadow-sm mb-4">
-                    <div class="card-header bg-success text-white">
-                        <strong><i class="fas fa-calendar-day me-2"></i>Today's Consultation Queue</strong>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="custom-table">
-                                <thead>
-                                    <tr>
-                                        <th>Queue #</th>
-                                        <th>Patient Name</th>
-                                        <th>Contact</th>
-                                        <th>Reason</th>
-                                        <th>Nurse Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="consultationsTableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center text-muted">Loading consultations...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <!-- Enhanced Consultation Modal -->
-    <div class="modal fade" id="consultationModal" tabindex="-1" aria-labelledby="consultationModalLabel">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title" id="consultationModalLabel">Doctor Consultation</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="consultationForm" class="needs-validation" novalidate>
-                        <input type="hidden" name="appointment_id" id="consultation_appointment_id">
-                        <input type="hidden" name="consultation_id" id="consultation_consultation_id">
-
-                        <!-- Patient Info -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-success"><i class="fas fa-user me-2"></i>Patient Information</h6>
-                                <div class="card bg-light">
-                                    <div class="card-body">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <strong>Name:</strong> <span id="consultation_patient_name"></span><br>
-                                                <strong>Age:</strong> <span id="consultation_patient_age"></span><br>
-                                                <strong>Gender:</strong> <span id="consultation_patient_gender"></span>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <strong>Contact:</strong> <span id="consultation_patient_contact"></span><br>
-                                                <strong>Reason:</strong> <span id="consultation_appointment_reason"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Nurse Triage Summary -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-info"><i class="fas fa-user-nurse me-2"></i>Nurse Triage Summary</h6>
-                                <div class="row">
-                                    <!-- Vital Signs -->
-                                    <div class="col-md-6">
-                                        <div class="card border-info">
-                                            <div class="card-header bg-info text-white">
-                                                <strong>Vital Signs</strong>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="row g-2">
-                                                    <div class="col-6"><strong>Height:</strong> <span id="nurse_height">-</span></div>
-                                                    <div class="col-6"><strong>Weight:</strong> <span id="nurse_weight">-</span></div>
-                                                    <div class="col-6"><strong>BP:</strong> <span id="nurse_bp">-</span></div>
-                                                    <div class="col-6"><strong>HR:</strong> <span id="nurse_hr">-</span></div>
-                                                    <div class="col-6"><strong>Temp:</strong> <span id="nurse_temp">-</span></div>
-                                                    <div class="col-6"><strong>SpO₂:</strong> <span id="nurse_spo2">-</span></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Medical History -->
-                                    <div class="col-md-6">
-                                        <div class="card border-info">
-                                            <div class="card-header bg-info text-white">
-                                                <strong>Medical History</strong>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="mb-2">
-                                                    <strong>Past Medical:</strong><br>
-                                                    <small id="nurse_past_medical">-</small>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <strong>Current Medications:</strong><br>
-                                                    <small id="nurse_medications">-</small>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <strong>Allergies:</strong><br>
-                                                    <small id="nurse_allergies">-</small>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Nurse Notes -->
-                                <div class="card border-warning mt-3">
-                                    <div class="card-header bg-warning text-dark">
-                                        <strong>Nurse Assessment & Notes</strong>
-                                    </div>
-                                    <div class="card-body">
-                                        <p id="nurse_notes" class="mb-0">-</p>
-                                    </div>
-                                </div>
-
-                                <!-- Abnormal Vitals Alerts -->
-                                <div id="abnormalVitalsSection" class="mt-3" style="display: none;">
-                                    <div class="alert alert-danger">
-                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>Abnormal Vital Signs Alert</h6>
-                                        <div id="abnormalVitalsList"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Doctor Consultation -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-success"><i class="fas fa-stethoscope me-2"></i>Doctor Consultation</h6>
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label">Present Illness / Chief Complaint</label>
-                                        <textarea class="form-control" name="present_illness" rows="3" placeholder="Patient's current symptoms and complaints" required></textarea>
-                                        <div class="invalid-feedback">Please enter the present illness.</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Physical Examination</label>
-                                        <textarea class="form-control" name="physical_examination" rows="3" placeholder="Physical examination findings"></textarea>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Diagnosis</label>
-                                        <input type="text" class="form-control" name="diagnosis" placeholder="Primary diagnosis" required>
-                                        <div class="invalid-feedback">Please enter a diagnosis.</div>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Consultation Notes</label>
-                                        <textarea class="form-control" name="consultation_notes" rows="4" placeholder="Detailed consultation notes, treatment plan, etc."></textarea>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Next Appointment Date (if needed)</label>
-                                        <input type="date" class="form-control" name="next_appointment_date">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Follow-up Notes</label>
-                                        <textarea class="form-control" name="next_appointment_notes" rows="2" placeholder="Instructions for follow-up"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Prescriptions -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-primary"><i class="fas fa-pills me-2"></i>Prescriptions</h6>
-                                <div id="prescriptionsContainer">
-                                    <div class="prescription-item border rounded p-3 mb-3">
-                                        <div class="row g-3">
-                                            <div class="col-md-4">
-                                                <label class="form-label">Medicine</label>
-                                                <select class="form-select" name="prescriptions[0][medicine_id]" required>
-                                                    <option value="">Select medicine...</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label">Dosage</label>
-                                                <input type="text" class="form-control" name="prescriptions[0][dosage]" placeholder="e.g., 500mg" required>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label">Frequency</label>
-                                                <input type="text" class="form-control" name="prescriptions[0][frequency]" placeholder="e.g., 3x daily" required>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label">Duration</label>
-                                                <input type="text" class="form-control" name="prescriptions[0][duration]" placeholder="e.g., 7 days" required>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label">Quantity</label>
-                                                <input type="number" class="form-control" name="prescriptions[0][quantity]" placeholder="e.g., 21" required>
-                                            </div>
-                                        </div>
-                                        <div class="row mt-2">
-                                            <div class="col-12">
-                                                <label class="form-label">Instructions</label>
-                                                <textarea class="form-control" name="prescriptions[0][instructions]" rows="2" placeholder="Special instructions for the patient"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline-primary btn-sm" id="addPrescriptionBtn">
-                                    <i class="fas fa-plus me-1"></i>Add Another Prescription
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Lab Requests -->
-                        <div class="row mb-4">
-                            <div class="col-12">
-                                <h6 class="text-warning"><i class="fas fa-vial me-2"></i>Lab Test Requests</h6>
-                                <div id="labRequestsContainer">
-                                    <div class="lab-request-item border rounded p-3 mb-3">
-                                        <div class="row g-3">
-                                            <div class="col-md-6">
-                                                <label class="form-label">Test Type</label>
-                                                <select class="form-select" name="lab_requests[0][test_type_id]">
-                                                    <option value="">Select test type...</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label">Priority</label>
-                                                <select class="form-select" name="lab_requests[0][priority]">
-                                                    <option value="routine">Routine</option>
-                                                    <option value="urgent">Urgent</option>
-                                                    <option value="stat">STAT</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="row mt-2">
-                                            <div class="col-12">
-                                                <label class="form-label">Clinical Notes</label>
-                                                <textarea class="form-control" name="lab_requests[0][clinical_notes]" rows="2" placeholder="Clinical indication for the test"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline-warning btn-sm" id="addLabRequestBtn">
-                                    <i class="fas fa-plus me-1"></i>Add Another Lab Request
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success" id="saveConsultationBtn">
-                        <i class="fas fa-save me-2"></i>Complete Consultation
-                    </button>
-                </div>
-            </div>
+          </div>
         </div>
-    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="../../js/doctor_enhanced_consultations.js" defer></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const sidebar = document.getElementById('sidebar-wrapper');
-            const toggleBtn = document.querySelector('.offcanvas-toggle-btn');
-            toggleBtn?.addEventListener('click', () => { sidebar.classList.toggle('show'); });
-            document.addEventListener('click', (e) => {
-                if (window.innerWidth <= 991.98 && sidebar.classList.contains('show') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-                    sidebar.classList.remove('show');
-                }
-            });
-        });
-    </script>
+        <!-- Current Queue Status Card -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-info text-white">
+            <strong><i class="fas fa-clock me-2"></i>Current Queue Status</strong>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-3">
+                <div class="text-center p-3">
+                  <div class="h4 text-warning mb-2" id="waitingForNurseCount">0</div>
+                  <div class="text-muted">Waiting for Nurse</div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center p-3">
+                  <div class="h4 text-info mb-2" id="nurseAssessmentCount">0</div>
+                  <div class="text-muted">Under Assessment</div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center p-3">
+                  <div class="h4 text-success mb-2" id="readyForDoctorCount">0</div>
+                  <div class="text-muted">Ready for Doctor</div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center p-3">
+                  <div class="h4 text-primary mb-2" id="completedCount">0</div>
+                  <div class="text-muted">Completed Today</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Patients Ready for Doctor -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-success text-white">
+            <strong><i class="fas fa-user-md me-2"></i>Patients Ready for Consultation</strong>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Queue #</th>
+                    <th>Patient Name</th>
+                    <th>Assessment Complete</th>
+                    <th>Forwarded At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="readyForDoctorTableBody">
+                  <tr>
+                    <td colspan="5" class="text-center text-muted">Loading patients...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Enhanced Consultation Form -->
+        <div class="card border-0 shadow-sm mb-4">
+          <div class="card-header bg-primary text-white">
+            <strong><i class="fas fa-stethoscope me-2"></i>Enhanced Consultation</strong>
+            <small class="ms-2">With Nurse Assessment Data</small>
+          </div>
+          <div class="card-body">
+            <form id="consultationForm" class="needs-validation" novalidate>
+              <!-- Current Patient Info Display -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <div id="currentPatientDisplay" class="alert alert-info">
+                    <i class="fas fa-user-md me-2"></i>
+                    <strong>Loading current patient...</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Hidden fields for patient and appointment data -->
+              <input type="hidden" id="patient_id" name="patient_id" required>
+              <input type="hidden" id="appointment_id" name="appointment_id" required>
+
+              <!-- Nurse Assessment Data (Read-Only) -->
+              <div class="nurse-data-section">
+                <h6 class="text-primary mb-3">
+                  <i class="fas fa-user-nurse me-2"></i>Nurse Assessment Data
+                  <span class="badge bg-info ms-2">Read-Only</span>
+                </h6>
+                
+                <!-- Vital Signs -->
+                <div class="mb-4">
+                  <h6 class="text-secondary mb-3">Vital Signs</h6>
+                  <div class="vitals-grid" id="vitalsDisplay">
+                    <!-- Vital signs will be populated here -->
+                  </div>
+                </div>
+
+                <!-- Medical History -->
+                <div class="mb-4">
+                  <h6 class="text-secondary mb-3">Medical History</h6>
+                  <div class="row g-3">
+                    <div class="col-12">
+                      <label class="form-label">Present Illness</label>
+                      <div class="read-only-field" id="presentIllnessDisplay">-</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Past Medical History</label>
+                      <div class="read-only-field" id="pastMedicalHistoryDisplay">-</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Past Surgical History</label>
+                      <div class="read-only-field" id="pastSurgicalHistoryDisplay">-</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Family History</label>
+                      <div class="read-only-field" id="familyHistoryDisplay">-</div>
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label">Social History</label>
+                      <div class="read-only-field" id="socialHistoryDisplay">-</div>
+                    </div>
+                    <div class="col-12">
+                      <label class="form-label">Current Medications</label>
+                      <div class="read-only-field" id="currentMedicationsDisplay">-</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Assessment Notes -->
+                <div class="mb-3">
+                  <label class="form-label">Nurse Assessment Notes</label>
+                  <div class="read-only-field" id="assessmentNotesDisplay">-</div>
+                </div>
+              </div>
+
+              <!-- Doctor's Clinical Assessment -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-secondary mb-3"><i class="fas fa-notes-medical me-2"></i>Clinical Assessment</h6>
+                </div>
+                <div class="col-12">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Present Illness <small class="text-muted">(pick up to 5)</small></label>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addNewIllnessBtn" title="Add new illness">
+                      <i class="fas fa-plus-circle me-1"></i>Add New Illness
+                    </button>
+                  </div>
+                  <div class="input-group">
+                    <select class="form-select" id="illnessSelect" name="present_illness_select">
+                      <option value="">Select illness</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="addIllnessBtn" title="Add selected illness">
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                  <div class="mt-2" id="selectedIllnessesDisplay"></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Past Medical History</label>
+                  <textarea class="form-control" name="past_medical_history" rows="2" placeholder="Chronic diseases, allergies, etc."></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Past Surgical History</label>
+                  <textarea class="form-control" name="past_surgical_history" rows="2" placeholder="Surgeries and dates"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Family History</label>
+                  <textarea class="form-control" name="family_history" rows="2" placeholder="Significant family illnesses"></textarea>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Social History</label>
+                  <textarea class="form-control" name="social_history" rows="2" placeholder="Occupation, living situation, diet, exercise"></textarea>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label d-block">Smoking</label>
+                  <div class="d-flex gap-3 align-items-center">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="smoking_status" id="smoke_yes" value="Yes">
+                      <label class="form-check-label" for="smoke_yes">Yes</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="smoking_status" id="smoke_no" value="No" checked>
+                      <label class="form-check-label" for="smoke_no">No</label>
+                    </div>
+                    <div class="ms-auto" style="min-width:200px;">
+                      <label class="form-label mb-0">Packs/Day</label>
+                      <input type="text" class="form-control" name="smoking_packs_per_day" placeholder="e.g., 0.5">
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label d-block">Alcohol</label>
+                  <div class="d-flex gap-3 align-items-center">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="alcohol_use" id="alc_yes" value="Yes">
+                      <label class="form-check-label" for="alc_yes">Yes</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="alcohol_use" id="alc_no" value="No" checked>
+                      <label class="form-check-label" for="alc_no">No</label>
+                    </div>
+                    <div class="ms-auto" style="min-width:200px;">
+                      <label class="form-label mb-0">Frequency</label>
+                      <input type="text" class="form-control" name="alcohol_frequency" placeholder="e.g., weekly">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label d-block">Sexual Activity</label>
+                  <div class="d-flex gap-3">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="sexual_activity" id="sex_active" value="Active">
+                      <label class="form-check-label" for="sex_active">Active</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="sexual_activity" id="sex_not_active" value="Not Active" checked>
+                      <label class="form-check-label" for="sex_not_active">Not Active</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Medications</label>
+                  <textarea class="form-control" name="current_medications" rows="2" placeholder="Current medications"></textarea>
+                </div>
+              </div>
+
+              <!-- Diagnosis Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label mb-0">Diagnosed Condition(s) <small class="text-muted">(pick up to 5)</small></label>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addNewConditionBtn" title="Add new condition">
+                      <i class="fas fa-plus-circle me-1"></i>Add New Condition
+                    </button>
+                  </div>
+                  <div class="input-group">
+                    <select class="form-select" id="conditionSelect" name="diagnosis">
+                      <option value="">Select condition</option>
+                    </select>
+                    <button type="button" class="btn btn-outline-primary" id="addConditionBtn" title="Add selected condition">
+                      <i class="fas fa-plus"></i>
+                    </button>
+                  </div>
+                  <div class="mt-2" id="selectedConditionsDisplay">
+                  </div>
+                  <div class="invalid-feedback">Please add at least one condition.</div>
+                </div>
+              </div>
+
+              <!-- Clinical Summary Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-secondary mb-3"><i class="fas fa-notes-medical me-2"></i>Clinical Summary</h6>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Final Diagnosis</label>
+                  <input type="text" class="form-control" name="final_diagnosis" id="finalDiagnosisInput" placeholder="e.g., The patient has ACID REFLUX" />
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Consultation Notes</label>
+                  <textarea class="form-control" name="consultation_notes" rows="3" placeholder="Use this for short clinical summary; avoid duplicating history."></textarea>
+                </div>
+              </div>
+
+              <!-- Prescriptions Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-primary mb-3">
+                    <i class="fas fa-pills me-2"></i>Prescriptions (Optional)
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="addPrescriptionBtn">
+                      <i class="fas fa-plus me-1"></i>Add Medicine
+                    </button>
+                  </h6>
+                  <div id="prescriptionsContainer">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Lab Requests Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-primary mb-3">
+                    <i class="fas fa-flask me-2"></i>Lab Requests (Optional)
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-2" id="addLabRequestBtn">
+                      <i class="fas fa-plus me-1"></i>Add Lab Test
+                    </button>
+                  </h6>
+                  <div id="labRequestsContainer">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Follow-up Section -->
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <label class="form-label">Next Appointment Date (Optional)</label>
+                  <input type="date" class="form-control" name="next_appointment_date" min="">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Follow-up Notes</label>
+                  <input type="text" class="form-control" name="next_appointment_notes" placeholder="Reason for follow-up">
+                </div>
+              </div>
+
+              <!-- Submit Buttons -->
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-2"></i>Complete Consultation
+                </button>
+                <button type="reset" class="btn btn-secondary">Clear Form</button>
+                <button type="button" class="btn btn-outline-info" id="saveDraftBtn">
+                  <i class="fas fa-save me-2"></i>Save Draft
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-light">
+            <strong>Recent Consultations</strong>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Appointment Date</th>
+                    <th>Diagnosis</th>
+                    <th>Status</th>
+                    <th>Next Appointment</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="consultationsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sidebar = document.getElementById('sidebar-wrapper');
+      const toggleBtn = document.querySelector('.offcanvas-toggle-btn');
+      toggleBtn?.addEventListener('click', () => { sidebar.classList.toggle('show'); });
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 991.98 && sidebar.classList.contains('show') && !sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+          sidebar.classList.remove('show');
+        }
+      });
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="../../js/doctor_enhanced_consultations.js" defer></script>
+
+  <!-- Add Condition Modal -->
+  <div class="modal fade" id="addConditionModal" tabindex="-1" aria-labelledby="addConditionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addConditionModalLabel">Add New Condition</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addConditionForm">
+            <div class="mb-3">
+              <label for="newConditionName" class="form-label">Condition Name</label>
+              <input type="text" class="form-control" id="newConditionName" name="condition_name" required placeholder="Enter condition name">
+              <div class="invalid-feedback">Please enter a condition name.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveConditionBtn">Add Condition</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Illness Modal -->
+  <div class="modal fade" id="addIllnessModal" tabindex="-1" aria-labelledby="addIllnessModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addIllnessModalLabel">Add New Illness</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addIllnessForm">
+            <div class="mb-3">
+              <label for="newIllnessName" class="form-label">Illness Name</label>
+              <input type="text" class="form-control" id="newIllnessName" name="illness_name" required placeholder="Enter illness name">
+              <div class="invalid-feedback">Please enter an illness name.</div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="saveIllnessBtn">Add Illness</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>
