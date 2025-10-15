@@ -442,6 +442,95 @@ function registerPatient($json)
         }
     }
 
+    function getUserContext($json)
+    {
+        include "connection.php";
+        $data = json_decode($json, true);
+
+        if (empty($data['user_id'])) {
+            return ['success' => false, 'message' => 'User ID is required.'];
+        }
+
+        try {
+            // Get user info with role
+            $stmt = $conn->prepare("
+                SELECT u.user_id, u.name, u.email, r.role_name
+                FROM tbl_users u
+                JOIN tbl_roles r ON u.role_id = r.role_id
+                WHERE u.user_id = :user_id
+            ");
+            $stmt->bindParam(":user_id", $data['user_id']);
+            $stmt->execute();
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                return ['success' => false, 'message' => 'User not found.'];
+            }
+
+            $context = [
+                'user_id' => $user['user_id'],
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'role_name' => $user['role_name']
+            ];
+
+            // Get role-specific profile data
+            if ($user['role_name'] === 'nurse') {
+                $stmt = $conn->prepare("
+                    SELECT nurse_id, license_number, shift_schedule
+                    FROM tbl_nurses
+                    WHERE user_id = :user_id
+                ");
+                $stmt->bindParam(":user_id", $data['user_id']);
+                $stmt->execute();
+                $nurseProfile = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($nurseProfile) {
+                    $context['nurse_id'] = $nurseProfile['nurse_id'];
+                    $context['license_number'] = $nurseProfile['license_number'];
+                    $context['shift_schedule'] = $nurseProfile['shift_schedule'];
+                }
+            } elseif ($user['role_name'] === 'doctor') {
+                $stmt = $conn->prepare("
+                    SELECT doctor_id, license_number, specialization_id
+                    FROM tbl_doctors
+                    WHERE user_id = :user_id
+                ");
+                $stmt->bindParam(":user_id", $data['user_id']);
+                $stmt->execute();
+                $doctorProfile = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($doctorProfile) {
+                    $context['doctor_id'] = $doctorProfile['doctor_id'];
+                    $context['license_number'] = $doctorProfile['license_number'];
+                    $context['specialization_id'] = $doctorProfile['specialization_id'];
+                }
+            } elseif ($user['role_name'] === 'patient') {
+                $stmt = $conn->prepare("
+                    SELECT patient_id, sex, contact_num, birthdate, age, address
+                    FROM tbl_patients
+                    WHERE user_id = :user_id
+                ");
+                $stmt->bindParam(":user_id", $data['user_id']);
+                $stmt->execute();
+                $patientProfile = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($patientProfile) {
+                    $context['patient_id'] = $patientProfile['patient_id'];
+                    $context['sex'] = $patientProfile['sex'];
+                    $context['contact_num'] = $patientProfile['contact_num'];
+                    $context['birthdate'] = $patientProfile['birthdate'];
+                    $context['age'] = $patientProfile['age'];
+                    $context['address'] = $patientProfile['address'];
+                }
+            }
+
+            return ['success' => true, 'context' => $context];
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+        }
+    }
+
     function get_patient_appointment($patientId, $date)
     {
         include "connection.php";
@@ -522,6 +611,9 @@ switch ($operation) {
         break;
     case "changePassword":
         echo json_encode($user->changePassword($json));
+        break;
+    case "get_user_context":
+        echo json_encode($user->getUserContext($json));
         break;
     default:
         echo json_encode(['success' => false, 'message' => 'Invalid operation.']);

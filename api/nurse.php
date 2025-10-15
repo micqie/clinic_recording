@@ -40,14 +40,18 @@ class NurseApi {
                 $consultationId = $consultation['consultation_id'];
             } else {
                 // Create new consultation record
-                $stmt = $this->conn->prepare("INSERT INTO tbl_consultations (appointment_id, doctor_id, patient_id, consultation_status) VALUES (:aid, NULL, :pid, 'Triage')");
-                $stmt->bindParam(":aid", $data['appointment_id']);
+                // Get patient_id and doctor_id from appointment
+                $apptStmt = $this->conn->prepare("SELECT patient_id, doctor_id FROM tbl_appointments WHERE appointment_id = :aid LIMIT 1");
+                $apptStmt->bindParam(":aid", $data['appointment_id']);
+                $apptStmt->execute();
+                $apptRow = $apptStmt->fetch(PDO::FETCH_ASSOC);
+                $patientId = $apptRow['patient_id'] ?? null;
+                $doctorId = $apptRow['doctor_id'] ?? null;
 
-                // Get patient_id from appointment
-                $patientStmt = $this->conn->prepare("SELECT patient_id FROM tbl_appointments WHERE appointment_id = :aid LIMIT 1");
-                $patientStmt->bindParam(":aid", $data['appointment_id']);
-                $patientStmt->execute();
-                $patientId = $patientStmt->fetchColumn();
+                // Insert new consultation using the appointment's doctor_id
+                $stmt = $this->conn->prepare("INSERT INTO tbl_consultations (appointment_id, doctor_id, patient_id, consultation_status) VALUES (:aid, :did, :pid, 'Triage')");
+                $stmt->bindParam(":aid", $data['appointment_id']);
+                $stmt->bindParam(":did", $doctorId);
                 $stmt->bindParam(":pid", $patientId);
 
                 $stmt->execute();
@@ -72,8 +76,26 @@ class NurseApi {
             $stmt->bindValue(":spo2", $data['spo2_percent'] !== '' ? $data['spo2_percent'] : null);
             $stmt->execute();
 
+            // Insert/update medical history in tbl_consultation_history
+            $stmt = $this->conn->prepare("INSERT INTO tbl_consultation_history (consultation_id, chief_complaint, past_medical_history, current_medications, family_history, social_history)
+                VALUES (:cid, :cc, :pmh, :meds, :fhx, :shx)
+                ON DUPLICATE KEY UPDATE
+                    chief_complaint = VALUES(chief_complaint),
+                    past_medical_history = VALUES(past_medical_history),
+                    current_medications = VALUES(current_medications),
+                    family_history = VALUES(family_history),
+                    social_history = VALUES(social_history)
+            ");
+            $stmt->bindValue(":cid", $consultationId);
+            $stmt->bindValue(":cc", $data['chief_complaint'] ?? null);
+            $stmt->bindValue(":pmh", $data['past_medical_history'] ?? null);
+            $stmt->bindValue(":meds", $data['current_medications'] ?? null);
+            $stmt->bindValue(":fhx", $data['family_history'] ?? null);
+            $stmt->bindValue(":shx", $data['social_history'] ?? null);
+            $stmt->execute();
+
             $this->conn->commit();
-            echo json_encode(["success"=>true, "message"=>"Vital signs recorded successfully"]);
+            echo json_encode(["success"=>true, "message"=>"Vitals & history recorded successfully"]);
         } catch (PDOException $e) {
             $this->conn->rollBack();
             echo json_encode(["success"=>false, "message"=>"Failed to record vital signs: ".$e->getMessage()]);
@@ -183,6 +205,8 @@ class NurseApi {
                     p.address,
                     ar.reason_name,
                     a.appointment_notes,
+                    d.doctor_id,
+                    du.name AS doctor_name,
                     cv.height_cm,
                     cv.weight_kg,
                     cv.blood_pressure_mmHg,
@@ -195,6 +219,8 @@ class NurseApi {
                 JOIN tbl_patients p ON a.patient_id = p.patient_id
                 JOIN tbl_users u ON p.user_id = u.user_id
                 LEFT JOIN tbl_appointment_reasons ar ON a.appointment_reason_id = ar.reason_id
+                LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+                LEFT JOIN tbl_users du ON d.user_id = du.user_id
                 LEFT JOIN tbl_consultations c ON a.appointment_id = c.appointment_id
                 LEFT JOIN tbl_consultation_vitals cv ON c.consultation_id = cv.consultation_id
                 WHERE a.appointment_date = :date

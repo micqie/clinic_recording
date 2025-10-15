@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseApiUrl = sessionStorage.getItem('baseApiUrl') || 'http://localhost/clinic_recording/api';
     const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
+    const enhancedQueueV2Api = `${baseApiUrl}/enhanced_queue_management_v2.php`;
     const appointmentsApi = `${baseApiUrl}/appointments.php`;
     const doctorsApi = `${baseApiUrl}/doctors.php`;
+    const nursesApi = `${baseApiUrl}/nurses.php`;
 
     // Debug API URLs
     console.log('Base API URL:', baseApiUrl);
@@ -28,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const queueList = document.getElementById('queueList');
     const availablePatients = document.getElementById('availablePatients');
 
+    // Nurse assignment elements
+    const nursePatientSelect = document.getElementById('nursePatientSelect');
+    const sendToNurseBtn = document.getElementById('sendToNurseBtn');
+
     // Statistics elements
     const totalPatients = document.getElementById('totalPatients');
     const currentConsultation = document.getElementById('currentConsultation');
@@ -42,6 +48,8 @@ document.addEventListener('DOMContentLoaded', () => {
         await loadDoctors();
         await loadQueueStatus();
         loadAvailablePatients();
+        loadNursePatients();
+        setupNurseEventListeners();
     }
 
     function setDefaultDate() {
@@ -72,6 +80,103 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to load doctors:', error);
         }
     }
+
+    async function loadNursePatients() {
+        try {
+            const date = queueDate.value || new Date().toISOString().slice(0, 10);
+            
+            // Get confirmed appointments for the selected date
+            const resp = await axios.get(`${appointmentsApi}?operation=get_confirmed_appointments&date=${date}`);
+            const appointments = resp.data.data || [];
+
+            nursePatientSelect.innerHTML = '<option value="">Choose patient to send to nurse</option>';
+            appointments.forEach(apt => {
+                // Only show patients with queue numbers (confirmed appointments)
+                if (apt.queue_number && apt.appointment_status === 'Confirmed') {
+                    const opt = document.createElement('option');
+                    opt.value = apt.appointment_id;
+                    opt.textContent = `Queue #${apt.queue_number}`;
+                    nursePatientSelect.appendChild(opt);
+                }
+            });
+        } catch (error) {
+            console.error('Failed to load nurse patients:', error);
+            // Fallback: show a simple message
+            nursePatientSelect.innerHTML = '<option value="">Error loading patients</option>';
+        }
+    }
+
+    function setupNurseEventListeners() {
+        if (sendToNurseBtn) {
+            sendToNurseBtn.addEventListener('click', sendToNurseQueue);
+        }
+    }
+
+    async function sendToNurseQueue(appointmentIdOverride) {
+        const appointmentId = appointmentIdOverride || nursePatientSelect.value;
+
+        if (!appointmentId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Missing Information',
+                text: 'Please select a patient to send to nurse.'
+            });
+            return;
+        }
+
+        try {
+            // Get the first available nurse from your database
+            const nursesResp = await axios.get(`${nursesApi}?operation=getAll`);
+            const nurses = nursesResp.data.data || [];
+            
+            if (nurses.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No Nurse Available',
+                    text: 'Please add a nurse first before assigning patients.'
+                });
+                return;
+            }
+
+            const mainNurse = nurses[0]; // Use the first nurse as the main nurse
+
+            // Assign to nurse via Enhanced Queue v2 (sets status to "Ready for Nurse")
+            const resp = await axios.post(enhancedQueueV2Api, {
+                operation: 'assign_to_nurse',
+                json: JSON.stringify({
+                    appointment_id: appointmentId,
+                    nurse_id: mainNurse.nurse_id
+                })
+            });
+
+            if (resp.data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success',
+                    text: `Patient sent to ${mainNurse.name || 'Nurse'} queue successfully!`
+                });
+                
+                // Refresh data
+                await loadQueueStatus();
+                await loadNursePatients();
+                
+                // Keep selection but disable (read-only behavior)
+                nursePatientSelect.setAttribute('disabled', 'disabled');
+            } else {
+                throw new Error(resp.data.message || 'Failed to send to nurse queue');
+            }
+        } catch (error) {
+            console.error('Failed to send to nurse queue:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'Failed to send patient to nurse queue'
+            });
+        }
+    }
+
+    // Expose to global for inline onclick handlers in generated HTML
+    window.sendToNurseQueue = sendToNurseQueue;
 
     async function loadQueueStatus() {
         try {
@@ -152,9 +257,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="mb-0">Dr. ${nextInQueueData.doctor_name || 'Unassigned'}</p>
             `;
             startNextBtn.style.display = 'block';
+
+            // Auto-select next in queue in nurse dropdown and make it read-only
+            if (nursePatientSelect) {
+                // Ensure the option exists; if not, add it
+                let opt = Array.from(nursePatientSelect.options).find(o => o.value == nextInQueueData.appointment_id);
+                if (!opt) {
+                    opt = document.createElement('option');
+                    opt.value = nextInQueueData.appointment_id;
+                    opt.textContent = `Queue #${nextInQueueData.queue_number}`;
+                    nursePatientSelect.appendChild(opt);
+                }
+                nursePatientSelect.value = String(nextInQueueData.appointment_id);
+                nursePatientSelect.setAttribute('disabled', 'disabled');
+            }
         } else {
             nextPatientInfo.innerHTML = '<p class="mb-1">No patients waiting</p>';
             startNextBtn.style.display = 'none';
+
+            // No next patient; allow manual selection from queue list
+            nursePatientSelect?.removeAttribute('disabled');
         }
 
         // Update queue list
@@ -162,6 +284,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderQueueList(appointments, currentConsultation, nextInQueue) {
+        if (!queueList) {
+            console.error('queueList element not found');
+            return;
+        }
+        
         queueList.innerHTML = '';
 
         if (appointments.length === 0) {
@@ -205,14 +332,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                         <div class="action-buttons mt-3">
                             ${!isCompleted ? `
-                                ${!isCurrent ? `
-                                    <button class="btn btn-sm btn-primary me-2" onclick="window.startConsultation(${appointment.appointment_id})">
-                                        <i class="fas fa-play me-1"></i>Start
+                                ${appointment.appointment_status === 'Confirmed' ? `
+                                    <button class=\"btn btn-sm btn-info me-2\" onclick=\"window.sendToNurseQueue(${appointment.appointment_id})\">
+                                        <i class=\"fas fa-user-nurse me-1\"></i>Send to Nurse
+                                    </button>
+                                ` : appointment.appointment_status === 'Queued to Doctor' ? `
+                                    <button class=\"btn btn-sm btn-primary me-2\" onclick=\"window.startConsultation(${appointment.appointment_id})\">
+                                        <i class=\"fas fa-play me-1\"></i>Start
+                                    </button>
+                                ` : isCurrent ? `
+                                    <button class=\"btn btn-sm btn-success me-2\" onclick=\"window.completeConsultation(${appointment.appointment_id})\">
+                                        <i class=\"fas fa-check me-1\"></i>Complete
                                     </button>
                                 ` : `
-                                    <button class="btn btn-sm btn-success me-2" onclick="window.completeConsultation(${appointment.appointment_id})">
-                                        <i class="fas fa-check me-1"></i>Complete
-                                    </button>
+                                    <span class=\"text-muted small\">${appointment.appointment_status}</span>
                                 `}
                             ` : ''}
                         </div>
@@ -436,4 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-refresh every 30 seconds
     setInterval(loadQueueStatus, 30000);
+
+    // Make loadQueueStatus globally accessible
+    window.loadQueueStatus = loadQueueStatus;
 });

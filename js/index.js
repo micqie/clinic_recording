@@ -255,10 +255,10 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           const roleRoutes = {
             admin: "html/admin/admin_dashboard.html",
-            doctor: "html/doctor/doctor_appointments.html",
-            secretary: "html/secretary/secretary_dashboard.html",
+            doctor: "html/doctor/doctor_enhanced_consultations.html",
+            secretary: "html/secretary/secretary_enhanced_queue_management.html",
             patient: "html/patient/patient_dashboard.html",
-            nurse: "html/nurse/nurse_dashboard.html"
+            nurse: "html/nurse/nurse_enhanced_dashboard.html"
           };
 
           if (roleRoutes[user.role]) {

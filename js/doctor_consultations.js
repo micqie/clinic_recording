@@ -101,6 +101,66 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Load nurse assessment data
+    async function loadNurseAssessmentData(appointmentId) {
+        try {
+            const response = await axios.get(`${baseApiUrl}/nurse_enhanced_v2.php?operation=get_nurse_assessment&appointment_id=${appointmentId}`);
+            
+            if (response.data?.success && response.data?.data) {
+                const assessment = response.data.data;
+                
+                // Fill nurse assessment data
+                const chiefComplaintEl = document.getElementById('nurse_chief_complaint');
+                const assessmentNotesEl = document.getElementById('nurse_assessment_notes');
+                
+                if (chiefComplaintEl) chiefComplaintEl.value = assessment.chief_complaint || '';
+                if (assessmentNotesEl) assessmentNotesEl.value = assessment.nurse_assessment || '';
+                
+                // Fill vital signs
+                const vitalElements = {
+                    'vital_height': assessment.height_cm,
+                    'vital_weight': assessment.weight_kg,
+                    'vital_temperature': assessment.temperature_celsius,
+                    'vital_bp': assessment.blood_pressure_mmHg,
+                    'vital_hr': assessment.heart_rate_bpm,
+                    'vital_spo2': assessment.spo2_percent
+                };
+                
+                Object.entries(vitalElements).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = value || '';
+                });
+                
+                // Fill medical history
+                const historyElements = {
+                    'history_past_medical': assessment.past_medical_history,
+                    'history_current_meds': assessment.current_medications,
+                    'history_family': assessment.family_history,
+                    'history_social': assessment.social_history
+                };
+                
+                Object.entries(historyElements).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = value || '';
+                });
+            } else {
+                // Clear fields if no nurse assessment
+                const clearElements = [
+                    'nurse_chief_complaint', 'nurse_assessment_notes',
+                    'vital_height', 'vital_weight', 'vital_temperature', 'vital_bp', 'vital_hr', 'vital_spo2',
+                    'history_past_medical', 'history_current_meds', 'history_family', 'history_social'
+                ];
+                
+                clearElements.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+            }
+        } catch (error) {
+            console.error('Error loading nurse assessment:', error);
+        }
+    }
+
     // Display current patient information (only for this doctor)
     function displayCurrentPatient(currentConsultation) {
         if (!currentConsultation) {
@@ -184,6 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         // Display current patient and enable form
                         displayCurrentPatient(data.current_consultation);
+
+                        // Load nurse assessment data
+                        await loadNurseAssessmentData(data.current_consultation.appointment_id);
 
                         // Force enable form as a fallback
                         setTimeout(() => {

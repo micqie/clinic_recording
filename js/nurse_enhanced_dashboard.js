@@ -1,397 +1,324 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-
-    // Ensure user exists and is a nurse
-    if (!user?.id || user.role?.toLowerCase() !== 'nurse') {
-        window.location.href = '/clinic_recording/index.html';
+    
+    if (!user.id) {
+        window.location.href = '../../index.html';
         return;
     }
 
+    // Get nurse ID from user context
+    let nurseId = null;
+    
     // DOM elements
     const refreshBtn = document.getElementById('refreshBtn');
-    const appointmentsTableBody = document.getElementById('appointmentsTableBody');
-    const currentPatientCard = document.getElementById('currentPatientCard');
-    const completeTriageBtn = document.getElementById('completeTriageBtn');
+    const nurseQueueTableBody = document.getElementById('nurseQueueTableBody');
     const walkInForm = document.getElementById('walkInForm');
-    const triageForm = document.getElementById('triageForm');
     const createWalkInBtn = document.getElementById('createWalkInBtn');
-    const saveTriageBtn = document.getElementById('saveTriageBtn');
-    const addIllnessBtn = document.getElementById('addIllnessBtn');
-    const saveIllnessBtn = document.getElementById('saveIllnessBtn');
-    const illnessSelect = document.getElementById('illnessSelect');
-    const selectedIllnesses = document.getElementById('selectedIllnesses');
+    const nurseAssessmentForm = document.getElementById('nurseAssessmentForm');
+    const saveAssessmentBtn = document.getElementById('saveAssessmentBtn');
+    
+    // Count elements
+    const waitingCount = document.getElementById('waitingCount');
+    const withNurseCount = document.getElementById('withNurseCount');
+    const readyForDoctorCount = document.getElementById('readyForDoctorCount');
+    const completedCount = document.getElementById('completedCount');
 
-    let currentAppointment = null;
-    let selectedIllnessList = [];
-
-    // Load initial data
-    loadTodayAppointments();
+    // Initialize
+    initializeNurse();
+    loadNurseQueue();
     loadPatients();
     loadAppointmentReasons();
-    loadIllnesses();
 
     // Event listeners
-    refreshBtn?.addEventListener('click', loadTodayAppointments);
+    refreshBtn?.addEventListener('click', loadNurseQueue);
     createWalkInBtn?.addEventListener('click', createWalkIn);
-    saveTriageBtn?.addEventListener('click', saveTriage);
-    completeTriageBtn?.addEventListener('click', () => {
-        if (currentAppointment) {
-            startTriage(currentAppointment);
-        }
-    });
-    addIllnessBtn?.addEventListener('click', addIllness);
-    saveIllnessBtn?.addEventListener('click', saveNewIllness);
+    saveAssessmentBtn?.addEventListener('click', saveNurseAssessment);
 
-    // Load today's appointments for nurse triage
-    async function loadTodayAppointments() {
+    // Initialize nurse context
+    async function initializeNurse() {
         try {
-            const response = await axios.get(`${baseApiUrl}/nurse.php?operation=get_triage_queue`);
-            if (response.data?.success) {
-                displayAppointments(response.data.data);
-                updateCurrentPatient(response.data.current_patient);
+            const response = await axios.post(`${baseApiUrl}/user.php`, {
+                operation: 'get_user_context',
+                json: JSON.stringify({ user_id: user.id })
+            });
+
+            if (response.data?.success && response.data?.context?.nurse_id) {
+                nurseId = response.data.context.nurse_id;
+                document.getElementById('assessment_nurse_id').value = nurseId;
             } else {
-                console.error('Failed to load appointments:', response.data?.message);
-                appointmentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Failed to load appointments</td></tr>';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Nurse Profile Not Found',
+                    text: 'Please contact administrator to set up your nurse profile.'
+                });
             }
         } catch (error) {
-            console.error('Error loading appointments:', error);
-            appointmentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading appointments</td></tr>';
+            console.error('Error initializing nurse:', error);
         }
     }
 
-    // Display appointments in table
-    function displayAppointments(appointments) {
+    // Load nurse queue
+    async function loadNurseQueue() {
+        try {
+            const response = await axios.get(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
+                params: {
+                    operation: 'get_nurse_queue_status',
+                    nurse_id: nurseId,
+                    date: new Date().toISOString().split('T')[0]
+                }
+            });
+
+            if (response.data?.success) {
+                displayNurseQueue(response.data.data);
+                updateQueueCounts(response.data.data);
+            } else {
+                console.error('Failed to load nurse queue:', response.data?.message);
+                nurseQueueTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No patients in queue</td></tr>';
+            }
+        } catch (error) {
+            console.error('Error loading nurse queue:', error);
+            nurseQueueTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading queue</td></tr>';
+        }
+    }
+
+    // Display nurse queue
+    function displayNurseQueue(appointments) {
         if (!appointments || appointments.length === 0) {
-            appointmentsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No patients in triage queue</td></tr>';
+            nurseQueueTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No patients in queue</td></tr>';
             return;
         }
 
-        appointmentsTableBody.innerHTML = appointments.map(appointment => {
-            const triageStatus = getTriageStatusBadge(appointment.status_name);
-            const actionButton = getActionButton(appointment);
-
+        nurseQueueTableBody.innerHTML = appointments.map(appointment => {
+            const statusBadge = getStatusBadge(appointment.appointment_status);
+            const actions = getActionButtons(appointment);
+            
             return `
                 <tr>
-                    <td><strong>#${appointment.queue_number}</strong></td>
-                    <td>
-                        <div>
-                            <strong>${appointment.patient_name}</strong>
-                            <br><small class="text-muted">${appointment.patient_email}</small>
-                        </div>
-                    </td>
-                    <td>${appointment.contact_num || 'N/A'}</td>
-                    <td>${appointment.reason_name || 'Walk-in'}</td>
-                    <td>${triageStatus}</td>
-                    <td>${actionButton}</td>
+                    <td>${appointment.queue_number || 'N/A'}</td>
+                    <td>${appointment.patient_name}</td>
+                    <td>${appointment.patient_contact || 'N/A'}</td>
+                    <td>${appointment.appointment_reason || 'N/A'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${actions}</td>
                 </tr>
             `;
         }).join('');
     }
 
-    // Get triage status badge
-    function getTriageStatusBadge(status) {
-        const statusMap = {
-            'Waiting for Nurse': '<span class="badge bg-warning">Waiting for Nurse</span>',
-            'With Nurse': '<span class="badge bg-info">With Nurse</span>',
-            'Nurse Complete': '<span class="badge bg-success">Ready for Doctor</span>',
-            'Waiting for Doctor': '<span class="badge bg-primary">Waiting for Doctor</span>'
+    // Get status badge
+    function getStatusBadge(status) {
+        const badges = {
+            'Ready for Nurse': '<span class="badge bg-warning status-badge">Ready for Nurse</span>',
+            'With Nurse': '<span class="badge bg-info status-badge">With Nurse</span>',
+            'Ready for Doctor': '<span class="badge bg-success status-badge">Ready for Doctor</span>',
+            'Completed': '<span class="badge bg-primary status-badge">Completed</span>'
         };
-        return statusMap[status] || '<span class="badge bg-secondary">' + status + '</span>';
+        return badges[status] || '<span class="badge bg-secondary status-badge">Unknown</span>';
     }
 
-    // Get action button based on status
-    function getActionButton(appointment) {
-        switch (appointment.status_name) {
-            case 'Waiting for Nurse':
-                return `<button class="btn btn-sm btn-primary" onclick="startTriage(${appointment.appointment_id})">
-                    <i class="fas fa-stethoscope me-1"></i>Start Triage
-                </button>`;
-            case 'With Nurse':
-                return `<button class="btn btn-sm btn-info" onclick="continueTriage(${appointment.appointment_id})">
-                    <i class="fas fa-edit me-1"></i>Continue Triage
-                </button>`;
-            case 'Nurse Complete':
-                return `<button class="btn btn-sm btn-outline-info" onclick="viewTriage(${appointment.appointment_id})">
-                    <i class="fas fa-eye me-1"></i>View Triage
-                </button>`;
-            default:
-                return '<span class="text-muted">-</span>';
+    // Get action buttons
+    function getActionButtons(appointment) {
+        const actions = [];
+        
+        if (appointment.appointment_status === 'Ready for Nurse') {
+            actions.push(`
+                <button class="btn btn-sm btn-info me-1" onclick="startNurseConsultation(${appointment.appointment_id})">
+                    <i class="fas fa-play"></i> Start
+                </button>
+            `);
+        } else if (appointment.appointment_status === 'With Nurse') {
+            actions.push(`
+                <button class="btn btn-sm btn-primary me-1" onclick="openNurseAssessment(${appointment.appointment_id}, '${appointment.patient_name}', '${appointment.patient_contact || ''}')">
+                    <i class="fas fa-stethoscope"></i> Assess
+                </button>
+            `);
         }
+        
+        return actions.join('');
     }
 
-    // Update current patient card
-    function updateCurrentPatient(patient) {
-        if (patient) {
-            currentPatientCard.style.display = 'block';
-            document.getElementById('currentPatientName').textContent = patient.patient_name;
-            document.getElementById('currentPatientDetails').textContent =
-                `Queue #${patient.queue_number} • Age: ${patient.age} • ${patient.sex}`;
-            currentAppointment = patient;
-        } else {
-            currentPatientCard.style.display = 'none';
-            currentAppointment = null;
-        }
-    }
+    // Update queue counts
+    function updateQueueCounts(appointments) {
+        const counts = {
+            waiting: 0,
+            withNurse: 0,
+            readyForDoctor: 0,
+            completed: 0
+        };
 
-    // Start triage (global function for onclick)
-    window.startTriage = function(appointmentId) {
-        // Find appointment data
-        const appointment = findAppointmentById(appointmentId);
-        if (appointment) {
-            populateTriageForm(appointment);
-            bootstrap.Modal.getInstance(document.getElementById('triageModal')) ||
-            new bootstrap.Modal(document.getElementById('triageModal')).show();
-        }
-    };
-
-    // Continue triage (global function for onclick)
-    window.continueTriage = function(appointmentId) {
-        startTriage(appointmentId);
-    };
-
-    // View triage (global function for onclick)
-    window.viewTriage = function(appointmentId) {
-        // Load existing triage data and show in read-only mode
-        loadExistingTriage(appointmentId);
-    };
-
-    // Find appointment by ID
-    function findAppointmentById(appointmentId) {
-        // This would need to be implemented based on your data structure
-        // For now, we'll use the current appointment
-        return currentAppointment;
-    }
-
-    // Populate triage form
-    function populateTriageForm(appointment) {
-        document.getElementById('triage_appointment_id').value = appointment.appointment_id;
-        document.getElementById('triage_patient_name').textContent = appointment.patient_name;
-        document.getElementById('triage_patient_age').textContent = appointment.age;
-        document.getElementById('triage_patient_gender').textContent = appointment.sex;
-        document.getElementById('triage_patient_contact').textContent = appointment.contact_num || 'N/A';
-        document.getElementById('triage_appointment_reason').textContent = appointment.reason_name || 'Walk-in';
-
-        // Clear form
-        triageForm.reset();
-        selectedIllnessList = [];
-        updateSelectedIllnesses();
-    }
-
-    // Load existing triage data
-    async function loadExistingTriage(appointmentId) {
-        try {
-            const response = await axios.get(`${baseApiUrl}/nurse.php?operation=get_triage_data&appointment_id=${appointmentId}`);
-            if (response.data?.success) {
-                const data = response.data.data;
-                populateTriageForm(data.appointment);
-
-                // Populate form with existing data
-                if (data.vitals) {
-                    Object.keys(data.vitals).forEach(key => {
-                        const field = triageForm.querySelector(`[name="${key}"]`);
-                        if (field) field.value = data.vitals[key] || '';
-                    });
-                }
-
-                if (data.history) {
-                    Object.keys(data.history).forEach(key => {
-                        const field = triageForm.querySelector(`[name="${key}"]`);
-                        if (field) field.value = data.history[key] || '';
-                    });
-                }
-
-                if (data.lifestyle) {
-                    Object.keys(data.lifestyle).forEach(key => {
-                        const field = triageForm.querySelector(`[name="${key}"]`);
-                        if (field) {
-                            if (field.type === 'radio') {
-                                const radio = triageForm.querySelector(`[name="${key}"][value="${data.lifestyle[key]}"]`);
-                                if (radio) radio.checked = true;
-                            } else {
-                                field.value = data.lifestyle[key] || '';
-                            }
-                        }
-                    });
-                }
-
-                // Make form read-only
-                triageForm.querySelectorAll('input, textarea, select').forEach(field => {
-                    field.disabled = true;
-                });
-
-                bootstrap.Modal.getInstance(document.getElementById('triageModal')) ||
-                new bootstrap.Modal(document.getElementById('triageModal')).show();
+        appointments.forEach(appointment => {
+            switch (appointment.appointment_status) {
+                case 'Ready for Nurse':
+                    counts.waiting++;
+                    break;
+                case 'With Nurse':
+                    counts.withNurse++;
+                    break;
+                case 'Ready for Doctor':
+                    counts.readyForDoctor++;
+                    break;
+                case 'Completed':
+                    counts.completed++;
+                    break;
             }
-        } catch (error) {
-            console.error('Error loading triage data:', error);
-            Swal.fire('Error', 'Failed to load triage data', 'error');
-        }
+        });
+
+        waitingCount.textContent = counts.waiting;
+        withNurseCount.textContent = counts.withNurse;
+        readyForDoctorCount.textContent = counts.readyForDoctor;
+        completedCount.textContent = counts.completed;
     }
 
-    // Save triage data
-    async function saveTriage() {
-        if (!triageForm.checkValidity()) {
-            triageForm.classList.add('was-validated');
-            return;
-        }
-
-        const formData = new FormData(triageForm);
-        const data = {
-            appointment_id: formData.get('appointment_id'),
-            // Vitals
-            height_cm: formData.get('height_cm'),
-            weight_kg: formData.get('weight_kg'),
-            blood_pressure_mmHg: formData.get('blood_pressure_mmHg'),
-            heart_rate_bpm: formData.get('heart_rate_bpm'),
-            temperature_celsius: formData.get('temperature_celsius'),
-            spo2_percent: formData.get('spo2_percent'),
-            // History
-            past_medical_history: formData.get('past_medical_history'),
-            past_surgical_history: formData.get('past_surgical_history'),
-            family_history: formData.get('family_history'),
-            social_history: formData.get('social_history'),
-            current_medications: formData.get('current_medications'),
-            // Lifestyle
-            smoking_status: formData.get('smoking_status'),
-            smoking_packs_per_day: formData.get('smoking_packs_per_day'),
-            alcohol_use: formData.get('alcohol_use'),
-            alcohol_frequency: formData.get('alcohol_frequency'),
-            sexual_activity: formData.get('sexual_activity'),
-            // Nurse assessment
-            nurse_notes: formData.get('nurse_notes'),
-            patient_ready_for_doctor: formData.get('patient_ready_for_doctor') === 'on',
-            // Illnesses
-            selected_illnesses: selectedIllnessList,
-            recorded_by_nurse_id: user.id
-        };
-
+    // Start nurse consultation
+    window.startNurseConsultation = async function(appointmentId) {
         try {
-            const response = await axios.post(`${baseApiUrl}/nurse.php`, new URLSearchParams({
-                operation: 'complete_triage',
-                json: JSON.stringify(data)
-            }));
+            const response = await axios.post(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
+                operation: 'start_nurse_consultation',
+                json: JSON.stringify({
+                    appointment_id: appointmentId,
+                    nurse_id: nurseId
+                })
+            });
 
             if (response.data?.success) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Triage Complete',
-                    text: 'Patient is ready for doctor consultation',
+                    title: 'Consultation Started',
+                    text: 'Nurse consultation has been started successfully.',
                     timer: 2000,
                     showConfirmButton: false
                 });
-
-                // Check for abnormal vitals alerts
-                if (response.data.alerts && response.data.alerts.length > 0) {
-                    showAbnormalVitalsAlert(response.data.alerts);
-                }
-
-                triageForm.reset();
-                triageForm.classList.remove('was-validated');
-                bootstrap.Modal.getInstance(document.getElementById('triageModal'))?.hide();
-                loadTodayAppointments();
+                loadNurseQueue();
             } else {
-                Swal.fire('Error', response.data?.message || 'Failed to complete triage', 'error');
+                Swal.fire('Error', response.data?.message || 'Failed to start consultation', 'error');
             }
         } catch (error) {
-            console.error('Error saving triage:', error);
-            Swal.fire('Error', 'Failed to complete triage', 'error');
+            console.error('Error starting nurse consultation:', error);
+            Swal.fire('Error', 'Failed to start nurse consultation', 'error');
+        }
+    };
+
+    // Open nurse assessment modal
+    window.openNurseAssessment = function(appointmentId, patientName, patientContact) {
+        document.getElementById('assessment_appointment_id').value = appointmentId;
+        document.getElementById('patient_name').value = patientName;
+        document.getElementById('patient_contact').value = patientContact;
+        
+        // Clear form
+        nurseAssessmentForm.reset();
+        document.getElementById('assessment_appointment_id').value = appointmentId;
+        document.getElementById('assessment_nurse_id').value = nurseId;
+        document.getElementById('patient_name').value = patientName;
+        document.getElementById('patient_contact').value = patientContact;
+        
+        const modal = new bootstrap.Modal(document.getElementById('nurseAssessmentModal'));
+        modal.show();
+    };
+
+    // Save nurse assessment
+    async function saveNurseAssessment() {
+        if (!nurseAssessmentForm.checkValidity()) {
+            nurseAssessmentForm.classList.add('was-validated');
+            return;
+        }
+
+        const formData = new FormData(nurseAssessmentForm);
+        const data = {
+            appointment_id: formData.get('appointment_id'),
+            nurse_id: formData.get('nurse_id'),
+            chief_complaint: formData.get('chief_complaint'),
+            height_cm: formData.get('height_cm') || null,
+            weight_kg: formData.get('weight_kg') || null,
+            temperature_celsius: formData.get('temperature_celsius') || null,
+            blood_pressure_mmHg: formData.get('blood_pressure_mmHg') || null,
+            heart_rate_bpm: formData.get('heart_rate_bpm') || null,
+            spo2_percent: formData.get('spo2_percent') || null,
+            past_medical_history: formData.get('past_medical_history') || null,
+            current_medications: formData.get('current_medications') || null,
+            family_history: formData.get('family_history') || null,
+            social_history: formData.get('social_history') || null,
+            nurse_assessment: formData.get('nurse_assessment'),
+            patient_ready_for_doctor: formData.get('patient_ready_for_doctor')
+        };
+
+        try {
+            // Save nurse assessment
+            const assessmentResponse = await axios.post(`${baseApiUrl}/nurse_enhanced.php`, {
+                operation: 'save_nurse_assessment',
+                json: JSON.stringify(data)
+            });
+
+            if (assessmentResponse.data?.success) {
+                // Complete nurse consultation
+                const completeResponse = await axios.post(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
+                    operation: 'complete_nurse_consultation',
+                    json: JSON.stringify({
+                        appointment_id: data.appointment_id,
+                        nurse_id: data.nurse_id
+                    })
+                });
+
+                if (completeResponse.data?.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Assessment Complete',
+                        text: 'Patient has been moved to doctor queue.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    bootstrap.Modal.getInstance(document.getElementById('nurseAssessmentModal'))?.hide();
+                    loadNurseQueue();
+                } else {
+                    Swal.fire('Error', completeResponse.data?.message || 'Failed to complete consultation', 'error');
+                }
+            } else {
+                Swal.fire('Error', assessmentResponse.data?.message || 'Failed to save assessment', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving nurse assessment:', error);
+            Swal.fire('Error', 'Failed to save nurse assessment', 'error');
         }
     }
 
-    // Show abnormal vitals alert
-    function showAbnormalVitalsAlert(alerts) {
-        const alertText = alerts.map(alert =>
-            `${alert.vital_type}: ${alert.recorded_value} (Normal: ${alert.normal_range}) - ${alert.severity.toUpperCase()}`
-        ).join('\n');
-
-        Swal.fire({
-            icon: 'warning',
-            title: 'Abnormal Vital Signs Detected',
-            text: alertText,
-            confirmButtonText: 'Acknowledge'
-        });
-    }
-
-    // Load patients for walk-in dropdown
+    // Load patients for walk-in
     async function loadPatients() {
         try {
-            const response = await axios.get(`${baseApiUrl}/patients.php?operation=get_all`);
+            const response = await axios.get(`${baseApiUrl}/patients.php`, {
+                params: { operation: 'get_all_patients' }
+            });
+
             if (response.data?.success) {
-                const patientSelect = walkInForm?.querySelector('select[name="patient_id"]');
-                if (patientSelect) {
-                    patientSelect.innerHTML = '<option value="">Select patient...</option>' +
-                        response.data.data.map(patient =>
-                            `<option value="${patient.patient_id}">${patient.name} (${patient.email})</option>`
-                        ).join('');
-                }
+                const patientSelect = walkInForm.querySelector('select[name="patient_id"]');
+                patientSelect.innerHTML = '<option value="">Select patient...</option>' +
+                    response.data.data.map(patient => 
+                        `<option value="${patient.patient_id}">${patient.name}</option>`
+                    ).join('');
             }
         } catch (error) {
             console.error('Error loading patients:', error);
         }
     }
 
-    // Load appointment reasons for walk-in dropdown
+    // Load appointment reasons
     async function loadAppointmentReasons() {
         try {
-            const response = await axios.get(`${baseApiUrl}/nurse.php?operation=get_appointment_reasons`);
+            const response = await axios.get(`${baseApiUrl}/appointment_reasons.php`, {
+                params: { operation: 'get_all_reasons' }
+            });
+
             if (response.data?.success) {
-                const reasonSelect = walkInForm?.querySelector('select[name="appointment_reason_id"]');
-                if (reasonSelect) {
-                    reasonSelect.innerHTML = '<option value="">Select reason...</option>' +
-                        response.data.data.map(reason =>
-                            `<option value="${reason.reason_id}">${reason.reason_name}</option>`
-                        ).join('');
-                }
+                const reasonSelect = walkInForm.querySelector('select[name="appointment_reason_id"]');
+                reasonSelect.innerHTML = '<option value="">Select reason...</option>' +
+                    response.data.data.map(reason => 
+                        `<option value="${reason.reason_id}">${reason.reason_name}</option>`
+                    ).join('');
             }
         } catch (error) {
             console.error('Error loading appointment reasons:', error);
         }
     }
-
-    // Load illnesses for selection
-    async function loadIllnesses() {
-        try {
-            const response = await axios.get(`${baseApiUrl}/illnesses.php?operation=get_all`);
-            if (response.data?.success) {
-                illnessSelect.innerHTML = '<option value="">Select illness...</option>' +
-                    response.data.data.map(illness =>
-                        `<option value="${illness.illness_id}">${illness.illness_name}</option>`
-                    ).join('');
-            }
-        } catch (error) {
-            console.error('Error loading illnesses:', error);
-        }
-    }
-
-    // Add illness to selected list
-    function addIllness() {
-        const selectedOption = illnessSelect.options[illnessSelect.selectedIndex];
-        if (selectedOption.value && !selectedIllnessList.find(i => i.id === selectedOption.value)) {
-            selectedIllnessList.push({
-                id: selectedOption.value,
-                name: selectedOption.text
-            });
-            updateSelectedIllnesses();
-            illnessSelect.selectedIndex = 0;
-        }
-    }
-
-    // Update selected illnesses display
-    function updateSelectedIllnesses() {
-        selectedIllnesses.innerHTML = selectedIllnessList.map((illness, index) =>
-            `<span class="badge bg-primary me-2 mb-1">
-                ${illness.name}
-                <button type="button" class="btn-close btn-close-white ms-1" onclick="removeIllness(${index})"></button>
-            </span>`
-        ).join('');
-    }
-
-    // Remove illness from selected list (global function)
-    window.removeIllness = function(index) {
-        selectedIllnessList.splice(index, 1);
-        updateSelectedIllnesses();
-    };
 
     // Create walk-in appointment
     async function createWalkIn() {
@@ -404,28 +331,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = {
             patient_id: formData.get('patient_id'),
             appointment_reason_id: formData.get('appointment_reason_id') || null,
-            other_reason_text: formData.get('other_reason_text') || null,
-            appointment_notes: formData.get('appointment_notes') || null
+            appointment_notes: formData.get('appointment_notes') || null,
+            appointment_date: new Date().toISOString().split('T')[0],
+            is_walk_in: true
         };
 
         try {
-            const response = await axios.post(`${baseApiUrl}/nurse.php`, new URLSearchParams({
-                operation: 'walk_in',
+            const response = await axios.post(`${baseApiUrl}/appointments.php`, {
+                operation: 'create_appointment',
                 json: JSON.stringify(data)
-            }));
+            });
 
             if (response.data?.success) {
                 Swal.fire({
                     icon: 'success',
                     title: 'Walk-in Created',
-                    text: `Patient queued as #${response.data.queue_number}`,
+                    text: 'Walk-in appointment has been created successfully.',
                     timer: 2000,
                     showConfirmButton: false
                 });
+                
+                bootstrap.Modal.getInstance(document.getElementById('walkInModal'))?.hide();
                 walkInForm.reset();
                 walkInForm.classList.remove('was-validated');
-                bootstrap.Modal.getInstance(document.getElementById('walkInModal'))?.hide();
-                loadTodayAppointments();
+                loadNurseQueue();
             } else {
                 Swal.fire('Error', response.data?.message || 'Failed to create walk-in', 'error');
             }
@@ -435,37 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Save new illness
-    async function saveNewIllness() {
-        const formData = new FormData(document.getElementById('addIllnessForm'));
-        const data = {
-            illness_name: formData.get('illness_name'),
-            illness_description: formData.get('illness_description')
-        };
-
-        try {
-            const response = await axios.post(`${baseApiUrl}/illnesses.php`, new URLSearchParams({
-                operation: 'add',
-                json: JSON.stringify(data)
-            }));
-
-            if (response.data?.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Illness Added',
-                    text: 'New illness has been added successfully',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-                document.getElementById('addIllnessForm').reset();
-                bootstrap.Modal.getInstance(document.getElementById('addIllnessModal'))?.hide();
-                loadIllnesses();
-            } else {
-                Swal.fire('Error', response.data?.message || 'Failed to add illness', 'error');
-            }
-        } catch (error) {
-            console.error('Error adding illness:', error);
-            Swal.fire('Error', 'Failed to add illness', 'error');
-        }
-    }
+    // Auto-refresh every 30 seconds
+    setInterval(loadNurseQueue, 30000);
 });

@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const enhancedQueueV2Api = `${baseApiUrl}/enhanced_queue_management_v2.php`;
+    const userApi = `${baseApiUrl}/user.php`;
+    let nurseId = null;
 
     // Ensure user exists and is a nurse
     if (!user?.id || user.role?.toLowerCase() !== 'nurse') {
@@ -17,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveVitalsBtn = document.getElementById('saveVitalsBtn');
 
     // Load initial data
+    initializeNurse();
     loadTodayAppointments();
     loadPatients();
     loadAppointmentReasons();
@@ -25,6 +29,21 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBtn?.addEventListener('click', loadTodayAppointments);
     createWalkInBtn?.addEventListener('click', createWalkIn);
     saveVitalsBtn?.addEventListener('click', saveVitals);
+
+    // Initialize nurse context (fetch nurse_id)
+    async function initializeNurse() {
+        try {
+            const resp = await axios.post(userApi, {
+                operation: 'get_user_context',
+                json: JSON.stringify({ user_id: user.id })
+            });
+            if (resp.data?.success && resp.data?.context?.nurse_id) {
+                nurseId = resp.data.context.nurse_id;
+            }
+        } catch (e) {
+            console.error('Failed to load nurse context', e);
+        }
+    }
 
     // Load today's appointments
     async function loadTodayAppointments() {
@@ -73,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </td>
                     <td>${appointment.contact_num || 'N/A'}</td>
                     <td>${appointment.reason_name || 'Walk-in'}</td>
+                    <td>${appointment.doctor_name ? 'Dr. ' + appointment.doctor_name : '<span class="text-muted">Unassigned</span>'}</td>
                     <td>${vitalsStatus}</td>
                     <td>${vitalsButton}</td>
                 </tr>
@@ -176,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         new bootstrap.Modal(document.getElementById('vitalsModal')).show();
     };
 
-    // Save vitals
+    // Save vitals & history
     async function saveVitals() {
         const formData = new FormData(vitalsForm);
         const data = {
@@ -186,6 +206,11 @@ document.addEventListener('DOMContentLoaded', () => {
             blood_pressure_mmHg: formData.get('blood_pressure_mmHg'),
             heart_rate_bpm: formData.get('heart_rate_bpm'),
             spo2_percent: formData.get('spo2_percent'),
+            chief_complaint: formData.get('chief_complaint'),
+            past_medical_history: formData.get('past_medical_history'),
+            current_medications: formData.get('current_medications'),
+            family_history: formData.get('family_history'),
+            social_history: formData.get('social_history'),
             recorded_by_user_id: user.id
         };
 
@@ -196,10 +221,29 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
 
             if (response.data?.success) {
+                // After saving, move patient to doctor's queue (Ready for Doctor)
+                try {
+                    const completeResp = await axios.post(enhancedQueueV2Api, {
+                        operation: 'complete_nurse_consultation',
+                        json: JSON.stringify({
+                            appointment_id: data.appointment_id,
+                            nurse_id: nurseId
+                        })
+                    });
+
+                    if (!completeResp.data?.success) {
+                        throw new Error(completeResp.data?.message || 'Failed to forward to doctor');
+                    }
+                } catch (forwardErr) {
+                    console.error('Forwarding to doctor failed:', forwardErr);
+                    // Continue, but inform user
+                    Swal.fire('Warning', 'Saved, but forwarding to doctor failed. You may retry later.', 'warning');
+                }
+
                 Swal.fire({
                     icon: 'success',
-                    title: 'Vitals Recorded',
-                    text: 'Vital signs have been recorded successfully',
+                    title: 'Saved',
+                    text: 'Vitals and history saved. Patient moved to doctor queue.',
                     timer: 2000,
                     showConfirmButton: false
                 });

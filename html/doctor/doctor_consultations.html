@@ -150,95 +150,78 @@
               <input type="hidden" id="patient_id" name="patient_id" required>
               <input type="hidden" id="appointment_id" name="appointment_id" required>
 
-              <!-- History Section (moved before diagnosis) -->
+              <!-- Nurse Assessment Summary (Read-only) -->
               <div class="row g-3 mb-4">
                 <div class="col-12">
-                  <h6 class="text-secondary mb-3"><i class="fas fa-notes-medical me-2"></i>History</h6>
+                  <h6 class="text-info mb-3"><i class="fas fa-user-nurse me-2"></i>Nurse Assessment Summary</h6>
                 </div>
                 <div class="col-12">
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <label class="form-label mb-0">Present Illness <small class="text-muted">(pick up to 5)</small></label>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" id="addNewIllnessBtn" title="Add new illness">
-                      <i class="fas fa-plus-circle me-1"></i>Add New Illness
-                    </button>
-                  </div>
-                  <div class="input-group">
-                    <select class="form-select" id="illnessSelect" name="present_illness_select">
-                      <option value="">Select illness</option>
-                    </select>
-                    <button type="button" class="btn btn-outline-primary" id="addIllnessBtn" title="Add selected illness">
-                      <i class="fas fa-plus"></i>
-                    </button>
-                  </div>
-                  <div class="mt-2" id="selectedIllnessesDisplay"></div>
+                  <label class="form-label">Chief Complaint</label>
+                  <textarea class="form-control" id="nurse_chief_complaint" readonly rows="2" placeholder="Chief complaint recorded by nurse"></textarea>
+                </div>
+              </div>
+
+              <!-- Vital Signs (Read-only from Nurse) -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-info mb-3"><i class="fas fa-heartbeat me-2"></i>Vital Signs (Recorded by Nurse)</h6>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Height (cm)</label>
+                  <input type="text" class="form-control" id="vital_height" readonly>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Weight (kg)</label>
+                  <input type="text" class="form-control" id="vital_weight" readonly>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Temperature (°C)</label>
+                  <input type="text" class="form-control" id="vital_temperature" readonly>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Blood Pressure</label>
+                  <input type="text" class="form-control" id="vital_bp" readonly>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">Heart Rate (bpm)</label>
+                  <input type="text" class="form-control" id="vital_hr" readonly>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">SpO₂ (%)</label>
+                  <input type="text" class="form-control" id="vital_spo2" readonly>
+                </div>
+              </div>
+
+              <!-- Medical History (Read-only from Nurse) -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-info mb-3"><i class="fas fa-history me-2"></i>Medical History (Recorded by Nurse)</h6>
                 </div>
                 <div class="col-md-6">
                   <label class="form-label">Past Medical History</label>
-                  <textarea class="form-control" name="past_medical_history" rows="2" placeholder="Chronic diseases, allergies, etc."></textarea>
+                  <textarea class="form-control" id="history_past_medical" readonly rows="3"></textarea>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label">Past Surgical History</label>
-                  <textarea class="form-control" name="past_surgical_history" rows="2" placeholder="Surgeries and dates"></textarea>
+                  <label class="form-label">Current Medications</label>
+                  <textarea class="form-control" id="history_current_meds" readonly rows="3"></textarea>
                 </div>
-                <div class="col-12">
+                <div class="col-md-6">
                   <label class="form-label">Family History</label>
-                  <textarea class="form-control" name="family_history" rows="2" placeholder="Significant family illnesses"></textarea>
+                  <textarea class="form-control" id="history_family" readonly rows="3"></textarea>
                 </div>
-                <div class="col-12">
+                <div class="col-md-6">
                   <label class="form-label">Social History</label>
-                  <textarea class="form-control" name="social_history" rows="2" placeholder="Occupation, living situation, diet, exercise"></textarea>
+                  <textarea class="form-control" id="history_social" readonly rows="3"></textarea>
                 </div>
-                <div class="col-md-6">
-                  <label class="form-label d-block">Smoking</label>
-                  <div class="d-flex gap-3 align-items-center">
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="smoking_status" id="smoke_yes" value="Yes">
-                      <label class="form-check-label" for="smoke_yes">Yes</label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="smoking_status" id="smoke_no" value="No" checked>
-                      <label class="form-check-label" for="smoke_no">No</label>
-                    </div>
-                    <div class="ms-auto" style="min-width:200px;">
-                      <label class="form-label mb-0">Packs/Day</label>
-                      <input type="text" class="form-control" name="smoking_packs_per_day" placeholder="e.g., 0.5">
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label d-block">Alcohol</label>
-                  <div class="d-flex gap-3 align-items-center">
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="alcohol_use" id="alc_yes" value="Yes">
-                      <label class="form-check-label" for="alc_yes">Yes</label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="alcohol_use" id="alc_no" value="No" checked>
-                      <label class="form-check-label" for="alc_no">No</label>
-                    </div>
-                    <div class="ms-auto" style="min-width:200px;">
-                      <label class="form-label mb-0">Frequency</label>
-                      <input type="text" class="form-control" name="alcohol_frequency" placeholder="e.g., weekly">
-                    </div>
-                  </div>
-                </div>
+              </div>
 
-                <div class="col-md-6">
-                  <label class="form-label d-block">Sexual Activity</label>
-                  <div class="d-flex gap-3">
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="sexual_activity" id="sex_active" value="Active">
-                      <label class="form-check-label" for="sex_active">Active</label>
-                    </div>
-                    <div class="form-check">
-                      <input class="form-check-input" type="radio" name="sexual_activity" id="sex_not_active" value="Not Active" checked>
-                      <label class="form-check-label" for="sex_not_active">Not Active</label>
-                    </div>
-                  </div>
+              <!-- Nurse Assessment Notes -->
+              <div class="row g-3 mb-4">
+                <div class="col-12">
+                  <h6 class="text-info mb-3"><i class="fas fa-stethoscope me-2"></i>Nurse Assessment Notes</h6>
                 </div>
                 <div class="col-12">
-                  <label class="form-label">Medications</label>
-                  <textarea class="form-control" name="current_medications" rows="2" placeholder="Current medications"></textarea>
+                  <textarea class="form-control" id="nurse_assessment_notes" readonly rows="4"></textarea>
                 </div>
               </div>
 
