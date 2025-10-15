@@ -125,27 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // Get the first available nurse from your database
-            const nursesResp = await axios.get(`${nursesApi}?operation=getAll`);
-            const nurses = nursesResp.data.data || [];
-            
-            if (nurses.length === 0) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'No Nurse Available',
-                    text: 'Please add a nurse first before assigning patients.'
-                });
-                return;
-            }
-
-            const mainNurse = nurses[0]; // Use the first nurse as the main nurse
-
-            // Assign to nurse via Enhanced Queue v2 (sets status to "Ready for Nurse")
+            // Assign to nurse via Enhanced Queue v2 (backend will auto-pick if nurse_id not provided)
             const resp = await axios.post(enhancedQueueV2Api, {
                 operation: 'assign_to_nurse',
                 json: JSON.stringify({
-                    appointment_id: appointmentId,
-                    nurse_id: mainNurse.nurse_id
+                    appointment_id: appointmentId
                 })
             });
 
@@ -153,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire({
                     icon: 'success',
                     title: 'Success',
-                    text: `Patient sent to ${mainNurse.name || 'Nurse'} queue successfully!`
+                    text: `Patient sent to nurse queue successfully!`
                 });
                 
                 // Refresh data

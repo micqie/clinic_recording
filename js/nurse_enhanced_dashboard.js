@@ -47,11 +47,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 nurseId = response.data.context.nurse_id;
                 document.getElementById('assessment_nurse_id').value = nurseId;
             } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Nurse Profile Not Found',
-                    text: 'Please contact administrator to set up your nurse profile.'
-                });
+                // Try auto-create basic nurse profile if user has nurse role but no profile row
+                if ((response.data?.context?.role_name || '').toLowerCase() === 'nurse') {
+                    try {
+                        const createResp = await axios.post(`${baseApiUrl}/nurses.php`, new URLSearchParams({
+                            operation: 'create_if_missing',
+                            json: JSON.stringify({ user_id: user.id })
+                        }));
+                        if (createResp.data?.success && createResp.data?.nurse_id) {
+                            nurseId = createResp.data.nurse_id;
+                            document.getElementById('assessment_nurse_id').value = nurseId;
+                        } else {
+                            Swal.fire({ icon: 'error', title: 'Nurse Profile Not Found', text: 'Please contact administrator to set up your nurse profile.' });
+                        }
+                    } catch (e) {
+                        Swal.fire({ icon: 'error', title: 'Nurse Profile Not Found', text: 'Please contact administrator to set up your nurse profile.' });
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Nurse Profile Not Found',
+                        text: 'Please contact administrator to set up your nurse profile.'
+                    });
+                }
             }
         } catch (error) {
             console.error('Error initializing nurse:', error);

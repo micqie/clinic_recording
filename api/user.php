@@ -475,7 +475,8 @@ function registerPatient($json)
             ];
 
             // Get role-specific profile data
-            if ($user['role_name'] === 'nurse') {
+            $roleLower = strtolower($user['role_name'] ?? '');
+            if ($roleLower === 'nurse') {
                 $stmt = $conn->prepare("
                     SELECT nurse_id, license_number, shift_schedule
                     FROM tbl_nurses
@@ -490,7 +491,7 @@ function registerPatient($json)
                     $context['license_number'] = $nurseProfile['license_number'];
                     $context['shift_schedule'] = $nurseProfile['shift_schedule'];
                 }
-            } elseif ($user['role_name'] === 'doctor') {
+            } elseif ($roleLower === 'doctor') {
                 $stmt = $conn->prepare("
                     SELECT doctor_id, license_number, specialization_id
                     FROM tbl_doctors
@@ -505,7 +506,7 @@ function registerPatient($json)
                     $context['license_number'] = $doctorProfile['license_number'];
                     $context['specialization_id'] = $doctorProfile['specialization_id'];
                 }
-            } elseif ($user['role_name'] === 'patient') {
+            } elseif ($roleLower === 'patient') {
                 $stmt = $conn->prepare("
                     SELECT patient_id, sex, contact_num, birthdate, age, address
                     FROM tbl_patients

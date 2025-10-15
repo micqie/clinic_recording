@@ -92,13 +92,23 @@ class EnhancedQueueManagement
     // Assign patient to nurse queue
     public function assign_to_nurse($data)
     {
-        if (empty($data['appointment_id']) || empty($data['nurse_id'])) {
-            echo json_encode(["success" => false, "message" => "appointment_id and nurse_id are required."]);
+        if (empty($data['appointment_id'])) {
+            echo json_encode(["success" => false, "message" => "appointment_id is required."]);
             return;
         }
 
         $this->conn->beginTransaction();
         try {
+            // Auto-select first active nurse if nurse_id not provided
+            if (empty($data['nurse_id'])) {
+                $pick = $this->conn->prepare("SELECT n.nurse_id FROM tbl_nurses n JOIN tbl_users u ON n.user_id = u.user_id WHERE u.is_active = 1 ORDER BY n.nurse_id ASC LIMIT 1");
+                $pick->execute();
+                $auto = $pick->fetch(PDO::FETCH_ASSOC);
+                if (!$auto) {
+                    throw new Exception('No nurse available');
+                }
+                $data['nurse_id'] = $auto['nurse_id'];
+            }
             // Update appointment status to "Ready for Nurse"
             $readyForNurseId = $this->getStatusId('Ready for Nurse');
             $stmt = $this->conn->prepare("

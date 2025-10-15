@@ -10,6 +10,42 @@ class Nurses {
         $this->conn = $conn;
     }
 
+    // Create nurse profile row for an existing user if missing
+    public function create_if_missing($data) {
+        if (empty($data['user_id'])) {
+            echo json_encode(["success" => false, "message" => "user_id is required"]);
+            return;
+        }
+        try {
+            // Verify user exists and role is nurse
+            $u = $this->conn->prepare("SELECT u.user_id, r.role_name FROM tbl_users u JOIN tbl_roles r ON u.role_id = r.role_id WHERE u.user_id = :id LIMIT 1");
+            $u->bindParam(":id", $data['user_id']);
+            $u->execute();
+            $row = $u->fetch(PDO::FETCH_ASSOC);
+            if (!$row || strtolower($row['role_name']) !== 'nurse') {
+                echo json_encode(["success" => false, "message" => "User is not a nurse"]);
+                return;
+            }
+            // Check if nurse profile exists
+            $c = $this->conn->prepare("SELECT nurse_id FROM tbl_nurses WHERE user_id = :id LIMIT 1");
+            $c->bindParam(":id", $data['user_id']);
+            $c->execute();
+            $exists = $c->fetch(PDO::FETCH_ASSOC);
+            if ($exists) {
+                echo json_encode(["success" => true, "nurse_id" => $exists['nurse_id'], "message" => "Profile exists"]);
+                return;
+            }
+            // Create a minimal nurse profile
+            $lic = 'AUTO-' . strtoupper(substr(md5($data['user_id'] . time()), 0, 8));
+            $ins = $this->conn->prepare("INSERT INTO tbl_nurses (user_id, license_number, shift_schedule) VALUES (:id, :lic, 'Day Shift 8AM-5PM')");
+            $ins->bindParam(":id", $data['user_id']);
+            $ins->bindParam(":lic", $lic);
+            $ins->execute();
+            echo json_encode(["success" => true, "nurse_id" => $this->conn->lastInsertId()]);
+        } catch (PDOException $e) {
+            echo json_encode(["success" => false, "message" => "Database error: " . $e->getMessage()]);
+        }
+    }
     // Get all nurses with user details
     public function get_all() {
         try {
@@ -248,6 +284,10 @@ switch ($operation) {
     case 'add':
         $data = json_decode($json ?: '{}', true);
         $nurses->add($data);
+        break;
+    case 'create_if_missing':
+        $data = json_decode($json ?: '{}', true);
+        $nurses->create_if_missing($data);
         break;
     case 'update':
         $data = json_decode($json ?: '{}', true);
