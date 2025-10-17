@@ -255,8 +255,8 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           const roleRoutes = {
             admin: "html/admin/admin_dashboard.html",
-            doctor: "html/doctor/doctor_enhanced_consultations.html",
-            secretary: "html/secretary/secretary_enhanced_queue_management.html",
+            doctor: "html/doctor/doctor_dashboard.html",
+            secretary: "html/secretary/secretary_dashboard.html",
             patient: "html/patient/patient_dashboard.html",
             nurse: "html/nurse/nurse_dashboard.html"
           };

@@ -99,6 +99,25 @@ class EnhancedQueueManagement
 
         $this->conn->beginTransaction();
         try {
+            // First, verify the appointment exists and is in Confirmed status
+            $stmt = $this->conn->prepare("
+                SELECT a.appointment_id, a.status_id, s.status_name 
+                FROM tbl_appointments a 
+                JOIN tbl_status s ON a.status_id = s.status_id 
+                WHERE a.appointment_id = :appointment_id
+            ");
+            $stmt->bindParam(":appointment_id", $data['appointment_id']);
+            $stmt->execute();
+            $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$appointment) {
+                throw new Exception("Appointment not found");
+            }
+
+            if ($appointment['status_name'] !== 'Confirmed') {
+                throw new Exception("Appointment must be in Confirmed status to assign to nurse");
+            }
+
             // Auto-select first active nurse if nurse_id not provided
             if (empty($data['nurse_id'])) {
                 $pick = $this->conn->prepare("SELECT n.nurse_id FROM tbl_nurses n JOIN tbl_users u ON n.user_id = u.user_id WHERE u.is_active = 1 ORDER BY n.nurse_id ASC LIMIT 1");
@@ -109,8 +128,14 @@ class EnhancedQueueManagement
                 }
                 $data['nurse_id'] = $auto['nurse_id'];
             }
+
             // Update appointment status to "Ready for Nurse"
             $readyForNurseId = $this->getStatusId('Ready for Nurse');
+            if (!$readyForNurseId) {
+                // If "Ready for Nurse" status doesn't exist, use "Confirmed" and let the nurse workflow handle it
+                $readyForNurseId = $this->getStatusId('Confirmed');
+            }
+
             $stmt = $this->conn->prepare("
                 UPDATE tbl_appointments
                 SET status_id = :status_id, nurse_id = :nurse_id
@@ -121,23 +146,33 @@ class EnhancedQueueManagement
             $stmt->bindParam(":appointment_id", $data['appointment_id']);
             $stmt->execute();
 
-            // Insert into nurse queue
-            $stmt = $this->conn->prepare("
-                INSERT INTO tbl_nurse_queue (appointment_id, nurse_id, status)
-                VALUES (:appointment_id, :nurse_id, 'Waiting')
-                ON DUPLICATE KEY UPDATE
-                nurse_id = :nurse_id,
-                status = 'Waiting',
-                assigned_at = CURRENT_TIMESTAMP
-            ");
-            $stmt->bindParam(":appointment_id", $data['appointment_id']);
-            $stmt->bindParam(":nurse_id", $data['nurse_id']);
+            // Check if tbl_nurse_queue table exists before trying to insert
+            $stmt = $this->conn->prepare("SHOW TABLES LIKE 'tbl_nurse_queue'");
             $stmt->execute();
+            $tableExists = $stmt->fetch();
+
+            if ($tableExists) {
+                // Insert into nurse queue
+                $stmt = $this->conn->prepare("
+                    INSERT INTO tbl_nurse_queue (appointment_id, nurse_id, status)
+                    VALUES (:appointment_id, :nurse_id, 'Waiting')
+                    ON DUPLICATE KEY UPDATE
+                    nurse_id = :nurse_id,
+                    status = 'Waiting',
+                    assigned_at = CURRENT_TIMESTAMP
+                ");
+                $stmt->bindParam(":appointment_id", $data['appointment_id']);
+                $stmt->bindParam(":nurse_id", $data['nurse_id']);
+                $stmt->execute();
+            }
 
             $this->conn->commit();
             echo json_encode([
                 "success" => true,
-                "message" => "Patient assigned to nurse successfully."
+                "message" => "Patient assigned to nurse successfully.",
+                "appointment_id" => $data['appointment_id'],
+                "nurse_id" => $data['nurse_id'],
+                "status" => "Ready for Nurse"
             ]);
         } catch (Exception $e) {
             $this->conn->rollback();
@@ -464,6 +499,7 @@ class EnhancedQueueManagement
     // Helper to get status ID by status name
     private function getStatusId($statusName)
     {
+        // First try to find the status with type 1 (Appointment)
         $stmt = $this->conn->prepare("
             SELECT s.status_id
             FROM tbl_status s
@@ -473,14 +509,32 @@ class EnhancedQueueManagement
         ");
         $stmt->bindParam(":name", $statusName);
         $stmt->execute();
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? intval($row['status_id']) : null;
+        $statusId = $stmt->fetchColumn();
+
+        if (!$statusId) {
+            // If not found with type filter, try to find the status without the type filter
+            $stmt = $this->conn->prepare("
+                SELECT status_id FROM tbl_status WHERE status_name = :name LIMIT 1
+            ");
+            $stmt->bindParam(":name", $statusName);
+            $stmt->execute();
+            $statusId = $stmt->fetchColumn();
+        }
+
+        return $statusId;
     }
 }
 
 // Router
 $operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
 $json = $_POST['json'] ?? $_GET['json'] ?? '';
+
+// Debug logging
+error_log("=== Enhanced Queue Management V2 API Debug ===");
+error_log("Operation received: " . $operation);
+error_log("JSON received: " . $json);
+error_log("POST data: " . print_r($_POST, true));
+error_log("GET data: " . print_r($_GET, true));
 
 $svc = new EnhancedQueueManagement();
 
@@ -490,7 +544,9 @@ switch ($operation) {
         $svc->get_current_queue_status($date);
         break;
     case 'assign_to_nurse':
+        error_log("Processing assign_to_nurse operation");
         $data = json_decode($json ?: '{}', true);
+        error_log("Decoded data: " . print_r($data, true));
         $svc->assign_to_nurse($data);
         break;
     case 'start_nurse_consultation':
@@ -520,7 +576,8 @@ switch ($operation) {
         $svc->get_doctor_queue_status($doctorId, $date);
         break;
     default:
-        echo json_encode(["success" => false, "message" => "Invalid operation."]);
+        error_log("Invalid operation received: " . $operation);
+        echo json_encode(["success" => false, "message" => "Invalid operation: " . $operation]);
         break;
 }
 ?>

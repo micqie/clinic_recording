@@ -203,19 +203,45 @@ class Appointments
         $confirmedId = $this->getAppointmentStatusId('Confirmed');
         if (!$confirmedId) { echo json_encode(["success" => false, "message" => "Confirmed status not configured."]); return; }
 
+        $this->conn->beginTransaction();
         try {
+            // Update appointment with doctor and queue number, set status to Confirmed
             $stmt = $this->conn->prepare("UPDATE tbl_appointments SET doctor_id = :doc, queue_number = :q, status_id = :sid WHERE appointment_id = :aid");
             $stmt->bindParam(":doc", $data['doctor_id']);
             $stmt->bindParam(":q", $nextQueue);
             $stmt->bindParam(":sid", $confirmedId);
             $stmt->bindParam(":aid", $data['appointment_id']);
-            if ($stmt->execute()) {
-                echo json_encode(["success" => true, "message" => "Appointment approved.", "queue_number" => $nextQueue]);
-            } else {
-                $err = $stmt->errorInfo();
-                echo json_encode(["success" => false, "message" => ($err[2] ?? 'Approval failed.')]);
+            
+            if (!$stmt->execute()) {
+                throw new Exception("Failed to update appointment");
             }
+
+            // Check if tbl_current_queue table exists and initialize it for this date if needed
+            $stmt = $this->conn->prepare("SHOW TABLES LIKE 'tbl_current_queue'");
+            $stmt->execute();
+            $tableExists = $stmt->fetch();
+
+            if ($tableExists) {
+                // Ensure there's a queue record for this date (initialize if not exists)
+                $stmt = $this->conn->prepare("
+                    INSERT IGNORE INTO tbl_current_queue (date, current_appointment_id, last_updated_by, last_updated_at)
+                    VALUES (:date, NULL, :secretary_id, CURRENT_TIMESTAMP)
+                ");
+                $secretaryId = $data['secretary_id'] ?? 1; // Default secretary ID if not provided
+                $stmt->bindParam(":date", $date);
+                $stmt->bindParam(":secretary_id", $secretaryId);
+                $stmt->execute();
+            }
+
+            $this->conn->commit();
+            echo json_encode([
+                "success" => true, 
+                "message" => "Appointment approved and added to queue management.", 
+                "queue_number" => $nextQueue,
+                "status" => "Confirmed"
+            ]);
         } catch (Exception $e) {
+            $this->conn->rollback();
             echo json_encode(["success" => false, "message" => $e->getMessage()]);
         }
     }

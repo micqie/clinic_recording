@@ -348,25 +348,64 @@ document.addEventListener("DOMContentLoaded", () => {
     const allResp = await axios.get(`${apptApi}?operation=get_all&limit=500`);
     const allRows = allResp.data.data || [];
     const selected = filterDate.value;
+    
+    // Filter and sort all appointments
+    const filteredRows = allRows.filter(r => !selected || r.appointment_date === selected);
+    
+    // Sort by status priority, then by date, then by queue number, then by patient name
+    filteredRows.sort((a, b) => {
+      // Define status priority order
+      const statusPriority = {
+        'Pending': 1,
+        'Confirmed': 2,
+        'In Consultation': 3,
+        'Completed': 4,
+        'Cancelled': 5,
+        'No Show': 6,
+        'Refunded': 7
+      };
+      
+      const aPriority = statusPriority[a.appointment_status] || 99;
+      const bPriority = statusPriority[b.appointment_status] || 99;
+      
+      // First sort by status priority
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      
+      // Then sort by appointment date (most recent first)
+      const dateCompare = new Date(b.appointment_date) - new Date(a.appointment_date);
+      if (dateCompare !== 0) return dateCompare;
+      
+      // Then sort by queue number (if available)
+      if (a.queue_number && b.queue_number) {
+        const queueCompare = parseInt(a.queue_number) - parseInt(b.queue_number);
+        if (queueCompare !== 0) return queueCompare;
+      }
+      
+      // If one has queue number and other doesn't, prioritize the one with queue number
+      if (a.queue_number && !b.queue_number) return -1;
+      if (!a.queue_number && b.queue_number) return 1;
+      
+      // Finally sort by patient name
+      return (a.patient_name || '').localeCompare(b.patient_name || '');
+    });
+    
     tbody.innerHTML = '';
-    allRows
-      .filter(r => !selected || r.appointment_date === selected)
-      .forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${r.appointment_date}</td>
-          <td>${r.patient_name}</td>
-          <td>${r.doctor_name || '-'}</td>
-          <td><span class="status-badge ${statusClass(r.appointment_status)}">${r.appointment_status}</span></td>
-          <td>${r.queue_number ? `<span class=\"queue-chip\">${r.queue_number}</span>` : '-'}</td>
-          <td class="text-nowrap">
-            ${r.appointment_status === 'Pending' ? `<button class="btn btn-sm btn-success me-1" data-approve="${r.appointment_id}">Approve</button>` : ''}
-            <button class="btn btn-sm btn-outline-secondary me-1" data-status="Completed" data-id="${r.appointment_id}">Mark Completed</button>
-            <button class="btn btn-sm btn-outline-danger" data-status="Cancelled" data-id="${r.appointment_id}">Cancel</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+    filteredRows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.appointment_date}</td>
+        <td>${r.patient_name}</td>
+        <td>${r.doctor_name || '-'}</td>
+        <td><span class="status-badge ${statusClass(r.appointment_status)}">${r.appointment_status}</span></td>
+        <td>${r.queue_number ? `<span class=\"queue-chip\">${r.queue_number}</span>` : '-'}</td>
+        <td class="text-nowrap">
+          ${r.appointment_status === 'Pending' ? `<button class="btn btn-sm btn-success me-1" data-approve="${r.appointment_id}">Approve</button>` : ''}
+          <button class="btn btn-sm btn-outline-secondary me-1" data-status="Completed" data-id="${r.appointment_id}">Mark Completed</button>
+          <button class="btn btn-sm btn-outline-danger" data-status="Cancelled" data-id="${r.appointment_id}">Cancel</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
   // Modal to view patients per doctor/date
@@ -521,9 +560,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!approveForm.checkValidity()) { approveForm.classList.add('was-validated'); return; }
     approveForm.classList.remove('was-validated');
     const fd = new FormData(approveForm);
+    
+    // Get current user (secretary) ID
+    const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+    const secretaryId = user.id;
+    
     const json = JSON.stringify({
       appointment_id: fd.get('appointment_id'),
-      doctor_id: fd.get('doctor_id')
+      doctor_id: fd.get('doctor_id'),
+      secretary_id: secretaryId
     });
     const payload = new FormData();
     payload.append('operation', 'approve');
@@ -533,7 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (resp.data?.success) {
         approveModal?.hide();
         await loadAll();
-        Swal.fire('Approved', 'Appointment approved', 'success');
+        Swal.fire('Approved', 'Appointment approved and added to queue management', 'success');
       } else {
         const msg = resp.data?.message || 'Approval failed';
         Swal.fire('Error', msg, 'error');
@@ -553,6 +598,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const resp = await axios.get(`${apptApi}?operation=get_all&limit=200`);
     const rows = resp.data.data || [];
     const pending = rows.filter(r => (r.appointment_status || '').toLowerCase() === 'pending');
+    
+    // Sort pending appointments by date (most recent first), then by patient name
+    pending.sort((a, b) => {
+      // First sort by appointment date (most recent first)
+      const dateCompare = new Date(b.appointment_date) - new Date(a.appointment_date);
+      if (dateCompare !== 0) return dateCompare;
+      
+      // If dates are the same, sort by patient name
+      return (a.patient_name || '').localeCompare(b.patient_name || '');
+    });
+    
     pendingBody.innerHTML = '';
     if (!pending.length) {
       pendingBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No pending appointments</td></tr>';
@@ -592,6 +648,27 @@ document.addEventListener("DOMContentLoaded", () => {
       return (!date || r.appointment_date === date) && (r.appointment_status || '').toLowerCase() === 'confirmed';
     });
     const filtered = doctorFilter ? rows.filter(r => (r.doctor_name || '').toLowerCase().includes(doctorFilter)) : rows;
+    
+    // Sort confirmed appointments by queue number (if available), then by date (most recent first), then by patient name
+    filtered.sort((a, b) => {
+      // First sort by queue number (if both have queue numbers)
+      if (a.queue_number && b.queue_number) {
+        const queueCompare = parseInt(a.queue_number) - parseInt(b.queue_number);
+        if (queueCompare !== 0) return queueCompare;
+      }
+      
+      // If one has queue number and other doesn't, prioritize the one with queue number
+      if (a.queue_number && !b.queue_number) return -1;
+      if (!a.queue_number && b.queue_number) return 1;
+      
+      // Then sort by appointment date (most recent first)
+      const dateCompare = new Date(b.appointment_date) - new Date(a.appointment_date);
+      if (dateCompare !== 0) return dateCompare;
+      
+      // Finally sort by patient name
+      return (a.patient_name || '').localeCompare(b.patient_name || '');
+    });
+    
     confirmedBody.innerHTML = '';
     if (!filtered.length) {
       confirmedBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No confirmed appointments</td></tr>';
