@@ -126,12 +126,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Assign to nurse via Enhanced Queue v2 (backend will auto-pick if nurse_id not provided)
+            console.log('Sending to nurse queue:', {
+                operation: 'assign_to_nurse',
+                appointment_id: appointmentId,
+                api_url: enhancedQueueV2Api
+            });
+            
             const resp = await axios.post(enhancedQueueV2Api, {
                 operation: 'assign_to_nurse',
                 json: JSON.stringify({
                     appointment_id: appointmentId
                 })
             });
+            
+            console.log('API Response:', resp.data);
 
             if (resp.data.success) {
                 Swal.fire({
@@ -151,10 +159,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Failed to send to nurse queue:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+            
+            let errorMessage = 'Failed to send patient to nurse queue';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: error.message || 'Failed to send patient to nurse queue'
+                text: errorMessage
             });
         }
     }
