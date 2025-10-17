@@ -19,11 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const createWalkInBtn = document.getElementById('createWalkInBtn');
     const saveVitalsBtn = document.getElementById('saveVitalsBtn');
 
-    // Load initial data
-    initializeNurse();
-    loadTodayAppointments();
-    loadPatients();
-    loadAppointmentReasons();
+    // Load initial data (wait for nurseId before enabling actions)
+    initializeNurse().finally(() => {
+        loadTodayAppointments();
+        loadPatients();
+        loadAppointmentReasons();
+    });
 
     // Event listeners
     refreshBtn?.addEventListener('click', loadTodayAppointments);
@@ -81,6 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     <i class="fas fa-heartbeat me-1"></i>Record Vitals
                 </button>`;
 
+            const forwardButton = `
+                <button class="btn btn-sm btn-success ms-2" onclick="forwardToDoctor(${appointment.appointment_id})" title="Forward to assigned doctor">
+                    <i class="fas fa-share-square me-1"></i>Forward to Doctor
+                </button>`;
+
             return `
                 <tr>
                     <td><strong>#${appointment.queue_number}</strong></td>
@@ -94,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${appointment.reason_name || 'Walk-in'}</td>
                     <td>${appointment.doctor_name ? 'Dr. ' + appointment.doctor_name : '<span class="text-muted">Unassigned</span>'}</td>
                     <td>${vitalsStatus}</td>
-                    <td>${vitalsButton}</td>
+                    <td>${vitalsButton} ${forwardButton}</td>
                 </tr>
             `;
         }).join('');
@@ -221,26 +227,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
 
             if (response.data?.success) {
-                // After saving, move patient to doctor's queue (Ready for Doctor)
+                // Optionally keep automatic forward, but allow manual via button too
                 try {
-                    const params = new URLSearchParams();
-                    params.append('operation', 'complete_nurse_consultation');
-                    params.append('json', JSON.stringify({
-                        appointment_id: data.appointment_id,
-                        nurse_id: nurseId
-                    }));
-
-                    const completeResp = await axios.post(enhancedQueueV2Api, params, {
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                    });
-
-                    if (!completeResp.data?.success) {
-                        throw new Error(completeResp.data?.message || 'Failed to forward to doctor');
-                    }
+                    await forwardToDoctor(data.appointment_id, /*silent*/ true);
                 } catch (forwardErr) {
                     console.error('Forwarding to doctor failed:', forwardErr);
-                    // Continue, but inform user
-                    Swal.fire('Warning', 'Saved, but forwarding to doctor failed. You may retry later.', 'warning');
+                    Swal.fire('Warning', 'Saved, but forwarding to doctor failed. You may retry via the button.', 'warning');
                 }
 
                 Swal.fire({
@@ -261,4 +253,40 @@ document.addEventListener('DOMContentLoaded', () => {
             Swal.fire('Error', 'Failed to record vital signs', 'error');
         }
     }
+
+    // Expose a manual forward button for nurses
+    window.forwardToDoctor = async function(appointmentId, silent = false) {
+        try {
+            // Ensure nurseId is available
+            if (!nurseId) {
+                await initializeNurse();
+            }
+            if (!nurseId) {
+                throw new Error('Nurse context not loaded. Please refresh and try again.');
+            }
+
+            const params = new URLSearchParams();
+            params.append('operation', 'complete_nurse_consultation');
+            params.append('json', JSON.stringify({ appointment_id: appointmentId, nurse_id: nurseId }));
+
+            const resp = await axios.post(enhancedQueueV2Api, params, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            if (!resp.data?.success) {
+                throw new Error(resp.data?.message || 'Failed to forward to doctor');
+            }
+
+            if (!silent) {
+                Swal.fire('Success', 'Patient forwarded to doctor.', 'success');
+            }
+            // Refresh
+            loadTodayAppointments();
+        } catch (e) {
+            if (!silent) {
+                Swal.fire('Error', e.message || 'Failed to forward to doctor', 'error');
+            }
+            throw e;
+        }
+    };
 });

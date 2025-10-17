@@ -253,7 +253,7 @@ class EnhancedQueueManagement
             LEFT JOIN tbl_specializations sp ON d.specialization_id = sp.specialization_id
             JOIN tbl_status s ON a.status_id = s.status_id
             WHERE a.appointment_date = :date
-            AND s.status_name IN ('Confirmed', 'In Consultation', 'Completed')
+            AND s.status_name IN ('Confirmed', 'Ready for Doctor', 'With Doctor', 'In Consultation', 'Completed')
             ORDER BY a.queue_number ASC
         ");
         $stmt->bindParam(":date", $date);
@@ -267,13 +267,14 @@ class EnhancedQueueManagement
         $confirmedCount = 0;
 
         foreach ($appointments as $apt) {
-            if ($apt['appointment_status'] === 'In Consultation') {
+            if ($apt['appointment_status'] === 'In Consultation' || $apt['appointment_status'] === 'With Doctor') {
                 $currentConsultation = $apt;
             } elseif ($apt['appointment_status'] === 'Completed') {
                 $completedCount++;
-            } elseif ($apt['appointment_status'] === 'Confirmed') {
+            } elseif ($apt['appointment_status'] === 'Ready for Doctor' || $apt['appointment_status'] === 'Confirmed') {
                 $confirmedCount++;
-                if (!$nextInQueue) {
+                // Prefer Ready for Doctor over Confirmed when choosing next
+                if (!$nextInQueue || ($apt['appointment_status'] === 'Ready for Doctor' && $nextInQueue['appointment_status'] !== 'Ready for Doctor')) {
                     $nextInQueue = $apt;
                 }
             }
@@ -339,7 +340,7 @@ class EnhancedQueueManagement
             JOIN tbl_status s ON a.status_id = s.status_id
             WHERE a.appointment_date = :date
             AND a.doctor_id = :doctor_id
-            AND s.status_name IN ('Confirmed', 'In Consultation', 'Completed')
+            AND s.status_name IN ('Confirmed', 'Ready for Doctor', 'With Doctor', 'In Consultation', 'Completed')
             ORDER BY a.queue_number ASC
         ");
         $stmt->bindParam(":date", $date);
@@ -354,13 +355,13 @@ class EnhancedQueueManagement
         $confirmedCount = 0;
 
         foreach ($appointments as $apt) {
-            if ($apt['appointment_status'] === 'In Consultation') {
+            if ($apt['appointment_status'] === 'In Consultation' || $apt['appointment_status'] === 'With Doctor') {
                 $currentConsultation = $apt;
             } elseif ($apt['appointment_status'] === 'Completed') {
                 $completedCount++;
-            } elseif ($apt['appointment_status'] === 'Confirmed') {
+            } elseif ($apt['appointment_status'] === 'Ready for Doctor' || $apt['appointment_status'] === 'Confirmed') {
                 $confirmedCount++;
-                if (!$nextInQueue) {
+                if (!$nextInQueue || ($apt['appointment_status'] === 'Ready for Doctor' && $nextInQueue['appointment_status'] !== 'Ready for Doctor')) {
                     $nextInQueue = $apt;
                 }
             }

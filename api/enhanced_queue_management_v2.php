@@ -230,8 +230,8 @@ class EnhancedQueueManagement
     // Complete nurse consultation and move to doctor queue
     public function complete_nurse_consultation($data)
     {
-        if (empty($data['appointment_id']) || empty($data['nurse_id'])) {
-            echo json_encode(["success" => false, "message" => "appointment_id and nurse_id are required."]);
+        if (empty($data['appointment_id'])) {
+            echo json_encode(["success" => false, "message" => "appointment_id is required."]);
             return;
         }
 
@@ -249,6 +249,17 @@ class EnhancedQueueManagement
 
             if (!$appointment) {
                 throw new Exception("Appointment not found");
+            }
+
+            // Backfill nurse_id when omitted by client
+            if (empty($data['nurse_id'])) {
+                $q = $this->conn->prepare("SELECT nurse_id FROM tbl_appointments WHERE appointment_id = :appointment_id");
+                $q->bindParam(":appointment_id", $data['appointment_id']);
+                $q->execute();
+                $existingNurseId = $q->fetchColumn();
+                if ($existingNurseId) {
+                    $data['nurse_id'] = $existingNurseId;
+                }
             }
 
             // Update appointment status to "Ready for Doctor"
