@@ -131,14 +131,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 appointment_id: appointmentId,
                 api_url: enhancedQueueV2Api
             });
-            
-            const resp = await axios.post(enhancedQueueV2Api, {
-                operation: 'assign_to_nurse',
-                json: JSON.stringify({
-                    appointment_id: appointmentId
-                })
+
+            // Use application/x-www-form-urlencoded so PHP reliably receives fields
+            const params = new URLSearchParams();
+            params.append('operation', 'assign_to_nurse');
+            params.append('json', JSON.stringify({ appointment_id: appointmentId }));
+
+            const resp = await axios.post(enhancedQueueV2Api, params, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
-            
+
             console.log('API Response:', resp.data);
 
             if (resp.data.success) {

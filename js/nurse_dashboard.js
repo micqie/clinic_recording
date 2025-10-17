@@ -223,12 +223,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.data?.success) {
                 // After saving, move patient to doctor's queue (Ready for Doctor)
                 try {
-                    const completeResp = await axios.post(enhancedQueueV2Api, {
-                        operation: 'complete_nurse_consultation',
-                        json: JSON.stringify({
-                            appointment_id: data.appointment_id,
-                            nurse_id: nurseId
-                        })
+                    const params = new URLSearchParams();
+                    params.append('operation', 'complete_nurse_consultation');
+                    params.append('json', JSON.stringify({
+                        appointment_id: data.appointment_id,
+                        nurse_id: nurseId
+                    }));
+
+                    const completeResp = await axios.post(enhancedQueueV2Api, params, {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                     });
 
                     if (!completeResp.data?.success) {

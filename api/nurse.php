@@ -182,10 +182,12 @@ class NurseApi {
     // Get today's appointments for nurse triage
     public function get_today_appointments() {
         $date = date('Y-m-d');
-        $confirmedId = $this->getAppointmentStatusId('Confirmed');
+        // Only show patients that have been explicitly sent to nurse
+        $readyForNurseId = $this->getAppointmentStatusId('Ready for Nurse');
+        $withNurseId = $this->getAppointmentStatusId('With Nurse');
 
-        if (!$confirmedId) {
-            echo json_encode(["success"=>false,"message"=>"Confirmed status not configured"]);
+        if (!$readyForNurseId && !$withNurseId) {
+            echo json_encode(["success"=>false,"message"=>"Statuses for nurse workflow not configured"]);
             return;
         }
 
@@ -224,11 +226,12 @@ class NurseApi {
                 LEFT JOIN tbl_consultations c ON a.appointment_id = c.appointment_id
                 LEFT JOIN tbl_consultation_vitals cv ON c.consultation_id = cv.consultation_id
                 WHERE a.appointment_date = :date
-                AND a.status_id = :status_id
+                AND a.status_id IN (:ready_for_nurse, :with_nurse)
                 ORDER BY a.queue_number ASC
             ");
             $stmt->bindParam(":date", $date);
-            $stmt->bindParam(":status_id", $confirmedId);
+            $stmt->bindParam(":ready_for_nurse", $readyForNurseId);
+            $stmt->bindParam(":with_nurse", $withNurseId);
             $stmt->execute();
             $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

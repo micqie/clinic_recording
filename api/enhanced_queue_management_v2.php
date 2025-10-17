@@ -526,8 +526,33 @@ class EnhancedQueueManagement
 }
 
 // Router
+// Be tolerant of various client encodings (form-url-encoded, raw JSON, or raw querystring)
 $operation = $_POST['operation'] ?? $_GET['operation'] ?? '';
 $json = $_POST['json'] ?? $_GET['json'] ?? '';
+
+if ($operation === '' ) {
+    // Try parsing raw body
+    $raw = file_get_contents('php://input');
+    if ($raw) {
+        // If JSON, decode
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+        if (stripos($contentType, 'application/json') !== false || (strlen($raw) > 0 && $raw[0] === '{')) {
+            $body = json_decode($raw, true);
+            if (is_array($body)) {
+                $operation = $body['operation'] ?? $operation;
+                $json = $body['json'] ?? $json;
+            }
+        } else {
+            // Treat as query string (e.g., application/x-www-form-urlencoded without superglobals populated)
+            $parsed = [];
+            parse_str($raw, $parsed);
+            if (is_array($parsed)) {
+                $operation = $parsed['operation'] ?? $operation;
+                $json = $parsed['json'] ?? $json;
+            }
+        }
+    }
+}
 
 // Debug logging
 error_log("=== Enhanced Queue Management V2 API Debug ===");
