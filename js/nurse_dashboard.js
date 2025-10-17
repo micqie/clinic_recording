@@ -257,17 +257,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Expose a manual forward button for nurses
     window.forwardToDoctor = async function(appointmentId, silent = false) {
         try {
-            // Ensure nurseId is available
-            if (!nurseId) {
-                await initializeNurse();
-            }
-            if (!nurseId) {
-                throw new Error('Nurse context not loaded. Please refresh and try again.');
-            }
-
             const params = new URLSearchParams();
             params.append('operation', 'complete_nurse_consultation');
-            params.append('json', JSON.stringify({ appointment_id: appointmentId, nurse_id: nurseId }));
+            // nurse_id is optional server-side; include only if available
+            const payload = { appointment_id: appointmentId };
+            if (nurseId) payload.nurse_id = nurseId;
+            params.append('json', JSON.stringify(payload));
 
             const resp = await axios.post(enhancedQueueV2Api, params, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
