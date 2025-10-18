@@ -458,14 +458,12 @@ class EnhancedQueueManagement
             $date = date('Y-m-d');
         }
 
-        $whereClause = "WHERE a.appointment_date = :date";
-        $params = [":date" => $date];
-
-        if ($doctorId) {
-            $whereClause .= " AND d.doctor_id = :doctor_id";
-            $params[":doctor_id"] = $doctorId;
+        if (!$doctorId) {
+            echo json_encode(["success" => false, "message" => "doctor_id is required."]);
+            return;
         }
 
+        // Get all appointments for the doctor on the date
         $stmt = $this->conn->prepare("
             SELECT
                 a.appointment_id,
@@ -489,20 +487,38 @@ class EnhancedQueueManagement
             LEFT JOIN tbl_specializations sp ON d.specialization_id = sp.specialization_id
             JOIN tbl_status s ON a.status_id = s.status_id
             LEFT JOIN tbl_doctor_queue dq ON a.appointment_id = dq.appointment_id
-            {$whereClause}
+            WHERE a.appointment_date = :date
+            AND d.doctor_id = :doctor_id
             AND s.status_name IN ('Ready for Doctor', 'With Doctor', 'Completed')
             ORDER BY a.queue_number ASC
         ");
 
-        foreach ($params as $key => $value) {
-            $stmt->bindParam($key, $value);
-        }
+        $stmt->bindParam(":date", $date);
+        $stmt->bindParam(":doctor_id", $doctorId);
         $stmt->execute();
         $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Find current consultation (With Doctor status)
+        $currentConsultation = null;
+        $nextInQueue = null;
+        $completedCount = 0;
+
+        foreach ($appointments as $apt) {
+            if ($apt['appointment_status'] === 'With Doctor') {
+                $currentConsultation = $apt;
+            } elseif ($apt['appointment_status'] === 'Ready for Doctor' && !$nextInQueue) {
+                $nextInQueue = $apt;
+            } elseif ($apt['appointment_status'] === 'Completed') {
+                $completedCount++;
+            }
+        }
+
         echo json_encode([
             "success" => true,
-            "data" => $appointments,
+            "current_consultation" => $currentConsultation,
+            "next_in_queue" => $nextInQueue,
+            "completed_count" => $completedCount,
+            "all_appointments" => $appointments,
             "date" => $date
         ]);
     }

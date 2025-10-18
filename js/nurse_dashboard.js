@@ -207,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData(vitalsForm);
         const data = {
             appointment_id: formData.get('appointment_id'),
+            nurse_id: nurseId,
             height_cm: formData.get('height_cm'),
             weight_kg: formData.get('weight_kg'),
             blood_pressure_mmHg: formData.get('blood_pressure_mmHg'),
@@ -217,27 +218,32 @@ document.addEventListener('DOMContentLoaded', () => {
             current_medications: formData.get('current_medications'),
             family_history: formData.get('family_history'),
             social_history: formData.get('social_history'),
-            recorded_by_user_id: user.id
+            nurse_assessment: formData.get('chief_complaint') || 'Nurse assessment completed',
+            patient_ready_for_doctor: true
         };
 
         try {
-            const response = await axios.post(`${baseApiUrl}/nurse.php`, new URLSearchParams({
-                operation: 'upsert_vitals',
+            console.log('Saving nurse assessment data:', data);
+            // Save nurse assessment using the enhanced nurse API
+            const response = await axios.post(`${baseApiUrl}/nurse_enhanced_v2.php`, new URLSearchParams({
+                operation: 'save_nurse_assessment',
                 json: JSON.stringify(data)
             }));
 
+            console.log('Nurse assessment save response:', response.data);
+
             if (response.data?.success) {
-                // Optionally keep automatic forward, but allow manual via button too
+                // Forward to doctor queue using the enhanced queue management
                 try {
                     await forwardToDoctor(data.appointment_id, /*silent*/ true);
                 } catch (forwardErr) {
                     console.error('Forwarding to doctor failed:', forwardErr);
-                    Swal.fire('Warning', 'Saved, but forwarding to doctor failed. You may retry via the button.', 'warning');
+                    Swal.fire('Warning', 'Assessment saved, but forwarding to doctor failed. You may retry via the button.', 'warning');
                 }
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'Saved',
+                    title: 'Assessment Complete',
                     text: 'Vitals and history saved. Patient moved to doctor queue.',
                     timer: 2000,
                     showConfirmButton: false

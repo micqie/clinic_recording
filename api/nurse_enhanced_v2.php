@@ -22,15 +22,18 @@ class NurseEnhanced
 
         $this->conn->beginTransaction();
         try {
-            // Get patient ID from appointment
-            $stmt = $this->conn->prepare("SELECT patient_id FROM tbl_appointments WHERE appointment_id = :appointment_id LIMIT 1");
+            // Get patient ID and doctor ID from appointment
+            $stmt = $this->conn->prepare("SELECT patient_id, doctor_id FROM tbl_appointments WHERE appointment_id = :appointment_id LIMIT 1");
             $stmt->bindParam(":appointment_id", $data['appointment_id']);
             $stmt->execute();
-            $patientId = $stmt->fetchColumn();
+            $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$patientId) {
+            if (!$appointment) {
                 throw new Exception("Appointment not found");
             }
+
+            $patientId = $appointment['patient_id'];
+            $doctorId = $appointment['doctor_id'];
 
             // Check if consultation exists
             $stmt = $this->conn->prepare("
@@ -63,13 +66,14 @@ class NurseEnhanced
                     INSERT INTO tbl_consultations (
                         appointment_id, doctor_id, patient_id, nurse_id,
                         consultation_status, nurse_completed_at,
-                        patient_ready_for_doctor, nurse_notes
+                        patient_ready_for_doctor, nurse_notes, diagnosis
                     ) VALUES (
-                        :appointment_id, NULL, :patient_id, :nurse_id,
-                        'Triage', NOW(), :ready, :nurse_notes
+                        :appointment_id, :doctor_id, :patient_id, :nurse_id,
+                        'Triage', NOW(), :ready, :nurse_notes, 'Pending'
                     )
                 ");
                 $stmt->bindParam(":appointment_id", $data['appointment_id']);
+                $stmt->bindParam(":doctor_id", $doctorId);
                 $stmt->bindParam(":patient_id", $patientId);
                 $stmt->bindParam(":nurse_id", $data['nurse_id']);
                 $stmt->bindParam(":ready", $data['patient_ready_for_doctor'], PDO::PARAM_BOOL);
@@ -87,10 +91,12 @@ class NurseEnhanced
             $this->conn->commit();
             echo json_encode([
                 "success" => true,
-                "message" => "Nurse assessment saved successfully."
+                "message" => "Nurse assessment saved successfully.",
+                "consultation_id" => $consultationId
             ]);
         } catch (Exception $e) {
             $this->conn->rollback();
+            error_log("Nurse assessment save error: " . $e->getMessage());
             echo json_encode([
                 "success" => false,
                 "message" => "Failed to save nurse assessment: " . $e->getMessage()

@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appointmentsApi = `${baseApiUrl}/appointments.php`;
     const userApi = `${baseApiUrl}/user.php`;
     const queueApi = `${baseApiUrl}/queue_management.php`;
-    const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management.php`;
+    const enhancedQueueApi = `${baseApiUrl}/enhanced_queue_management_v2.php`;
     const medicinesApi = `${baseApiUrl}/medicines.php`;
     const labTestTypesApi = `${baseApiUrl}/lab_test_types.php`;
     const conditionsApi = `${baseApiUrl}/conditions.php`;
@@ -47,6 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '../../index.html';
         return;
     }
+
+    // Track auto-started consultations to prevent duplicates
+    const autoStartedConsultations = new Set();
 
     let doctorId = null;
     let prescriptionCounter = 0;
@@ -104,10 +107,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load nurse assessment data
     async function loadNurseAssessmentData(appointmentId) {
         try {
+            console.log('Loading nurse assessment for appointment:', appointmentId);
             const response = await axios.get(`${baseApiUrl}/nurse_enhanced_v2.php?operation=get_nurse_assessment&appointment_id=${appointmentId}`);
+            
+            console.log('Nurse assessment API response:', response.data);
             
             if (response.data?.success && response.data?.data) {
                 const assessment = response.data.data;
+                console.log('Nurse assessment data:', assessment);
                 
                 // Fill nurse assessment data
                 const chiefComplaintEl = document.getElementById('nurse_chief_complaint');
@@ -126,9 +133,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     'vital_spo2': assessment.spo2_percent
                 };
                 
+                console.log('Filling vital signs:', vitalElements);
                 Object.entries(vitalElements).forEach(([id, value]) => {
                     const el = document.getElementById(id);
-                    if (el) el.value = value || '';
+                    if (el) {
+                        el.value = value || '';
+                        console.log(`Set ${id} to:`, value);
+                    } else {
+                        console.log(`Element ${id} not found`);
+                    }
                 });
                 
                 // Fill medical history
@@ -139,11 +152,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     'history_social': assessment.social_history
                 };
                 
+                console.log('Filling medical history:', historyElements);
                 Object.entries(historyElements).forEach(([id, value]) => {
                     const el = document.getElementById(id);
-                    if (el) el.value = value || '';
+                    if (el) {
+                        el.value = value || '';
+                        console.log(`Set ${id} to:`, value);
+                    } else {
+                        console.log(`Element ${id} not found`);
+                    }
                 });
             } else {
+                console.log('No nurse assessment data found');
                 // Clear fields if no nurse assessment
                 const clearElements = [
                     'nurse_chief_complaint', 'nurse_assessment_notes',
@@ -266,6 +286,38 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             </div>
                         `;
+                        
+                        // Auto-start consultation if patient is ready for doctor
+                        if (data.next_in_queue.appointment_status === 'Ready for Doctor' && 
+                            !autoStartedConsultations.has(data.next_in_queue.appointment_id)) {
+                            console.log('Patient ready for doctor, auto-starting consultation...');
+                            
+                            // Mark as auto-started to prevent duplicates
+                            autoStartedConsultations.add(data.next_in_queue.appointment_id);
+                            
+                            // Show notification
+                            Swal.fire({
+                                title: 'New Patient Ready!',
+                                text: `${data.next_in_queue.patient_name} is ready for consultation`,
+                                icon: 'info',
+                                timer: 3000,
+                                showConfirmButton: false,
+                                toast: true,
+                                position: 'top-end'
+                            });
+                            
+                            // Auto-start consultation after a short delay
+                            setTimeout(async () => {
+                                try {
+                                    await startConsultation(data.next_in_queue.appointment_id);
+                                } catch (e) {
+                                    console.error('Failed to auto-start consultation:', e);
+                                    // Remove from tracking if failed
+                                    autoStartedConsultations.delete(data.next_in_queue.appointment_id);
+                                }
+                            }, 2000);
+                        }
+                        
                         // No active current patient yet for you; keep form disabled
                         displayCurrentPatient(null);
                     } else {
@@ -887,6 +939,9 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <p class="mb-0"><strong>${data.current_consultation.patient_name}</strong> - Queue #${data.current_consultation.queue_number}</p>
                                 </div>
                                 <div class="ms-auto">
+                                    <button class="btn btn-info btn-sm me-2" onclick="openConsultationModal(${data.current_consultation.appointment_id})">
+                                        <i class="fas fa-stethoscope me-2"></i>Continue
+                                    </button>
                                     <button class="btn btn-success btn-sm" onclick="completeConsultation(${data.current_consultation.appointment_id})">
                                         <i class="fas fa-check me-2"></i>Complete
                                     </button>
@@ -911,6 +966,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
                         </div>
                     `;
+                    
+                    // Auto-start consultation if patient is ready for doctor
+                    if (data.next_in_queue.appointment_status === 'Ready for Doctor') {
+                        // Auto-start consultation after a short delay
+                        setTimeout(async () => {
+                            await startConsultation(data.next_in_queue.appointment_id);
+                        }, 1000);
+                    }
                 } else {
                     currentPatientInfo.innerHTML = `
                         <div class="alert alert-info mb-0">
@@ -941,13 +1004,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const docId = await getDoctorId();
             const res = await axios.post(enhancedQueueApi, {
-                operation: 'set_current_consultation',
-                json: JSON.stringify({ appointment_id: appointmentId, secretary_id: docId })
+                operation: 'start_doctor_consultation',
+                json: JSON.stringify({ appointment_id: appointmentId, doctor_id: docId })
             });
 
             if (res.data.success) {
                 Swal.fire('Success', 'Consultation started!', 'success');
                 loadQueueStatus();
+                // Load consultation form with patient data
+                await loadConsultationForm(appointmentId);
             } else {
                 Swal.fire('Error', res.data.message || 'Failed to start consultation', 'error');
             }
@@ -962,12 +1027,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const docId = await getDoctorId();
             const res = await axios.post(enhancedQueueApi, {
-                operation: 'complete_and_next',
-                json: JSON.stringify({ secretary_id: docId })
+                operation: 'complete_doctor_consultation',
+                json: JSON.stringify({ appointment_id: appointmentId, doctor_id: docId })
             });
 
             if (res.data.success) {
                 Swal.fire('Success', 'Consultation completed!', 'success');
+                // Remove from auto-started tracking
+                autoStartedConsultations.delete(appointmentId);
                 loadQueueStatus();
             } else {
                 Swal.fire('Error', res.data.message || 'Failed to complete consultation', 'error');
@@ -975,6 +1042,109 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             console.error('Failed to complete consultation:', e);
             Swal.fire('Error', 'Something went wrong', 'error');
+        }
+    };
+
+    // Load consultation form with patient data
+    async function loadConsultationForm(appointmentId) {
+        try {
+            // Get appointment details
+            const res = await axios.get(`${appointmentsApi}?operation=get_appointment_details&appointment_id=${appointmentId}`);
+            if (res.data.success) {
+                const appointment = res.data.data;
+                
+                // Populate form fields
+                appointmentIdInput.value = appointmentId;
+                patientIdInput.value = appointment.patient_id;
+                
+                // Update current patient display
+                currentPatientDisplay.innerHTML = `
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">${appointment.patient_name}</h5>
+                            <p class="card-text">
+                                <strong>Queue #:</strong> ${appointment.queue_number}<br>
+                                <strong>Contact:</strong> ${appointment.patient_email || 'N/A'}<br>
+                                <strong>Appointment Date:</strong> ${appointment.appointment_date}<br>
+                                <strong>Reason:</strong> ${appointment.reason_name || 'N/A'}<br>
+                                <strong>Status:</strong> ${appointment.appointment_status}
+                            </p>
+                        </div>
+                    </div>
+                `;
+                
+                // Load nurse assessment data if available
+                await loadNurseAssessment(appointmentId);
+                
+                // Show the consultation form
+                const consultationForm = document.getElementById('consultationForm');
+                consultationForm.style.display = 'block';
+                
+                // Scroll to the consultation form
+                consultationForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        } catch (e) {
+            console.error('Failed to load consultation form:', e);
+            Swal.fire('Error', 'Failed to load patient data', 'error');
+        }
+    }
+
+    // Load nurse assessment data
+    async function loadNurseAssessment(appointmentId) {
+        try {
+            const nurseApi = `${baseApiUrl}/nurse_enhanced_v2.php`;
+            const res = await axios.get(`${nurseApi}?operation=get_nurse_assessment&appointment_id=${appointmentId}`);
+            if (res.data.success && res.data.data) {
+                const assessment = res.data.data;
+                
+                // Populate nurse assessment fields with correct IDs
+                if (assessment.height_cm) document.getElementById('vital_height').value = assessment.height_cm;
+                if (assessment.weight_kg) document.getElementById('vital_weight').value = assessment.weight_kg;
+                if (assessment.blood_pressure_mmHg) document.getElementById('vital_bp').value = assessment.blood_pressure_mmHg;
+                if (assessment.heart_rate_bpm) document.getElementById('vital_hr').value = assessment.heart_rate_bpm;
+                if (assessment.spo2_percent) document.getElementById('vital_spo2').value = assessment.spo2_percent;
+                if (assessment.temperature_celsius) document.getElementById('vital_temperature').value = assessment.temperature_celsius;
+                
+                if (assessment.chief_complaint) document.getElementById('nurse_chief_complaint').value = assessment.chief_complaint;
+                if (assessment.past_medical_history) document.getElementById('history_past_medical').value = assessment.past_medical_history;
+                if (assessment.family_history) document.getElementById('history_family').value = assessment.family_history;
+                if (assessment.social_history) document.getElementById('history_social').value = assessment.social_history;
+                if (assessment.current_medications) document.getElementById('history_current_meds').value = assessment.current_medications;
+                
+                // Show nurse assessment notes
+                if (assessment.nurse_notes) {
+                    document.getElementById('nurse_assessment_notes').value = assessment.nurse_notes;
+                }
+                
+                // Show nurse assessment summary
+                if (assessment.nurse_notes || assessment.chief_complaint) {
+                    const summaryDiv = document.createElement('div');
+                    summaryDiv.innerHTML = `
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-user-nurse me-2"></i>Nurse Assessment Summary</h6>
+                            <p><strong>Chief Complaint:</strong> ${assessment.chief_complaint || 'Not recorded'}</p>
+                            <p><strong>Nurse Notes:</strong> ${assessment.nurse_notes || 'No notes'}</p>
+                            <p><strong>Ready for Doctor:</strong> ${assessment.patient_ready_for_doctor ? 'Yes' : 'No'}</p>
+                        </div>
+                    `;
+                    // Insert before the consultation form
+                    const consultationForm = document.getElementById('consultationForm');
+                    consultationForm.parentNode.insertBefore(summaryDiv, consultationForm);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load nurse assessment:', e);
+        }
+    }
+
+    // Open consultation modal for existing consultation
+    window.openConsultationModal = async function(appointmentId) {
+        try {
+            // Load the consultation form with patient data
+            await loadConsultationForm(appointmentId);
+        } catch (e) {
+            console.error('Failed to open consultation modal:', e);
+            Swal.fire('Error', 'Failed to load consultation data', 'error');
         }
     };
 
@@ -1467,6 +1637,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 setFormEnabled(true);
             }
         }, 500);
+        
+        // Auto-refresh queue status every 5 seconds to detect new patients
+        setInterval(async () => {
+            await loadCurrentQueueStatus();
+        }, 5000);
     }
 
     // Initialize after a short delay to ensure all scripts are loaded
