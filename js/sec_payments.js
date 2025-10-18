@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const tbody = document.getElementById("paymentsTableBody");
   const paymentModal = new bootstrap.Modal(document.getElementById('paymentModal'));
+  const alreadyPaidModal = new bootstrap.Modal(document.getElementById('alreadyPaidModal'));
   const receiptModal = new bootstrap.Modal(document.getElementById('receiptModal'));
   const paymentForm = document.getElementById('paymentForm');
   const paymentMethodSelect = document.getElementById('payment_method');
@@ -66,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <td>${r.payment_method || '-'}</td>
         <td><span class="status-badge ${statusClass(r.status_name || 'Unpaid')}">${r.status_name || 'Unpaid'}</span></td>
         <td class="text-nowrap">
-          <button class="btn btn-sm btn-outline-primary me-1" data-edit="${r.appointment_id}" data-patient-id="${r.patient_id}" data-due="${parseFloat(r.amount || 0).toFixed(2)}">Payment</button>
+          <button class="btn btn-sm btn-outline-primary me-1" data-edit="${r.appointment_id}" data-patient-id="${r.patient_id}" data-due="${parseFloat(r.amount || 0).toFixed(2)}" data-status="${(r.status_name || 'Unpaid')}">Payment</button>
           <button class="btn btn-sm btn-outline-success" data-receipt="${r.appointment_id}" data-patient="${r.patient_name}" data-doctor="${r.doctor_name || ''}" data-date="${r.payment_date || ''}" data-status="${(r.status_name || 'Unpaid')}">Receipt</button>
         </td>
       `;
@@ -80,22 +81,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const patientName = e.target.getAttribute('data-patient');
     const patientId = e.target.getAttribute('data-patient-id');
     const due = e.target.getAttribute('data-due');
+    const status = e.target.getAttribute('data-status');
 
     if (aid) {
+      // Check if payment is already paid
+      if (status && status.toLowerCase() === 'paid') {
+        alreadyPaidModal.show();
+        return;
+      }
+
       document.getElementById('payment_appointment_id').value = aid;
       const dueEl = document.getElementById('payment_due');
       const recvEl = document.getElementById('payment_amount_received');
       const changeEl = document.getElementById('payment_change');
-      const statusHidden = document.getElementById('payment_status');
-      const statusBadge = document.getElementById('payment_status_badge');
 
       if (dueEl) dueEl.value = due || '0.00';
       const patientHidden = document.getElementById('payment_patient_id');
       if (patientHidden) patientHidden.value = patientId || '';
       if (recvEl) recvEl.value = '';
       if (changeEl) changeEl.value = '0.00';
-      if (statusHidden) statusHidden.value = 'Unpaid';
-      if (statusBadge) { statusBadge.textContent = 'Unpaid'; statusBadge.className = 'badge bg-warning'; }
       document.getElementById('payment_method').value = '';
       paymentModal.show();
     }
