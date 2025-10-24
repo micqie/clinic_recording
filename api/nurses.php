@@ -17,13 +17,13 @@ class Nurses {
             return;
         }
         try {
-            // Verify user exists and role is nurse
+            // Verify user exists (allow any role for nurse profile creation)
             $u = $this->conn->prepare("SELECT u.user_id, r.role_name FROM tbl_users u JOIN tbl_roles r ON u.role_id = r.role_id WHERE u.user_id = :id LIMIT 1");
             $u->bindParam(":id", $data['user_id']);
             $u->execute();
             $row = $u->fetch(PDO::FETCH_ASSOC);
-            if (!$row || strtolower($row['role_name']) !== 'nurse') {
-                echo json_encode(["success" => false, "message" => "User is not a nurse"]);
+            if (!$row) {
+                echo json_encode(["success" => false, "message" => "User not found"]);
                 return;
             }
             // Check if nurse profile exists

@@ -101,9 +101,9 @@ class EnhancedQueueManagement
         try {
             // First, verify the appointment exists and is in Confirmed status
             $stmt = $this->conn->prepare("
-                SELECT a.appointment_id, a.status_id, s.status_name 
-                FROM tbl_appointments a 
-                JOIN tbl_status s ON a.status_id = s.status_id 
+                SELECT a.appointment_id, a.status_id, s.status_name
+                FROM tbl_appointments a
+                JOIN tbl_status s ON a.status_id = s.status_id
                 WHERE a.appointment_id = :appointment_id
             ");
             $stmt->bindParam(":appointment_id", $data['appointment_id']);
@@ -407,10 +407,9 @@ class EnhancedQueueManagement
         $whereClause = "WHERE a.appointment_date = :date";
         $params = [":date" => $date];
 
-        if ($nurseId) {
-            $whereClause .= " AND n.nurse_id = :nurse_id";
-            $params[":nurse_id"] = $nurseId;
-        }
+        // For now, show all patients ready for nurse assessment regardless of specific nurse assignment
+        // This allows any nurse to see and handle patients in the nurse queue
+        // TODO: Implement proper nurse assignment logic if needed
 
         $stmt = $this->conn->prepare("
             SELECT
@@ -420,6 +419,11 @@ class EnhancedQueueManagement
                 s.status_name AS appointment_status,
                 p.patient_id,
                 u.name AS patient_name,
+                u.email AS patient_email,
+                p.contact_num AS patient_contact,
+                ar.reason_name AS appointment_reason,
+                d.doctor_id,
+                du.name AS doctor_name,
                 n.nurse_id,
                 nu.name AS nurse_name,
                 nq.status AS queue_status,
@@ -429,6 +433,9 @@ class EnhancedQueueManagement
             FROM tbl_appointments a
             JOIN tbl_patients p ON a.patient_id = p.patient_id
             JOIN tbl_users u ON p.user_id = u.user_id
+            LEFT JOIN tbl_appointment_reasons ar ON a.appointment_reason_id = ar.reason_id
+            LEFT JOIN tbl_doctors d ON a.doctor_id = d.doctor_id
+            LEFT JOIN tbl_users du ON d.user_id = du.user_id
             LEFT JOIN tbl_nurses n ON a.nurse_id = n.nurse_id
             LEFT JOIN tbl_users nu ON n.user_id = nu.user_id
             JOIN tbl_status s ON a.status_id = s.status_id
@@ -444,10 +451,17 @@ class EnhancedQueueManagement
         $stmt->execute();
         $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Debug logging
+        error_log("Nurse queue query executed. Found " . count($appointments) . " appointments for nurse_id: " . $nurseId . " on date: " . $date);
+
         echo json_encode([
             "success" => true,
             "data" => $appointments,
-            "date" => $date
+            "date" => $date,
+            "debug" => [
+                "nurse_id" => $nurseId,
+                "count" => count($appointments)
+            ]
         ]);
     }
 
@@ -548,7 +562,33 @@ class EnhancedQueueManagement
             $statusId = $stmt->fetchColumn();
         }
 
+        // If status still doesn't exist, create it
+        if (!$statusId) {
+            $this->createStatus($statusName);
+            // Try to get the status ID again
+            $stmt = $this->conn->prepare("
+                SELECT status_id FROM tbl_status WHERE status_name = :name LIMIT 1
+            ");
+            $stmt->bindParam(":name", $statusName);
+            $stmt->execute();
+            $statusId = $stmt->fetchColumn();
+        }
+
         return $statusId;
+    }
+
+    // Create status if it doesn't exist
+    private function createStatus($statusName)
+    {
+        $statusTypeId = 1; // Appointment status type
+
+        $stmt = $this->conn->prepare("
+            INSERT INTO tbl_status (status_type_id, status_name)
+            VALUES (:status_type_id, :status_name)
+        ");
+        $stmt->bindParam(":status_type_id", $statusTypeId);
+        $stmt->bindParam(":status_name", $statusName);
+        $stmt->execute();
     }
 }
 

@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
-    
+
     if (!user.id) {
         window.location.href = '../../index.html';
         return;
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Get nurse ID from user context
     let nurseId = null;
-    
+
     // DOM elements
     const refreshBtn = document.getElementById('refreshBtn');
     const nurseQueueTableBody = document.getElementById('nurseQueueTableBody');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const createWalkInBtn = document.getElementById('createWalkInBtn');
     const nurseAssessmentForm = document.getElementById('nurseAssessmentForm');
     const saveAssessmentBtn = document.getElementById('saveAssessmentBtn');
-    
+
     // Count elements
     const waitingCount = document.getElementById('waitingCount');
     const withNurseCount = document.getElementById('withNurseCount');
@@ -25,45 +25,81 @@ document.addEventListener('DOMContentLoaded', () => {
     const completedCount = document.getElementById('completedCount');
 
     // Initialize
-    initializeNurse();
-    loadNurseQueue();
-    loadPatients();
-    loadAppointmentReasons();
+    initializeNurse().then(() => {
+        loadNurseQueue();
+        loadPatients();
+        loadAppointmentReasons();
+    });
 
     // Event listeners
-    refreshBtn?.addEventListener('click', loadNurseQueue);
+    refreshBtn?.addEventListener('click', () => {
+        console.log('Manual refresh clicked');
+        loadNurseQueue();
+    });
     createWalkInBtn?.addEventListener('click', createWalkIn);
     saveAssessmentBtn?.addEventListener('click', saveNurseAssessment);
 
     // Initialize nurse context
     async function initializeNurse() {
         try {
-            const response = await axios.post(`${baseApiUrl}/user.php`, {
-                operation: 'get_user_context',
-                json: JSON.stringify({ user_id: user.id })
+            console.log('Initializing nurse with user ID:', user.id);
+            const userParams = new URLSearchParams();
+            userParams.append('operation', 'get_user_context');
+            userParams.append('json', JSON.stringify({ user_id: user.id }));
+
+            const response = await axios.post(`${baseApiUrl}/user.php`, userParams, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
+
+            console.log('User context response:', response.data);
 
             if (response.data?.success && response.data?.context?.nurse_id) {
                 nurseId = response.data.context.nurse_id;
+                console.log('Nurse ID found:', nurseId);
                 document.getElementById('assessment_nurse_id').value = nurseId;
+
+                // Reload the queue now that nurse ID is available
+                loadNurseQueue();
             } else {
-                // Try auto-create basic nurse profile if user has nurse role but no profile row
-                if ((response.data?.context?.role_name || '').toLowerCase() === 'nurse') {
-                    try {
-                        const createResp = await axios.post(`${baseApiUrl}/nurses.php`, new URLSearchParams({
-                            operation: 'create_if_missing',
-                            json: JSON.stringify({ user_id: user.id })
-                        }));
-                        if (createResp.data?.success && createResp.data?.nurse_id) {
-                            nurseId = createResp.data.nurse_id;
-                            document.getElementById('assessment_nurse_id').value = nurseId;
-                        } else {
-                            Swal.fire({ icon: 'error', title: 'Nurse Profile Not Found', text: 'Please contact administrator to set up your nurse profile.' });
-                        }
-                    } catch (e) {
-                        Swal.fire({ icon: 'error', title: 'Nurse Profile Not Found', text: 'Please contact administrator to set up your nurse profile.' });
+                console.log('No nurse ID found. User role:', response.data?.context?.role_name);
+                // Try to create nurse profile for any user
+                try {
+                    const createParams = new URLSearchParams();
+                    createParams.append('operation', 'create_if_missing');
+                    createParams.append('json', JSON.stringify({ user_id: user.id }));
+
+                    const createResp = await axios.post(`${baseApiUrl}/nurses.php`, createParams, {
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                    });
+
+                    console.log('Create nurse profile response:', createResp.data);
+
+                    if (createResp.data?.success && createResp.data?.nurse_id) {
+                        nurseId = createResp.data.nurse_id;
+                        console.log('Nurse profile created with ID:', nurseId);
+                        document.getElementById('assessment_nurse_id').value = nurseId;
+
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Nurse Profile Created',
+                            text: 'Your nurse profile has been created successfully!',
+                            timer: 3000,
+                            showConfirmButton: false
+                        });
+
+                        // Reload the queue now that nurse ID is available
+                        loadNurseQueue();
+                    } else {
+                        console.error('Failed to create nurse profile:', createResp.data);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Nurse Profile Not Found',
+                            text: createResp.data?.message || 'Please contact administrator to set up your nurse profile.'
+                        });
                     }
-                } else {
+                } catch (e) {
+                    console.error('Error creating nurse profile:', e);
                     Swal.fire({
                         icon: 'error',
                         title: 'Nurse Profile Not Found',
@@ -78,6 +114,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load nurse queue
     async function loadNurseQueue() {
+        console.log('Loading nurse queue with nurse ID:', nurseId);
+
+        if (!nurseId) {
+            console.log('Nurse ID not available yet, skipping queue load');
+            nurseQueueTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Loading nurse profile...</td></tr>';
+            return;
+        }
+
         try {
             const response = await axios.get(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
                 params: {
@@ -87,36 +131,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            console.log('Nurse queue API response:', response.data);
+
             if (response.data?.success) {
                 displayNurseQueue(response.data.data);
                 updateQueueCounts(response.data.data);
             } else {
                 console.error('Failed to load nurse queue:', response.data?.message);
-                nurseQueueTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No patients in queue</td></tr>';
+                nurseQueueTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No patients in queue</td></tr>';
             }
         } catch (error) {
             console.error('Error loading nurse queue:', error);
-            nurseQueueTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading queue</td></tr>';
+            nurseQueueTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error loading queue</td></tr>';
         }
     }
 
     // Display nurse queue
     function displayNurseQueue(appointments) {
         if (!appointments || appointments.length === 0) {
-            nurseQueueTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No patients in queue</td></tr>';
+            nurseQueueTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No patients in queue</td></tr>';
             return;
         }
 
         nurseQueueTableBody.innerHTML = appointments.map(appointment => {
             const statusBadge = getStatusBadge(appointment.appointment_status);
             const actions = getActionButtons(appointment);
-            
+            const assignedDoctor = appointment.doctor_name ? `Dr. ${appointment.doctor_name}` : '<span class="text-muted">Unassigned</span>';
+
             return `
                 <tr>
                     <td>${appointment.queue_number || 'N/A'}</td>
                     <td>${appointment.patient_name}</td>
                     <td>${appointment.patient_contact || 'N/A'}</td>
                     <td>${appointment.appointment_reason || 'N/A'}</td>
+                    <td>${assignedDoctor}</td>
                     <td>${statusBadge}</td>
                     <td>${actions}</td>
                 </tr>
@@ -138,21 +186,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get action buttons
     function getActionButtons(appointment) {
         const actions = [];
-        
+
         if (appointment.appointment_status === 'Ready for Nurse') {
             actions.push(`
-                <button class="btn btn-sm btn-info me-1" onclick="startNurseConsultation(${appointment.appointment_id})">
-                    <i class="fas fa-play"></i> Start
+                <button class="btn btn-sm btn-success me-1" onclick="startNurseConsultation(${appointment.appointment_id})" title="Start patient assessment">
+                    <i class="fas fa-user-nurse"></i> Start Assessment
                 </button>
             `);
         } else if (appointment.appointment_status === 'With Nurse') {
             actions.push(`
-                <button class="btn btn-sm btn-primary me-1" onclick="openNurseAssessment(${appointment.appointment_id}, '${appointment.patient_name}', '${appointment.patient_contact || ''}')">
-                    <i class="fas fa-stethoscope"></i> Assess
+                <button class="btn btn-sm btn-primary me-1" onclick="openNurseAssessment(${appointment.appointment_id}, '${appointment.patient_name}', '${appointment.patient_contact || ''}')" title="Record vitals and medical history">
+                    <i class="fas fa-heartbeat"></i> Record Vitals & History
                 </button>
             `);
+        } else if (appointment.appointment_status === 'Ready for Doctor') {
+            actions.push(`
+                <span class="badge bg-success">Ready for Doctor</span>
+            `);
         }
-        
+
         return actions.join('');
     }
 
@@ -190,20 +242,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start nurse consultation
     window.startNurseConsultation = async function(appointmentId) {
-        try {
-            const response = await axios.post(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
-                operation: 'start_nurse_consultation',
-                json: JSON.stringify({
-                    appointment_id: appointmentId,
-                    nurse_id: nurseId
-                })
+        console.log('Starting nurse consultation for appointment:', appointmentId, 'with nurse ID:', nurseId);
+
+        // Check if nurse ID is available
+        if (!nurseId) {
+            console.error('Nurse ID not available');
+            Swal.fire({
+                icon: 'error',
+                title: 'Nurse Profile Not Found',
+                text: 'Please refresh the page or contact administrator to set up your nurse profile.'
             });
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            params.append('operation', 'start_nurse_consultation');
+            params.append('json', JSON.stringify({
+                appointment_id: appointmentId,
+                nurse_id: nurseId
+            }));
+
+            const response = await axios.post(`${baseApiUrl}/enhanced_queue_management_v2.php`, params, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
+
+            console.log('Start consultation response:', response.data);
 
             if (response.data?.success) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Consultation Started',
-                    text: 'Nurse consultation has been started successfully.',
+                    title: 'Assessment Started',
+                    text: 'Patient assessment has been started. Please record vitals and medical history.',
                     timer: 2000,
                     showConfirmButton: false
                 });
@@ -219,19 +289,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Open nurse assessment modal
     window.openNurseAssessment = function(appointmentId, patientName, patientContact) {
-        document.getElementById('assessment_appointment_id').value = appointmentId;
-        document.getElementById('patient_name').value = patientName;
-        document.getElementById('patient_contact').value = patientContact;
-        
-        // Clear form
+        console.log('Opening nurse assessment for appointment:', appointmentId, 'with nurse ID:', nurseId);
+
+        // Clear form first
         nurseAssessmentForm.reset();
+
+        // Set the required values after reset
         document.getElementById('assessment_appointment_id').value = appointmentId;
         document.getElementById('assessment_nurse_id').value = nurseId;
         document.getElementById('patient_name').value = patientName;
         document.getElementById('patient_contact').value = patientContact;
-        
+
         const modal = new bootstrap.Modal(document.getElementById('nurseAssessmentModal'));
         modal.show();
+
+        // Ensure form is properly initialized
+        setTimeout(() => {
+            console.log('Form values after modal show:', {
+                appointment_id: document.getElementById('assessment_appointment_id').value,
+                nurse_id: document.getElementById('assessment_nurse_id').value,
+                patient_name: document.getElementById('patient_name').value
+            });
+        }, 100);
     };
 
     // Save nurse assessment
@@ -241,10 +320,31 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Check if nurse ID is available
+        if (!nurseId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Nurse Profile Not Found',
+                text: 'Please refresh the page or contact administrator to set up your nurse profile.'
+            });
+            return;
+        }
+
+        // Check if appointment ID is available
+        const appointmentId = document.getElementById('assessment_appointment_id').value;
+        if (!appointmentId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Missing Information',
+                text: 'Appointment ID is missing. Please close and reopen the assessment form.'
+            });
+            return;
+        }
+
         const formData = new FormData(nurseAssessmentForm);
         const data = {
-            appointment_id: formData.get('appointment_id'),
-            nurse_id: formData.get('nurse_id'),
+            appointment_id: appointmentId, // Use the validated appointment ID
+            nurse_id: nurseId, // Use the global nurseId instead of form data
             chief_complaint: formData.get('chief_complaint'),
             height_cm: formData.get('height_cm') || null,
             weight_kg: formData.get('weight_kg') || null,
@@ -257,35 +357,45 @@ document.addEventListener('DOMContentLoaded', () => {
             family_history: formData.get('family_history') || null,
             social_history: formData.get('social_history') || null,
             nurse_assessment: formData.get('nurse_assessment'),
-            patient_ready_for_doctor: formData.get('patient_ready_for_doctor')
+            patient_ready_for_doctor: formData.get('patient_ready_for_doctor') === '1' ? true : false
         };
+
+        console.log('Saving nurse assessment with data:', data);
 
         try {
             // Save nurse assessment
-            const assessmentResponse = await axios.post(`${baseApiUrl}/nurse_enhanced.php`, {
-                operation: 'save_nurse_assessment',
-                json: JSON.stringify(data)
+            const params = new URLSearchParams();
+            params.append('operation', 'save_nurse_assessment');
+            params.append('json', JSON.stringify(data));
+
+            const assessmentResponse = await axios.post(`${baseApiUrl}/nurse_enhanced_v2.php`, params, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
+
+            console.log('Nurse assessment API response:', assessmentResponse.data);
 
             if (assessmentResponse.data?.success) {
                 // Complete nurse consultation
-                const completeResponse = await axios.post(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
-                    operation: 'complete_nurse_consultation',
-                    json: JSON.stringify({
-                        appointment_id: data.appointment_id,
-                        nurse_id: data.nurse_id
-                    })
+                const completeParams = new URLSearchParams();
+                completeParams.append('operation', 'complete_nurse_consultation');
+                completeParams.append('json', JSON.stringify({
+                    appointment_id: data.appointment_id,
+                    nurse_id: data.nurse_id
+                }));
+
+                const completeResponse = await axios.post(`${baseApiUrl}/enhanced_queue_management_v2.php`, completeParams, {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
                 });
 
                 if (completeResponse.data?.success) {
                     Swal.fire({
                         icon: 'success',
-                        title: 'Assessment Complete',
-                        text: 'Patient has been moved to doctor queue.',
-                        timer: 2000,
+                        title: 'Assessment Complete!',
+                        text: 'Patient vitals and history recorded. Patient has been forwarded to their assigned doctor.',
+                        timer: 3000,
                         showConfirmButton: false
                     });
-                    
+
                     bootstrap.Modal.getInstance(document.getElementById('nurseAssessmentModal'))?.hide();
                     loadNurseQueue();
                 } else {
@@ -310,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.data?.success) {
                 const patientSelect = walkInForm.querySelector('select[name="patient_id"]');
                 patientSelect.innerHTML = '<option value="">Select patient...</option>' +
-                    response.data.data.map(patient => 
+                    response.data.data.map(patient =>
                         `<option value="${patient.patient_id}">${patient.name}</option>`
                     ).join('');
             }
@@ -329,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.data?.success) {
                 const reasonSelect = walkInForm.querySelector('select[name="appointment_reason_id"]');
                 reasonSelect.innerHTML = '<option value="">Select reason...</option>' +
-                    response.data.data.map(reason => 
+                    response.data.data.map(reason =>
                         `<option value="${reason.reason_id}">${reason.reason_name}</option>`
                     ).join('');
             }
@@ -355,9 +465,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            const response = await axios.post(`${baseApiUrl}/appointments.php`, {
-                operation: 'create_appointment',
-                json: JSON.stringify(data)
+            const params = new URLSearchParams();
+            params.append('operation', 'create_appointment');
+            params.append('json', JSON.stringify(data));
+
+            const response = await axios.post(`${baseApiUrl}/appointments.php`, params, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
             if (response.data?.success) {
@@ -368,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     timer: 2000,
                     showConfirmButton: false
                 });
-                
+
                 bootstrap.Modal.getInstance(document.getElementById('walkInModal'))?.hide();
                 walkInForm.reset();
                 walkInForm.classList.remove('was-validated');
@@ -384,4 +497,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-refresh every 30 seconds
     setInterval(loadNurseQueue, 30000);
+
+    // Debug function to check all appointments
+    window.debugCheckAllAppointments = async function() {
+        try {
+            const response = await axios.get(`${baseApiUrl}/enhanced_queue_management_v2.php`, {
+                params: {
+                    operation: 'get_current_queue_status',
+                    date: new Date().toISOString().split('T')[0]
+                }
+            });
+            console.log('All appointments (debug):', response.data);
+        } catch (error) {
+            console.error('Debug check failed:', error);
+        }
+    };
 });
