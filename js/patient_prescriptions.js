@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     let patientId = null;
+    let patientProfile = null;
     let currentReceipt = null;
 
     // Get patient_id from user profile
@@ -20,12 +21,62 @@ document.addEventListener('DOMContentLoaded', () => {
         if (patientId) return patientId;
         try {
             const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
-            patientId = prof.data?.context?.patient_id || null;
+            patientProfile = prof.data?.context || null;
+            patientId = patientProfile?.patient_id || null;
             return patientId;
         } catch (e) {
             console.error('Failed to get patient profile:', e);
             return null;
         }
+    }
+
+    async function getPatientProfile() {
+        if (patientProfile) return patientProfile;
+        const merged = {};
+        try {
+            // Try 1: user profile
+            const prof = await axios.get(`${userApi}?operation=profile&user_id=${user.id}`);
+            const ctx = prof.data || {};
+            try { console.log('[RX] user profile response:', JSON.stringify(ctx, null, 2)); } catch (_) { console.log('[RX] user profile response (raw object)', ctx); }
+            const p1 = ctx?.context?.patient || ctx?.patient || null;
+            if (p1) {
+                merged.patient_id = ctx?.context?.patient_id || p1.id || p1.patient_id || merged.patient_id;
+                merged.birthdate = p1.birthdate || p1.date_of_birth || p1.dob || p1.birth_date || merged.birthdate;
+                merged.age = p1.age || merged.age;
+                const parts = [p1.address, p1.address_line, p1.address1, p1.address2, p1.street, p1.barangay, p1.municipality, p1.city, p1.province, p1.zipcode, p1.postal_code].filter(Boolean);
+                if (parts.length) merged.address = parts.join(', ');
+            }
+        } catch (_) {}
+
+        try {
+            // Try 2: patients by user_id
+            const r2 = await axios.get(`${baseApiUrl}/patients.php?operation=get_patient&user_id=${user.id}`);
+            try { console.log('[RX] patients by user_id response:', JSON.stringify(r2.data, null, 2)); } catch (_) { console.log('[RX] patients by user_id response (raw object)', r2.data); }
+            const p2 = r2.data?.patient || r2.data?.context?.patient || (Array.isArray(r2.data?.data) ? r2.data.data[0] : null) || null;
+            if (p2) {
+                merged.patient_id = merged.patient_id || p2.id || p2.patient_id;
+                merged.birthdate = merged.birthdate || p2.birthdate || p2.date_of_birth || p2.dob || p2.birth_date;
+                merged.age = merged.age || p2.age;
+                const parts2 = [p2.address, p2.address_line, p2.address1, p2.address2, p2.street, p2.barangay, p2.municipality, p2.city, p2.province, p2.zipcode, p2.postal_code].filter(Boolean);
+                if (!merged.address && parts2.length) merged.address = parts2.join(', ');
+            }
+        } catch (_) {}
+
+        // Save/cache
+        patientProfile = merged.patient_id ? merged : (Object.keys(merged).length ? merged : null);
+        patientId = patientProfile?.patient_id || patientId || null;
+        return patientProfile;
+    }
+
+    function calculateAgeFromBirthdate(birthdateStr) {
+        if (!birthdateStr) return '';
+        const dob = new Date(birthdateStr);
+        if (isNaN(dob)) return '';
+        const today = new Date();
+        let age = today.getFullYear() - dob.getFullYear();
+        const m = today.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+        return age.toString();
     }
 
     // Load prescriptions for the patient
@@ -93,6 +144,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await axios.get(`${integratedConsultationApi}?operation=get_details&consultation_id=${consultationId}`);
             if (res.data.success) {
                 const data = res.data;
+                let profile = await getPatientProfile();
+                // If still missing, try fetching by patient_id from this consultation
+                try {
+                    if ((!profile?.address || !profile?.birthdate) && (data?.consultation?.patient_id || data?.consultation?.patient?.id)) {
+                        const pid = data.consultation.patient_id || data.consultation.patient?.id;
+                        if (pid) {
+                            const pResp = await axios.get(`${baseApiUrl}/patients.php?operation=get_patient&patient_id=${pid}`);
+                            try { console.log('[RX] patients by patient_id response:', JSON.stringify(pResp.data, null, 2)); } catch (_) { console.log('[RX] patients by patient_id response (raw object)', pResp.data); }
+                            const p = pResp.data?.patient || pResp.data?.context?.patient || (Array.isArray(pResp.data?.data) ? pResp.data.data[0] : null) || null;
+                            if (p) {
+                                const addressParts3 = [p.address, p.address_line, p.address1, p.address2, p.street, p.barangay, p.municipality, p.city, p.province, p.zipcode, p.postal_code].filter(Boolean);
+                                profile = {
+                                    ...(profile || {}),
+                                    address: addressParts3.join(', ') || profile?.address,
+                                    birthdate: p.birthdate || p.date_of_birth || p.dob || p.birth_date || profile?.birthdate,
+                                    age: p.age || profile?.age
+                                };
+                            }
+                        }
+                    }
+                } catch (e3) {}
+                try { console.log('[RX] merged patient profile used:', JSON.stringify(profile, null, 2)); } catch (_) { console.log('[RX] merged patient profile used (raw object):', profile); }
+                const addressStr = profile?.address || profile?.patient?.address || 'N/A';
+                const birth = profile?.birthdate || profile?.patient?.birthdate || profile?.patient?.date_of_birth || profile?.patient?.dob || null;
+                const ageStr = profile?.age ? String(profile.age) : (calculateAgeFromBirthdate(birth) || 'N/A');
+                console.log('[RX] derived address and age:', addressStr, ageStr);
 
                 // Calculate total cost
                 const prescriptionCost = calculatePrescriptionSubtotal(data.prescriptions || []);
@@ -101,12 +178,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let prescriptionsHtml = '';
                 if (data.prescriptions && data.prescriptions.length > 0) {
-                    console.log('Generating NEW card-based prescription layout for', data.prescriptions.length, 'prescriptions');
+                    console.log('Generating text-only RX layout for', data.prescriptions.length, 'prescriptions');
                     prescriptionsHtml = `
                         <div class="mb-4">
-                            <h6 class="text-primary mb-3">
-                                <i class="fas fa-pills me-2"></i>Prescribed Medications
-                            </h6>
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="me-2 display-6" style="line-height:1">℞</div>
+                                <h6 class="text-primary mb-0"><i class="fas fa-pills me-2"></i>Prescribed Medications</h6>
+                            </div>
                     `;
                     data.prescriptions.forEach((p, index) => {
                         const unitPrice = parseFloat(p.price || 0);
@@ -115,61 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         const strength = p.strength || p.dosage || '';
                         const form = p.form || '';
                         const packagingUnit = p.packaging_unit || p.packaging_name || 'unit';
+                        const sig = p.sig || p.frequency || p.instructions || '';
 
                         prescriptionsHtml += `
-                            <div class="card mb-3 border-0 shadow-sm">
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-12 mb-3">
-                                            <h6 class="fw-bold text-dark mb-2">Medicine</h6>
-                                            <div class="form-control-plaintext bg-light p-2 rounded">
-                                                <strong>${p.generic_name}${strength ? ' - ' + strength : ''}${form ? ' ' + form : ''}</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row g-3">
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Generic Name:</label>
-                                            <div class="form-control-plaintext">${p.generic_name}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Strength:</label>
-                                            <div class="form-control-plaintext">${strength || '-'}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Form:</label>
-                                            <div class="form-control-plaintext">${form || '-'}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Unit Price:</label>
-                                            <div class="form-control-plaintext text-primary fw-bold">₱${unitPrice.toFixed(2)}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Quantity:</label>
-                                            <div class="form-control-plaintext">${quantity} ${packagingUnit}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Total Cost:</label>
-                                            <div class="form-control-plaintext text-success fw-bold">₱${cost.toFixed(2)}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Packaging Unit:</label>
-                                            <div class="form-control-plaintext">${packagingUnit}</div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label class="form-label fw-bold">Frequency:</label>
-                                            <div class="form-control-plaintext">${p.frequency || '-'}</div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Duration:</label>
-                                            <div class="form-control-plaintext">${p.duration || '-'}</div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label class="form-label fw-bold">Instructions:</label>
-                                            <div class="form-control-plaintext">${p.instructions || '-'}</div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="mb-3">
+                                <div class="fw-bold">${index + 1}. ${p.brand_name || p.generic_name}${strength ? ' ' + strength : ''}${form ? ' ' + form : ''}</div>
+                                <div class="text-muted small">Generic: ${p.generic_name}${form ? ' • Form: ' + form : ''}${strength ? ' • Strength: ' + strength : ''}</div>
+                                ${sig ? `<div><strong>Sig:</strong> ${sig}${p.duration ? `, for ${p.duration}` : ''}</div>` : ''}
+                                <div><strong>Qty:</strong> ${quantity} ${packagingUnit} <span class="text-muted">|</span> <strong>Unit:</strong> ₱${unitPrice.toFixed(2)} <span class="text-muted">|</span> <strong>Total:</strong> ₱${cost.toFixed(2)}</div>
+                                ${p.instructions && p.instructions !== sig ? `<div class="text-muted"><em>Instructions:</em> ${p.instructions}</div>` : ''}
                             </div>
                         `;
                     });
@@ -229,67 +261,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update modal content
                 const modalBody = document.getElementById('receiptModalBody');
                 if (modalBody) {
-                    console.log('Updating modal content with NEW layout');
+                    console.log('Updating modal content with RX paper layout');
+                    // Build handwritten-style medicine lines
+                    const rxLines = (data.prescriptions || []).map(p => {
+                        const strength = p.strength || p.dosage || '';
+                        const form = p.form || '';
+                        const sig = p.sig || p.frequency || p.instructions || '';
+                        const dur = p.duration ? ` for ${p.duration}` : '';
+                        const name = p.brand_name || p.generic_name || '';
+                        return `${name}${strength ? ' ' + strength : ''}${form ? ' ' + form : ''} - ${sig}${dur}`;
+                    }).join('\n');
+
                     modalBody.innerHTML = `
-                        <div class="prescription-details-container">
-                            <!-- Header -->
-                            <div class="text-center mb-4">
-                                <h4 class="text-primary mb-1">
-                                    <i class="fas fa-stethoscope me-2"></i>MCSTUFFIN's Clinic
-                                </h4>
-                                <p class="text-muted mb-0">Prescription Details</p>
+                        <style>
+                            @import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Libre+Baskerville:wght@700&display=swap');
+                            .rx-paper { background:#fff; padding:28px 28px 18px; border:1px solid #e0e0e0; border-radius:6px; box-shadow: 0 5px 18px rgba(0,0,0,0.06); position:relative; }
+                            .rx-header { text-align:center; margin-bottom:14px; }
+                            .rx-header .title { font-family:'Libre Baskerville', serif; font-weight:700; letter-spacing:0.5px; }
+                            .rx-meta { font-size:13px; color:#6c757d; }
+                            .rx-row { display:flex; justify-content:space-between; margin:8px 0 14px; font-size:15px; }
+                            .rx-line { display:flex; gap:14px; }
+                            .rx-underline { min-width:220px; border-bottom:1px solid #adb5bd; padding:0 6px; }
+                            .rx-underline.small { min-width:80px; }
+                            .rx-mark { font-size:48px; font-weight:700; font-family: Georgia, 'Times New Roman', Times, serif; line-height:1; margin:6px 0 10px; }
+                            .rx-hand { white-space:pre-wrap; font-family:inherit; font-size:18px; line-height:1.6; color:#0d3a66; margin:6px 0 18px; }
+                            .rx-notes { font-family:inherit; font-size:18px; color:#0d3a66; margin-top:6px; }
+                            .rx-footer { margin-top:22px; display:flex; justify-content:flex-end; }
+                            .rx-sign-wrap { width:260px; }
+                            .rx-sign { height:38px; width:100%; border-bottom:1px solid #adb5bd; display:flex; align-items:flex-end; justify-content:center; }
+                            .rx-sign-name { font-weight:600; color:#0d3a66; padding-bottom:2px; }
+                            .rx-small { font-size:12px; color:#6c757d; text-align:center; }
+                        </style>
+                        <div class="rx-paper">
+                            <div class="rx-header">
+                                <div class="title">MCSTUFFIN's Clinic</div>
+                                <div class="rx-meta">Prescription</div>
                             </div>
-
-                            <!-- Patient & Doctor Info -->
-                            <div class="row mb-4">
-                                <div class="col-md-6">
-                                    <h6 class="text-primary">Patient Information</h6>
-                                    <p class="mb-1"><strong>Name:</strong> ${data.consultation.patient_name}</p>
-                                    <p class="mb-0"><strong>Date:</strong> ${data.consultation.appointment_date}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6 class="text-primary">Doctor Information</h6>
-                                    <p class="mb-1"><strong>Name:</strong> ${data.consultation.doctor_name}</p>
-                                    <p class="mb-1"><strong>Specialization:</strong> ${data.consultation.specialization_name || 'General'}</p>
-                                    <p class="mb-0"><strong>Diagnosis:</strong> ${data.consultation.diagnosis}</p>
-                                </div>
+                            <div class="rx-row">
+                                <div class="rx-line"><div>NAME</div><div class="rx-underline">${data.consultation.patient_name || ''}</div></div>
+                                <div class="rx-line"><div>AGE</div><div class="rx-underline small">${ageStr || ''}</div></div>
+                                <div class="rx-line"><div>DATE</div><div class="rx-underline small">${data.consultation.appointment_date || ''}</div></div>
                             </div>
-
-                            <!-- Consultation Notes -->
-                            ${data.consultation.consultation_notes ? `
-                            <div class="mb-4">
-                                <h6 class="text-primary">Consultation Notes</h6>
-                                <p class="text-muted">${data.consultation.consultation_notes}</p>
+                            <div class="rx-row" style="margin-top:-6px;">
+                                <div class="rx-line"><div>ADDRESS</div><div class="rx-underline">${addressStr || ''}</div></div>
                             </div>
-                            ` : ''}
-
-                            <!-- Prescriptions -->
-                            ${prescriptionsHtml}
-
-                            <!-- Lab Requests -->
-                            ${labRequestsHtml}
-
-                            <!-- Total Cost -->
-                            <div class="row justify-content-center">
-                                <div class="col-md-8">
-                                    <div class="alert alert-success text-center">
-                                        <h5 class="mb-0">
-                                            <i class="fas fa-receipt me-2"></i>
-                                            <strong>Total Cost: ₱${totalCost.toFixed(2)}</strong>
-                                        </h5>
-                                    </div>
+                            <div class="rx-mark">Rx</div>
+                            <div class="rx-hand">${rxLines || ''}</div>
+                            ${data.consultation.consultation_notes ? `<div class="rx-notes">Notes: ${data.consultation.consultation_notes}</div>` : ''}
+                            <div class="rx-footer">
+                                <div class="rx-sign-wrap">
+                                    <div class="rx-sign"><span class="rx-sign-name">${data.consultation.doctor_name ? 'Dr. ' + data.consultation.doctor_name : ''}</span></div>
+                                    <div class="rx-small">Doctor's signature</div>
                                 </div>
                             </div>
-
-                            <!-- Follow-up Information -->
-                            ${data.consultation.next_appointment_date ? `
-                            <div class="mt-4 pt-3 border-top">
-                                <h6 class="text-primary">Follow-up Information</h6>
-                                <p class="mb-1"><strong>Next Appointment:</strong> ${data.consultation.next_appointment_date}</p>
-                                ${data.consultation.next_appointment_notes ? `<p class="mb-0"><strong>Notes:</strong> ${data.consultation.next_appointment_notes}</p>` : ''}
-                            </div>
-                            ` : ''}
                         </div>
+                        ${labRequestsHtml}
+                        <div class="mt-3 text-center small text-muted">Total Cost (for reference): ₱${totalCost.toFixed(2)}</div>
                     `;
                 }
 
@@ -401,22 +428,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let prescriptionsHtml = '';
         if (receipt.prescriptions && receipt.prescriptions.length > 0) {
-            prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered">';
-            prescriptionsHtml += '<thead class="table-light"><tr><th>Medicine</th><th>Quantity</th><th>Unit Price</th><th>Total Cost</th></tr></thead><tbody>';
+            prescriptionsHtml = '<div class="table-responsive"><table class="table table-sm table-bordered align-middle">';
+            prescriptionsHtml += '<thead class="table-light"><tr>' +
+              '<th style="min-width:220px">Medicine</th>' +
+              '<th>Strength</th>' +
+              '<th>Form</th>' +
+              '<th>Sig (Dosage & Frequency)</th>' +
+              '<th>Duration</th>' +
+              '<th>Qty</th>' +
+              '<th>Unit Price</th>' +
+              '<th>Total</th>' +
+            '</tr></thead><tbody>';
             receipt.prescriptions.forEach(p => {
                 const packagingName = p.packaging_name || p.packaging_unit || 'unit';
                 const quantityDisplay = `${p.quantity || 1} ${packagingName}`;
+                const strength = p.strength || p.dosage || '';
+                const form = p.form || '';
+                const sig = p.sig || p.frequency || p.instructions || '-';
 
                 // Prefer backend-provided unit and total
                 const unitPrice = parseFloat((p.unit_price !== undefined ? p.unit_price : p.price) || 0);
                 const totalCost = parseFloat((p.total_cost !== undefined ? p.total_cost : 0) || 0) || (unitPrice * (parseInt(p.quantity || 1)));
 
                 prescriptionsHtml += `<tr>
-                    <td><strong>${p.generic_name}</strong></td>
+                    <td><strong>${p.brand_name || p.generic_name}</strong><div class="text-muted small">${p.generic_name || ''}</div></td>
+                    <td>${strength || '-'}</td>
+                    <td>${form || '-'}</td>
+                    <td>${sig}</td>
+                    <td>${p.duration || '-'}</td>
                     <td>${quantityDisplay}</td>
-                    <td>₱${unitPrice.toFixed(2)} per unit</td>
+                    <td>₱${unitPrice.toFixed(2)}</td>
                     <td class="fw-bold">₱${totalCost.toFixed(2)}</td>
                 </tr>`;
+                if (p.instructions && p.instructions !== sig) {
+                    prescriptionsHtml += `<tr>
+                        <td colspan="8" class="text-muted"><em>Instructions:</em> ${p.instructions}</td>
+                    </tr>`;
+                }
             });
             prescriptionsHtml += '</tbody></table></div>';
         }
@@ -470,7 +518,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- Prescriptions -->
                 ${receipt.prescriptions && receipt.prescriptions.length > 0 ? `
                 <div class="mb-4">
-                    <h6 class="text-primary">Prescribed Medications</h6>
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="me-2 display-6" style="line-height:1">℞</div>
+                        <h6 class="text-primary mb-0">Prescribed Medications</h6>
+                    </div>
                     ${prescriptionsHtml}
                 </div>
                 ` : ''}
@@ -500,9 +551,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <!-- Footer -->
-                <div class="text-center mt-4 pt-3 border-top">
-                    <p class="text-muted mb-1">Generated on: ${receipt.generated_date}</p>
-                    <p class="text-muted mb-0">Thank you for choosing MCSTUFFIN's Clinic</p>
+                <div class="mt-4 pt-3 border-top">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="small text-muted mb-1">Doctor's Signature</div>
+                            <div style="height:42px;border-bottom:1px solid #dee2e6"></div>
+                            <div class="small mt-1">${receipt.doctor_name}${receipt.specialization ? `, ${receipt.specialization}` : ''}</div>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <p class="text-muted mb-1">Generated on: ${receipt.generated_date}</p>
+                            <p class="text-muted mb-0">Thank you for choosing MCSTUFFIN's Clinic</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
