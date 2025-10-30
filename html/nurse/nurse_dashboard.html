@@ -64,7 +64,7 @@
                     </div>
                 </div>
 
-               
+
 
                 <!-- Queue Status Cards -->
                 <div class="row mb-4">
@@ -242,8 +242,13 @@
                         <div class="row g-3">
                             <div class="col-12">
                                 <label class="form-label">Chief Complaint <span class="text-danger">*</span></label>
-                                <textarea class="form-control" name="chief_complaint" rows="2" placeholder="Primary reason for visit..." required></textarea>
+                                <textarea class="form-control" id="chief_complaint" name="chief_complaint" rows="2" placeholder="Primary reason for visit..." readonly required></textarea>
+
                                 <div class="invalid-feedback">Please provide the patient's chief complaint.</div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Additional Notes</label>
+                                <textarea class="form-control" id="appointment_additional_notes" rows="2" placeholder="Additional notes from booking..." readonly></textarea>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Past Medical History</label>
@@ -301,6 +306,6 @@
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="../../js/nurse_enhanced_dashboard.js" defer></script>
+    <script src="../../js/nurse_enhanced_dashboard.js?v=20251030-1" defer></script>
 </body>
 </html>

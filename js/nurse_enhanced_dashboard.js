@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('nurse_enhanced_dashboard.js version 20251030-1 loaded');
     const baseApiUrl = sessionStorage.getItem('baseAPIUrl') || 'http://localhost/clinic_recording/api';
     const user = JSON.parse(sessionStorage.getItem('user') || '{}');
 
@@ -195,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `);
         } else if (appointment.appointment_status === 'With Nurse') {
             actions.push(`
-                <button class="btn btn-sm btn-primary me-1" onclick="openNurseAssessment(${appointment.appointment_id}, '${appointment.patient_name}', '${appointment.patient_contact || ''}')" title="Record vitals and medical history">
+                <button class="btn btn-sm btn-primary me-1" onclick="openNurseAssessment(${appointment.appointment_id}, '${appointment.patient_name}', '${appointment.patient_contact || ''}', '${encodeURIComponent(appointment.appointment_reason || '')}')" title="Record vitals and medical history">
                     <i class="fas fa-heartbeat"></i> Record Vitals & History
                 </button>
             `);
@@ -288,8 +289,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Open nurse assessment modal
-    window.openNurseAssessment = function(appointmentId, patientName, patientContact) {
-        console.log('Opening nurse assessment for appointment:', appointmentId, 'with nurse ID:', nurseId);
+    window.openNurseAssessment = function(appointmentId, patientName, patientContact, encodedReasonText) {
+        console.log('Opening nurse assessment for appointment:', appointmentId, 'with nurse ID:', nurseId, 'encodedReason:', encodedReasonText);
 
         // Clear form first
         nurseAssessmentForm.reset();
@@ -302,6 +303,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const modal = new bootstrap.Modal(document.getElementById('nurseAssessmentModal'));
         modal.show();
+
+        // Immediate prefill from queue data if provided
+        const ccElInitial = document.getElementById('chief_complaint');
+        if (ccElInitial) {
+            const decodedReason = encodedReasonText ? decodeURIComponent(encodedReasonText) : '';
+            console.log('Prefill decoded reason:', decodedReason);
+            if (decodedReason) {
+                ccElInitial.value = `Reason: ${decodedReason}`;
+            } else {
+                ccElInitial.value = '';
+            }
+            ccElInitial.setAttribute('readonly', 'readonly');
+        }
+
+        // Auto-fill Chief Complaint (reason) and Additional Notes (notes)
+        // and keep them read-only so nurse doesn't need to retype
+        (async () => {
+            try {
+                const resp = await axios.get(`${baseApiUrl}/appointments.php`, {
+                    params: {
+                        operation: 'get_appointment_details',
+                        appointment_id: appointmentId
+                    }
+                });
+                console.log('Appointment details for chief complaint:', resp?.data);
+                const appt = resp?.data?.data || null;
+                const ccEl = document.getElementById('chief_complaint');
+                const notesEl = document.getElementById('appointment_additional_notes');
+                if (ccEl) {
+                    let reason = appt?.reason_name || appt?.reason_description || '';
+                    let notes = appt?.appointment_notes || '';
+                    // Keep chief complaint strictly as reason; preserve prefill if API has no reason
+                    ccEl.value = reason ? `Reason: ${reason}` : (ccEl.value || '');
+                    // Ensure read-only remains enforced
+                    ccEl.setAttribute('readonly', 'readonly');
+                    // Set additional notes separately
+                    if (notesEl) {
+                        notesEl.value = notes || '';
+                        notesEl.setAttribute('readonly', 'readonly');
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load appointment details for chief complaint:', e);
+            }
+        })();
 
         // Ensure form is properly initialized
         setTimeout(() => {

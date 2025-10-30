@@ -37,4 +37,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Safety: initial sync in case markup already had the class set
   syncAndSave();
+
+  // Keep sidebar fixed: prevent outside-click closers on patient pages when open
+  // Use capture phase to stop other bubbling document click handlers from closing it
+  document.addEventListener('click', (event) => {
+    try {
+      const savedState = localStorage.getItem('patientSidebarOpen');
+      const isOpen = savedState === '1' || sidebar.classList.contains('show');
+      const toggleBtn = document.getElementById('sidebarToggle');
+      if (!isOpen) return;
+      const target = event.target;
+      if (!sidebar.contains(target) && !(toggleBtn && toggleBtn.contains(target))) {
+        event.stopPropagation();
+      }
+    } catch (_) {}
+  }, true);
 });
